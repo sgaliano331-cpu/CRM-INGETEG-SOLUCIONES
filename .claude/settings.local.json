@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run *)",
+      "Bash(curl -s -o /dev/null -w \"Frontend 5173: %{http_code}\\\\n\" http://localhost:5173)",
+      "Bash(curl -s -o /dev/null -w \"Backend 3001: %{http_code}\\\\n\" http://localhost:3001)",
+      "Bash(lsof -ti:5174)",
+      "Bash(xargs kill)",
+      "Bash(curl -s \"http://localhost:5173/src/pages/Marcacion.jsx\")",
+      "Bash(node -e \"const s=require\\('sqlite3'\\);const d=new s.Database\\('./ingeteg_crm.db'\\);d.all\\(\\\\\"SELECT estado_servicio, metodo_pago, COUNT\\(*\\) n, SUM\\(costo_cop\\) total FROM agendamientos GROUP BY estado_servicio, metodo_pago\\\\\",\\(e,r\\)=>{if\\(e\\)console.log\\(e.message\\);else console.table\\(r\\);d.close\\(\\);}\\);\")",
+      "Bash(node -e ' *)",
+      "Bash(lsof -ti:3001)",
+      "Bash(npm start *)",
+      "Bash(curl -s -o /dev/null -w \"Backend 3001: %{http_code}\\\\n\" http://localhost:3001/api/llamadas/pendientes-cobro)",
+      "Bash(node -e \"const s=require\\('sqlite3'\\);const d=new s.Database\\('./server/ingeteg_crm.db'\\);d.all\\('SELECT id,nombre,usuario,rol FROM usuarios',\\(e,r\\)=>{e?console.log\\(e.message\\):console.table\\(r\\);d.close\\(\\);}\\);\")",
+      "Bash(node -e \"const s=require\\('sqlite3'\\);const d=new s.Database\\('./server/ingeteg_crm.db'\\);d.all\\('SELECT id,nombre,username,rol FROM usuarios',\\(e,r\\)=>{e?console.log\\(e.message\\):console.table\\(r\\);d.close\\(\\);}\\);\")",
+      "Bash(curl -s -o /dev/null -w \"metas-asesora: %{http_code}\\\\n\" http://localhost:3001/api/dashboard/metas-asesora)"
+    ]
+  }
+}
