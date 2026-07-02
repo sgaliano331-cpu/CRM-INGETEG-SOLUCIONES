@@ -32,6 +32,82 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// ─── Import masivo (temporal para migración) ─────────────────────────────
+app.post('/api/import-data', express.json({ limit: '50mb' }), (req, res) => {
+  const secret = req.headers['x-import-secret'];
+  if (secret !== 'INGETEG_MIGRATE_2024') return res.status(403).json({ error: 'No autorizado' });
+
+  const { getDb } = require('./db');
+  const db = getDb();
+  const data = req.body;
+  const bcrypt = require('bcryptjs');
+
+  db.serialize(() => {
+    db.run("BEGIN TRANSACTION");
+
+    // Limpiar tablas en orden inverso de dependencias
+    ['cotizaciones','llamadas_reprogramadas','descansos','agendamientos','historial_llamadas','clientes','usuarios'].forEach(t => {
+      db.run('DELETE FROM ' + t);
+    });
+
+    // Insertar usuarios
+    if (data.usuarios) {
+      const stmt = db.prepare('INSERT INTO usuarios (id, username, password_hash, nombre, rol, activo, creado_en) VALUES (?,?,?,?,?,?,?)');
+      data.usuarios.forEach(u => stmt.run([u.id, u.username, u.password_hash, u.nombre, u.rol, u.activo, u.creado_en]));
+      stmt.finalize();
+    }
+
+    // Insertar clientes
+    if (data.clientes) {
+      const stmt = db.prepare('INSERT INTO clientes (id, nombre, telefono, direccion, barrio, ciudad, asignado_a, posicion_cola, prioridad, llamado, creado_en, actualizado_en) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)');
+      data.clientes.forEach(c => stmt.run([c.id, c.nombre, c.telefono, c.direccion, c.barrio, c.ciudad, c.asignado_a, c.posicion_cola, c.prioridad, c.llamado, c.creado_en, c.actualizado_en]));
+      stmt.finalize();
+    }
+
+    // Insertar historial_llamadas
+    if (data.historial_llamadas) {
+      const stmt = db.prepare('INSERT INTO historial_llamadas (id, cliente_id, usuario_id, inicio_llamada, fin_llamada, duracion_segundos, observaciones, acepto_servicio, creado_en) VALUES (?,?,?,?,?,?,?,?,?)');
+      data.historial_llamadas.forEach(h => stmt.run([h.id, h.cliente_id, h.usuario_id, h.inicio_llamada, h.fin_llamada, h.duracion_segundos, h.observaciones, h.acepto_servicio, h.creado_en]));
+      stmt.finalize();
+    }
+
+    // Insertar agendamientos
+    if (data.agendamientos) {
+      const stmt = db.prepare('INSERT INTO agendamientos (id, historial_id, cliente_id, usuario_id, equipos, tipo_servicio, fecha_agendamiento, costo_cop, estado_servicio, metodo_pago, observaciones_tecnica, comprobante_pago_url, creado_en, actualizado_en, id_servicio, tecnico, fecha_atencion) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
+      data.agendamientos.forEach(a => stmt.run([a.id, a.historial_id, a.cliente_id, a.usuario_id, a.equipos, a.tipo_servicio, a.fecha_agendamiento, a.costo_cop, a.estado_servicio, a.metodo_pago, a.observaciones_tecnica, a.comprobante_pago_url, a.creado_en, a.actualizado_en, a.id_servicio||null, a.tecnico||null, a.fecha_atencion||null]));
+      stmt.finalize();
+    }
+
+    // Insertar descansos
+    if (data.descansos) {
+      const stmt = db.prepare('INSERT INTO descansos (id, usuario_id, tipo, salida, entrada, duracion_minutos, creado_en) VALUES (?,?,?,?,?,?,?)');
+      data.descansos.forEach(d => stmt.run([d.id, d.usuario_id, d.tipo, d.salida, d.entrada, d.duracion_minutos, d.creado_en]));
+      stmt.finalize();
+    }
+
+    // Insertar cotizaciones
+    if (data.cotizaciones) {
+      const stmt = db.prepare('INSERT INTO cotizaciones (id, agendamiento_id, cliente_id, asesora_id, gestor_id, valor_cotizacion, observacion_gestor, observacion_asesora, estado, llamado, creado_en) VALUES (?,?,?,?,?,?,?,?,?,?,?)');
+      data.cotizaciones.forEach(c => stmt.run([c.id, c.agendamiento_id, c.cliente_id, c.asesora_id, c.gestor_id, c.valor_cotizacion, c.observacion_gestor, c.observacion_asesora, c.estado, c.llamado, c.creado_en]));
+      stmt.finalize();
+    }
+
+    // Insertar llamadas_reprogramadas
+    if (data.llamadas_reprogramadas) {
+      const stmt = db.prepare('INSERT INTO llamadas_reprogramadas (id, cliente_id, agendamiento_id, usuario_id, fecha_reprogramacion, hora_reprogramacion, motivo, estado, creado_en) VALUES (?,?,?,?,?,?,?,?,?)');
+      data.llamadas_reprogramadas.forEach(r => stmt.run([r.id, r.cliente_id, r.agendamiento_id, r.usuario_id, r.fecha_reprogramacion, r.hora_reprogramacion, r.motivo, r.estado, r.creado_en]));
+      stmt.finalize();
+    }
+
+    db.run("COMMIT", (err) => {
+      if (err) return res.status(500).json({ error: err.message });
+      const counts = {};
+      Object.keys(data).forEach(k => counts[k] = data[k].length);
+      res.json({ ok: true, imported: counts });
+    });
+  });
+});
+
 // ─── SPA Fallback ────────────────────────────────────────────────────────
 app.get('*', (req, res) => {
   res.sendFile(path.join(clientDist, 'index.html'));
