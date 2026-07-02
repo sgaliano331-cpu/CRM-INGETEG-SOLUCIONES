@@ -45,8 +45,29 @@ app.use((err, req, res, next) => {
 
 app.listen(PORT, () => {
   console.log(`\nCRM INGETEG Server corriendo en http://localhost:${PORT}`);
-  console.log(`Dashboard API: http://localhost:${PORT}/api/dashboard/resumen`);
-  console.log(`\nEjecuta "node seed.js" si es la primera vez que inicia el sistema.\n`);
+
+  const { getDb } = require('./db');
+  const db = getDb();
+  db.get("SELECT COUNT(*) as cnt FROM usuarios", [], (err, row) => {
+    if (!err && row && row.cnt === 0) {
+      console.log('Base de datos vacia, creando usuarios iniciales...');
+      const bcrypt = require('bcryptjs');
+      const usuarios = [
+        { username: 'coordinador', password: 'Ingeteg2024!', nombre: 'Coordinador Comercial', rol: 'COORDINADOR' },
+        { username: 'gestor', password: 'Gestor01!', nombre: 'Gestor de Servicios', rol: 'GESTOR' },
+        { username: 'asesora1', password: 'Asesora01!', nombre: 'Kelly Escobar', rol: 'ASESORA' },
+        { username: 'asesora2', password: 'Asesora02!', nombre: 'Yesica Nunez', rol: 'ASESORA' },
+        { username: 'asesora3', password: 'Asesora03!', nombre: 'Jessica Rivera', rol: 'ASESORA' },
+        { username: 'asesora4', password: 'Asesora04!', nombre: 'Asesora Comercial 4', rol: 'ASESORA' },
+      ];
+      usuarios.forEach(u => {
+        const hash = bcrypt.hashSync(u.password, 10);
+        db.run("INSERT OR IGNORE INTO usuarios (username, password_hash, nombre, rol) VALUES (?, ?, ?, ?)",
+          [u.username, hash, u.nombre, u.rol]);
+      });
+      console.log('Usuarios creados exitosamente.');
+    }
+  });
 });
 
 module.exports = app;
