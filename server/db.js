@@ -1,146 +1,80 @@
-const sqlite3 = require('sqlite3').verbose();
-const path = require('path');
+const { Pool } = require('pg');
 const fs = require('fs');
+const path = require('path');
 
-const DATA_DIR = process.env.DATA_DIR || path.join(__dirname);
-if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-const DB_PATH = path.join(DATA_DIR, 'ingeteg_crm.db');
-const SCHEMA_PATH = path.join(__dirname, 'schema.sql');
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.DATABASE_URL && process.env.DATABASE_URL.includes('railway')
+    ? { rejectUnauthorized: false }
+    : false,
+});
 
-let db;
+pool.on('connect', () => {
+  console.log('Conexión establecida con PostgreSQL');
+});
 
-function getDb() {
-  if (!db) {
-    // 1. Abrimos la conexión e inmediatamente inyectamos los parámetros de mitigación de bloqueo
-    db = new sqlite3.Database(DB_PATH, sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE, (err) => {
-      if (err) {
-        console.error('Error crítico al abrir la base de datos:', err.message);
-      } else {
-        console.log('Conexión nativa establecida con ingeteg_crm.db');
-      }
-    });
+pool.on('error', (err) => {
+  console.error('Error inesperado en el pool de PostgreSQL:', err.message);
+});
 
-    // 2. BLINDAJE ULTRA: Obligamos a SQLite a esperar hasta 10 segundos en operaciones simultáneas
-    db.configure("busyTimeout", 10000);
-
-    // 3. Activamos el modo WAL (Write-Ahead Logging)
-    // Esto permite que las asesoras LEAN datos al mismo tiempo que otras ESCRIBEN sin bloquearse.
-    db.run('PRAGMA journal_mode = WAL;');
-    db.run('PRAGMA foreign_keys = ON;');
-
-    // 4. Inicializar el esquema de forma segura y una sola vez
-    try {
-      if (fs.existsSync(SCHEMA_PATH)) {
-        const schema = fs.readFileSync(SCHEMA_PATH, 'utf8');
-        db.exec(schema, (errExec) => {
-          if (errExec) {
-            console.error('Aviso de Schema (Ya existente o error):', errExec.message);
-          } else {
-            console.log('Tablas del esquema verificadas correctamente.');
-          }
-        });
-      }
-    } catch (error) {
-      console.error('Error al verificar el archivo schema.sql:', error.message);
-    }
-
-    // 5. Migraciones incrementales
-    db.run("ALTER TABLE clientes ADD COLUMN prioridad INTEGER NOT NULL DEFAULT 0", (err) => {
-      if (err && !err.message.includes('duplicate column')) {
-        console.error('Error en migración prioridad:', err.message);
-      }
-    });
-    db.run("ALTER TABLE agendamientos ADD COLUMN observaciones_tecnica TEXT", (err) => {
-      if (err && !err.message.includes('duplicate column')) {
-        console.error('Error en migración observaciones_tecnica:', err.message);
-      }
-    });
-    db.run("ALTER TABLE agendamientos ADD COLUMN id_servicio TEXT", (err) => {
-      if (err && !err.message.includes('duplicate column')) {
-        console.error('Error en migración id_servicio:', err.message);
-      }
-    });
-    db.run("ALTER TABLE agendamientos ADD COLUMN tecnico TEXT", (err) => {
-      if (err && !err.message.includes('duplicate column')) {
-        console.error('Error en migración tecnico:', err.message);
-      }
-    });
-    db.run("ALTER TABLE agendamientos ADD COLUMN fecha_atencion TEXT", (err) => {
-      if (err && !err.message.includes('duplicate column')) {
-        console.error('Error en migración fecha_atencion:', err.message);
-      }
-    });
-
-    db.serialize(() => {
-      db.get("SELECT sql FROM sqlite_master WHERE type='table' AND name='usuarios'", (err, row) => {
-        if (err || !row) return;
-        if (row.sql.includes("'GESTOR'")) return;
-        db.run("PRAGMA writable_schema = ON");
-        db.run(`UPDATE sqlite_master SET sql = REPLACE(sql,
-          'CHECK(rol IN (''COORDINADOR'',''ASESORA''))',
-          'CHECK(rol IN (''COORDINADOR'',''ASESORA'',''GESTOR''))')
-          WHERE type='table' AND name='usuarios'`);
-        db.run(`UPDATE sqlite_master SET sql = REPLACE(sql,
-          'CHECK(rol IN (''COORDINADOR'', ''ASESORA''))',
-          'CHECK(rol IN (''COORDINADOR'', ''ASESORA'', ''GESTOR''))')
-          WHERE type='table' AND name='usuarios'`);
-        db.run("PRAGMA writable_schema = OFF");
-        db.run("PRAGMA integrity_check", (errI) => {
-          if (errI) console.error('Integrity check warning:', errI.message);
-        });
-        console.log('Migración: CHECK constraint de usuarios actualizado para incluir GESTOR');
-      });
-    });
-
-    db.run(`CREATE TABLE IF NOT EXISTS cotizaciones (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      agendamiento_id INTEGER NOT NULL REFERENCES agendamientos(id),
-      cliente_id INTEGER NOT NULL REFERENCES clientes(id),
-      asesora_id INTEGER NOT NULL REFERENCES usuarios(id),
-      gestor_id INTEGER NOT NULL REFERENCES usuarios(id),
-      valor_cotizacion REAL NOT NULL DEFAULT 0,
-      observacion_gestor TEXT,
-      observacion_asesora TEXT,
-      estado TEXT NOT NULL DEFAULT 'pendiente' CHECK(estado IN ('pendiente','agendado','piensa','rechazado')),
-      llamado INTEGER NOT NULL DEFAULT 0,
-      creado_en TEXT NOT NULL DEFAULT (datetime('now'))
-    )`, (err) => {
-      if (err && !err.message.includes('already exists')) {
-        console.error('Error creando tabla cotizaciones:', err.message);
-      }
-    });
-
-    db.run(`CREATE TABLE IF NOT EXISTS descansos (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      usuario_id INTEGER NOT NULL REFERENCES usuarios(id),
-      tipo TEXT NOT NULL CHECK(tipo IN ('Almuerzo','Desayuno','Pausa Activa')),
-      salida TEXT NOT NULL,
-      entrada TEXT,
-      duracion_minutos REAL,
-      creado_en TEXT NOT NULL DEFAULT (datetime('now'))
-    )`, (err) => {
-      if (err && !err.message.includes('already exists')) {
-        console.error('Error creando tabla descansos:', err.message);
-      }
-    });
-
-    db.run(`CREATE TABLE IF NOT EXISTS llamadas_reprogramadas (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      cliente_id INTEGER NOT NULL REFERENCES clientes(id),
-      agendamiento_id INTEGER REFERENCES agendamientos(id),
-      usuario_id INTEGER NOT NULL REFERENCES usuarios(id),
-      fecha_reprogramacion TEXT NOT NULL,
-      hora_reprogramacion TEXT NOT NULL,
-      motivo TEXT,
-      estado TEXT NOT NULL DEFAULT 'pendiente' CHECK(estado IN ('pendiente','completada')),
-      creado_en TEXT NOT NULL DEFAULT (datetime('now'))
-    )`, (err) => {
-      if (err && !err.message.includes('already exists')) {
-        console.error('Error creando tabla llamadas_reprogramadas:', err.message);
-      }
-    });
-  }
-  return db;
+function convertPlaceholders(sql) {
+  let i = 0;
+  return sql.replace(/\?/g, () => `$${++i}`);
 }
 
-module.exports = { getDb };
+function getDb() {
+  return {
+    get(sql, params, callback) {
+      pool.query(convertPlaceholders(sql), params)
+        .then(result => callback(null, result.rows[0] || undefined))
+        .catch(err => callback(err));
+    },
+    all(sql, params, callback) {
+      pool.query(convertPlaceholders(sql), params)
+        .then(result => callback(null, result.rows))
+        .catch(err => callback(err));
+    },
+    run(sql, params, callback) {
+      const pgSql = convertPlaceholders(sql);
+      const isInsert = /^\s*INSERT/i.test(sql);
+      const finalSql = isInsert && !/RETURNING/i.test(pgSql) ? pgSql + ' RETURNING id' : pgSql;
+
+      pool.query(finalSql, params)
+        .then(result => {
+          const ctx = {
+            lastID: isInsert && result.rows[0] ? result.rows[0].id : null,
+            changes: result.rowCount,
+          };
+          if (typeof callback === 'function') callback.call(ctx, null);
+        })
+        .catch(err => {
+          if (typeof callback === 'function') callback.call({}, err);
+        });
+    },
+  };
+}
+
+async function getClient() {
+  return pool.connect();
+}
+
+async function initializeDb() {
+  const schemaPath = path.join(__dirname, 'schema.sql');
+  try {
+    if (fs.existsSync(schemaPath)) {
+      const schema = fs.readFileSync(schemaPath, 'utf8');
+      await pool.query(schema);
+      console.log('Tablas del esquema verificadas correctamente.');
+    }
+  } catch (err) {
+    if (err.message && err.message.includes('already exists')) {
+      console.log('Tablas ya existen, continuando...');
+    } else {
+      console.error('Error en schema:', err.message);
+    }
+  }
+}
+
+initializeDb();
+
+module.exports = { getDb, getClient, pool };

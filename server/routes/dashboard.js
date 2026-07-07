@@ -9,17 +9,17 @@ router.get('/resumen', authMiddleware, soloCoordinador, (req, res) => {
 
   // Ejecución en cascada nativa para evitar colisiones
   db.all(`
-    SELECT strftime('%H', creado_en) AS hora, COUNT(*) AS total
+    SELECT TO_CHAR(creado_en, 'HH24') AS hora, COUNT(*) AS total
     FROM agendamientos
-    WHERE creado_en >= date('now', '-5 hours', '-30 days')
+    WHERE creado_en >= NOW() - INTERVAL '30 days'
     GROUP BY hora ORDER BY hora
   `, [], (err, porHora) => {
     if (err) return res.status(500).json({ error: err.message });
 
     db.all(`
-      SELECT strftime('%w', creado_en) AS dia_semana, COUNT(*) AS total
+      SELECT EXTRACT(DOW FROM creado_en)::text AS dia_semana, COUNT(*) AS total
       FROM agendamientos
-      WHERE creado_en >= date('now', '-5 hours', '-30 days')
+      WHERE creado_en >= NOW() - INTERVAL '30 days'
       GROUP BY dia_semana ORDER BY dia_semana
     `, [], (err2, porDia) => {
       if (err2) return res.status(500).json({ error: err2.message });
@@ -41,8 +41,8 @@ router.get('/resumen', authMiddleware, soloCoordinador, (req, res) => {
             SUM(CASE WHEN a.estado_servicio != 'Cancelado por el cliente' AND a.metodo_pago != 'Pendiente por cobro' THEN a.costo_cop ELSE 0 END) AS ejecutado_mes
           FROM agendamientos a
           JOIN usuarios u ON a.usuario_id = u.id
-          WHERE strftime('%Y-%m', a.creado_en) = strftime('%Y-%m', 'now', '-5 hours')
-          GROUP BY a.usuario_id
+          WHERE TO_CHAR(a.creado_en, 'YYYY-MM') = TO_CHAR(NOW(), 'YYYY-MM')
+          GROUP BY a.usuario_id, u.nombre
         `, [], (err4, metasMes) => {
           if (err4) return res.status(500).json({ error: err4.message });
 
@@ -82,11 +82,11 @@ router.get('/auditoria', authMiddleware, soloCoordinador, (req, res) => {
     params.push(asesora_id);
   }
   if (fecha_desde) {
-    where += ' AND date(hl.creado_en) >= ?';
+    where += ' AND hl.creado_en::date >= ?';
     params.push(fecha_desde);
   }
   if (fecha_hasta) {
-    where += ' AND date(hl.creado_en) <= ?';
+    where += ' AND hl.creado_en::date <= ?';
     params.push(fecha_hasta);
   }
 
@@ -149,7 +149,7 @@ router.get('/metas-asesora', authMiddleware, (req, res) => {
       WHERE ${scope}
         AND estado_servicio != 'Cancelado por el cliente'
         AND metodo_pago != 'Pendiente por cobro'
-        AND strftime('%Y-%m', creado_en) = strftime('%Y-%m', 'now', '-5 hours')
+        AND TO_CHAR(creado_en, 'YYYY-MM') = TO_CHAR(NOW(), 'YYYY-MM')
     `;
 
     db.get(queryMes, scopeParams, (err, mMes) => {
@@ -161,8 +161,8 @@ router.get('/metas-asesora', authMiddleware, (req, res) => {
         WHERE ${scope}
           AND estado_servicio != 'Cancelado por el cliente'
           AND metodo_pago != 'Pendiente por cobro'
-          AND date(creado_en) >= date('now', '-5 hours', 'weekday 0', '-7 days')
-          AND date(creado_en) <= date('now', '-5 hours', 'weekday 0')
+          AND creado_en::date >= (CURRENT_DATE - EXTRACT(DOW FROM CURRENT_DATE)::int)
+          AND creado_en::date <= (CURRENT_DATE - EXTRACT(DOW FROM CURRENT_DATE)::int + 7)
       `;
 
       db.get(querySemana, scopeParams, (err2, mSem) => {

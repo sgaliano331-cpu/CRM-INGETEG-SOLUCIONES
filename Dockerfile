@@ -1,6 +1,6 @@
 FROM ubuntu:24.04
 
-RUN apt-get update && apt-get install -y curl python3 make g++ sqlite3 && \
+RUN apt-get update && apt-get install -y curl && \
     curl -fsSL https://deb.nodesource.com/setup_18.x | bash - && \
     apt-get install -y nodejs && \
     rm -rf /var/lib/apt/lists/*
@@ -8,7 +8,7 @@ RUN apt-get update && apt-get install -y curl python3 make g++ sqlite3 && \
 WORKDIR /app
 
 COPY server/package*.json ./server/
-RUN cd server && npm install --build-from-source
+RUN cd server && npm install
 
 COPY client/package*.json ./client/
 RUN cd client && npm install

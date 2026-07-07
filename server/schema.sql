@@ -1,22 +1,20 @@
 -- =============================================================================
 -- SCHEMA SQL - CRM INGETEG SOLUCIONES
--- Compatible con PostgreSQL (producción) y SQLite (desarrollo local)
+-- Compatible con PostgreSQL
 -- =============================================================================
 
--- Tabla de Usuarios (Coordinador + Asesoras)
 CREATE TABLE IF NOT EXISTS usuarios (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  id SERIAL PRIMARY KEY,
   username TEXT NOT NULL UNIQUE,
   password_hash TEXT NOT NULL,
   nombre TEXT NOT NULL,
   rol TEXT NOT NULL CHECK(rol IN ('COORDINADOR', 'ASESORA', 'GESTOR')),
   activo INTEGER NOT NULL DEFAULT 1,
-  creado_en TEXT NOT NULL DEFAULT (datetime('now'))
+  creado_en TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Tabla de Clientes
 CREATE TABLE IF NOT EXISTS clientes (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  id SERIAL PRIMARY KEY,
   nombre TEXT NOT NULL,
   telefono TEXT,
   direccion TEXT,
@@ -26,26 +24,24 @@ CREATE TABLE IF NOT EXISTS clientes (
   posicion_cola INTEGER,
   prioridad INTEGER NOT NULL DEFAULT 0,
   llamado INTEGER NOT NULL DEFAULT 0,
-  creado_en TEXT NOT NULL DEFAULT (datetime('now')),
-  actualizado_en TEXT NOT NULL DEFAULT (datetime('now'))
+  creado_en TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  actualizado_en TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Tabla de Historial de Llamadas (incluye métricas de tiempo)
 CREATE TABLE IF NOT EXISTS historial_llamadas (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  id SERIAL PRIMARY KEY,
   cliente_id INTEGER NOT NULL REFERENCES clientes(id),
   usuario_id INTEGER NOT NULL REFERENCES usuarios(id),
-  inicio_llamada TEXT NOT NULL,
-  fin_llamada TEXT,
+  inicio_llamada TIMESTAMPTZ NOT NULL,
+  fin_llamada TIMESTAMPTZ,
   duracion_segundos INTEGER,
   observaciones TEXT,
   acepto_servicio INTEGER NOT NULL DEFAULT 0,
-  creado_en TEXT NOT NULL DEFAULT (datetime('now'))
+  creado_en TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Tabla de Agendamientos
 CREATE TABLE IF NOT EXISTS agendamientos (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  id SERIAL PRIMARY KEY,
   historial_id INTEGER NOT NULL REFERENCES historial_llamadas(id),
   cliente_id INTEGER NOT NULL REFERENCES clientes(id),
   usuario_id INTEGER NOT NULL REFERENCES usuarios(id),
@@ -56,16 +52,42 @@ CREATE TABLE IF NOT EXISTS agendamientos (
   estado_servicio TEXT NOT NULL DEFAULT 'Agendado'
     CHECK(estado_servicio IN ('Agendado','Cumplido','Pendiente por repuesto','Cancelado por el cliente')),
   metodo_pago TEXT
-    CHECK(metodo_pago IN ('Efectivo','Pendiente por cobro','Transferencia','Garantía', NULL)),
+    CHECK(metodo_pago IS NULL OR metodo_pago IN ('Efectivo','Pendiente por cobro','Transferencia','Garantía')),
   observaciones_tecnica TEXT,
   comprobante_pago_url TEXT,
-  creado_en TEXT NOT NULL DEFAULT (datetime('now')),
-  actualizado_en TEXT NOT NULL DEFAULT (datetime('now'))
+  id_servicio TEXT,
+  tecnico TEXT,
+  fecha_atencion TEXT,
+  creado_en TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  actualizado_en TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Tabla de Llamadas Reprogramadas
+CREATE TABLE IF NOT EXISTS cotizaciones (
+  id SERIAL PRIMARY KEY,
+  agendamiento_id INTEGER NOT NULL REFERENCES agendamientos(id),
+  cliente_id INTEGER NOT NULL REFERENCES clientes(id),
+  asesora_id INTEGER NOT NULL REFERENCES usuarios(id),
+  gestor_id INTEGER NOT NULL REFERENCES usuarios(id),
+  valor_cotizacion REAL NOT NULL DEFAULT 0,
+  observacion_gestor TEXT,
+  observacion_asesora TEXT,
+  estado TEXT NOT NULL DEFAULT 'pendiente' CHECK(estado IN ('pendiente','agendado','piensa','rechazado')),
+  llamado INTEGER NOT NULL DEFAULT 0,
+  creado_en TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS descansos (
+  id SERIAL PRIMARY KEY,
+  usuario_id INTEGER NOT NULL REFERENCES usuarios(id),
+  tipo TEXT NOT NULL CHECK(tipo IN ('Almuerzo','Desayuno','Pausa Activa')),
+  salida TIMESTAMPTZ NOT NULL,
+  entrada TIMESTAMPTZ,
+  duracion_minutos REAL,
+  creado_en TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS llamadas_reprogramadas (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  id SERIAL PRIMARY KEY,
   cliente_id INTEGER NOT NULL REFERENCES clientes(id),
   agendamiento_id INTEGER REFERENCES agendamientos(id),
   usuario_id INTEGER NOT NULL REFERENCES usuarios(id),
@@ -73,7 +95,7 @@ CREATE TABLE IF NOT EXISTS llamadas_reprogramadas (
   hora_reprogramacion TEXT NOT NULL,
   motivo TEXT,
   estado TEXT NOT NULL DEFAULT 'pendiente' CHECK(estado IN ('pendiente','completada')),
-  creado_en TEXT NOT NULL DEFAULT (datetime('now'))
+  creado_en TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- Índices para performance

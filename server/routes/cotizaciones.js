@@ -84,7 +84,7 @@ router.put('/:id/resultado', authMiddleware, (req, res) => {
           const { equipos, tipo_servicio, fecha_agendamiento, costo_cop } = agendamiento_data;
 
           db.run(
-            "UPDATE agendamientos SET estado_servicio = 'Cumplido', actualizado_en = datetime('now', '-5 hours') WHERE id = ?",
+            "UPDATE agendamientos SET estado_servicio = 'Cumplido', actualizado_en = NOW() WHERE id = ?",
             [cot.agendamiento_id],
             (errUpd) => {
               if (errUpd) console.error('Error marcando orden original como cumplida:', errUpd.message);
@@ -111,7 +111,7 @@ router.put('/:id/resultado', authMiddleware, (req, res) => {
           );
         } else if (estado === 'rechazado') {
           db.run(
-            "UPDATE agendamientos SET estado_servicio = 'Cumplido', actualizado_en = datetime('now', '-5 hours') WHERE id = ?",
+            "UPDATE agendamientos SET estado_servicio = 'Cumplido', actualizado_en = NOW() WHERE id = ?",
             [cot.agendamiento_id],
             () => res.json({ ok: true })
           );

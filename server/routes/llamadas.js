@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { getDb } = require('../db');
+const { getDb, getClient } = require('../db');
 const { authMiddleware, gestorOCoordinador } = require('../middleware/auth');
 const multer = require('multer');
 const path = require('path');
@@ -34,7 +34,7 @@ router.post('/iniciar', authMiddleware, (req, res) => {
 
   db.run(`
     INSERT INTO historial_llamadas (cliente_id, usuario_id, inicio_llamada, creado_en)
-    VALUES (?, ?, datetime('now', '-5 hours'), datetime('now', '-5 hours'))
+    VALUES (?, ?, NOW(), NOW())
   `, [cliente_id, req.user.id], function(err) {
     if (err) {
       console.error('Error al iniciar llamada:', err.message);
@@ -45,8 +45,7 @@ router.post('/iniciar', authMiddleware, (req, res) => {
 });
 
 // ─── POST /api/llamadas/guardar ───────────────────────────────────────────
-router.post('/guardar', authMiddleware, (req, res) => {
-  const db = getDb();
+router.post('/guardar', authMiddleware, async (req, res) => {
   const {
     historial_id,
     cliente_id,
@@ -63,62 +62,44 @@ router.post('/guardar', authMiddleware, (req, res) => {
     return res.status(400).json({ error: 'historial_id y observaciones son requeridos' });
   }
 
-  // Manejo secuencial nativo para simular la transacción de guardado de gestión
-  db.serialize(() => {
-    db.run("BEGIN TRANSACTION");
+  let client;
+  try {
+    client = await getClient();
+    await client.query('BEGIN');
 
     const inicio = new Date(inicio_llamada);
     const ahora = new Date();
     const duracionSeg = Math.round((ahora - inicio) / 1000);
 
-    // 1. Actualizar historial de llamada
-    db.run(`
-      UPDATE historial_llamadas SET
-        fin_llamada = datetime('now', '-5 hours'),
-        duracion_segundos = ?,
-        observaciones = ?,
-        acepto_servicio = ?
-      WHERE id = ?
-    `, [duracionSeg, observaciones, acepto_servicio ? 1 : 0, historial_id], function(err1) {
-      if (err1) {
-        db.run("ROLLBACK");
-        return res.status(500).json({ error: 'Error al actualizar historial' });
-      }
+    await client.query(
+      `UPDATE historial_llamadas SET fin_llamada = NOW(), duracion_segundos = $1, observaciones = $2, acepto_servicio = $3 WHERE id = $4`,
+      [duracionSeg, observaciones, acepto_servicio ? 1 : 0, historial_id]
+    );
 
-      // 2. Marcar cliente como llamado
-      db.run(`UPDATE clientes SET llamado = 1, actualizado_en = datetime('now', '-5 hours') WHERE id = ?`, [cliente_id], function(err2) {
-        if (err2) {
-          db.run("ROLLBACK");
-          return res.status(500).json({ error: 'Error al actualizar cliente' });
-        }
+    await client.query(
+      `UPDATE clientes SET llamado = 1, actualizado_en = NOW() WHERE id = $1`,
+      [cliente_id]
+    );
 
-        // 3. Evaluar si agendó servicio
-        if (acepto_servicio && equipos && tipo_servicio && fecha_agendamiento) {
-          db.run(`
-            INSERT INTO agendamientos (historial_id, cliente_id, usuario_id, equipos, tipo_servicio, fecha_agendamiento, costo_cop, estado_servicio, creado_en, actualizado_en)
-            VALUES (?, ?, ?, ?, ?, ?, ?, 'Agendado', datetime('now', '-5 hours'), datetime('now', '-5 hours'))
-          `, [historial_id, cliente_id, req.user.id, equipos, tipo_servicio, fecha_agendamiento, costo_cop || 0], function(err3) {
-            if (err3) {
-              db.run("ROLLBACK");
-              return res.status(500).json({ error: 'Error al agendar servicio' });
-            }
+    let agendamientoId = null;
+    if (acepto_servicio && equipos && tipo_servicio && fecha_agendamiento) {
+      const agResult = await client.query(
+        `INSERT INTO agendamientos (historial_id, cliente_id, usuario_id, equipos, tipo_servicio, fecha_agendamiento, costo_cop, estado_servicio, creado_en, actualizado_en)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, 'Agendado', NOW(), NOW()) RETURNING id`,
+        [historial_id, cliente_id, req.user.id, equipos, tipo_servicio, fecha_agendamiento, costo_cop || 0]
+      );
+      agendamientoId = agResult.rows[0].id;
+    }
 
-            const agendamientoId = this.lastID;
-            db.run("COMMIT", (errCommit) => {
-              if (errCommit) return res.status(500).json({ error: 'Error al confirmar la transacción' });
-              res.json({ ok: true, duracionSeg, agendamientoId });
-            });
-          });
-        } else {
-          // Si no requiere agendamiento, confirmamos la transacción de inmediato
-          db.run("COMMIT", (errCommit) => {
-            if (errCommit) return res.status(500).json({ error: 'Error al confirmar la transacción' });
-            res.json({ ok: true, duracionSeg, agendamientoId: null });
-          });
-        }
-      });
-    });
-  });
+    await client.query('COMMIT');
+    res.json({ ok: true, duracionSeg, agendamientoId });
+  } catch (err) {
+    if (client) try { await client.query('ROLLBACK'); } catch (e) {}
+    console.error('Error en guardar llamada:', err.message);
+    res.status(500).json({ error: 'Error al guardar la llamada' });
+  } finally {
+    if (client) client.release();
+  }
 });
 
 // ─── GET /api/llamadas/mis-registros ─────────────────────────────────────
@@ -211,8 +192,7 @@ router.get('/mis-clientes', authMiddleware, (req, res) => {
 });
 
 // ─── POST /api/llamadas/nuevo-servicio ──────────────────────────────────────
-router.post('/nuevo-servicio', authMiddleware, (req, res) => {
-  const db = getDb();
+router.post('/nuevo-servicio', authMiddleware, async (req, res) => {
   const userId = req.user.id;
   const { cliente_id, equipos, tipo_servicio, fecha_agendamiento, costo_cop, observaciones } = req.body;
 
@@ -220,34 +200,33 @@ router.post('/nuevo-servicio', authMiddleware, (req, res) => {
     return res.status(400).json({ error: 'Cliente, equipos, tipo de servicio y fecha son requeridos' });
   }
 
-  db.serialize(() => {
-    db.run("BEGIN TRANSACTION");
+  let client;
+  try {
+    client = await getClient();
+    await client.query('BEGIN');
 
-    db.run(
+    const hlResult = await client.query(
       `INSERT INTO historial_llamadas (cliente_id, usuario_id, inicio_llamada, fin_llamada, duracion_segundos, observaciones, acepto_servicio)
-       VALUES (?, ?, datetime('now', '-5 hours'), datetime('now', '-5 hours'), 0, ?, 1)`,
-      [cliente_id, userId, observaciones || 'Nuevo servicio programado desde Mis Clientes'],
-      function (err1) {
-        if (err1) { db.run("ROLLBACK"); return res.status(500).json({ error: err1.message }); }
-
-        const histId = this.lastID;
-
-        db.run(
-          `INSERT INTO agendamientos (historial_id, cliente_id, usuario_id, equipos, tipo_servicio, fecha_agendamiento, costo_cop, estado_servicio, creado_en, actualizado_en)
-           VALUES (?, ?, ?, ?, ?, ?, ?, 'Agendado', datetime('now', '-5 hours'), datetime('now', '-5 hours'))`,
-          [histId, cliente_id, userId, equipos, tipo_servicio, fecha_agendamiento, parseFloat(costo_cop) || 0],
-          function (err2) {
-            if (err2) { db.run("ROLLBACK"); return res.status(500).json({ error: err2.message }); }
-
-            db.run("COMMIT", (errC) => {
-              if (errC) return res.status(500).json({ error: errC.message });
-              res.json({ ok: true, agendamiento_id: this.lastID });
-            });
-          }
-        );
-      }
+       VALUES ($1, $2, NOW(), NOW(), 0, $3, 1) RETURNING id`,
+      [cliente_id, userId, observaciones || 'Nuevo servicio programado desde Mis Clientes']
     );
-  });
+    const histId = hlResult.rows[0].id;
+
+    const agResult = await client.query(
+      `INSERT INTO agendamientos (historial_id, cliente_id, usuario_id, equipos, tipo_servicio, fecha_agendamiento, costo_cop, estado_servicio, creado_en, actualizado_en)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, 'Agendado', NOW(), NOW()) RETURNING id`,
+      [histId, cliente_id, userId, equipos, tipo_servicio, fecha_agendamiento, parseFloat(costo_cop) || 0]
+    );
+
+    await client.query('COMMIT');
+    res.json({ ok: true, agendamiento_id: agResult.rows[0].id });
+  } catch (err) {
+    if (client) try { await client.query('ROLLBACK'); } catch (e) {}
+    console.error('Error en nuevo-servicio:', err.message);
+    res.status(500).json({ error: err.message });
+  } finally {
+    if (client) client.release();
+  }
 });
 
 // ─── PUT /api/llamadas/actualizar-servicio/:id ───────────────────────────────
@@ -306,7 +285,7 @@ router.put('/actualizar-servicio/:id', authMiddleware, gestorOCoordinador, uploa
           ${setIdServicio ? ', id_servicio = ?' : ''}
           ${setTecnico ? ', tecnico = ?' : ''}
           ${setFechaAtencion ? ', fecha_atencion = ?' : ''}
-          , actualizado_en = datetime('now', '-5 hours')
+          , actualizado_en = NOW()
         WHERE id = ?
       `;
       const params = [estado_servicio, metodo_pago, observaciones_tecnica || null, urlComprobante];
@@ -340,7 +319,7 @@ router.put('/subir-comprobante/:id', authMiddleware, uploadComp.single('comproba
   const comprobante_url = `/uploads/comprobantes/${req.file.filename}`;
 
   db.run(
-    `UPDATE agendamientos SET comprobante_pago_url = ?, metodo_pago = 'Transferencia', actualizado_en = datetime('now', '-5 hours') WHERE id = ?`,
+    `UPDATE agendamientos SET comprobante_pago_url = ?, metodo_pago = 'Transferencia', actualizado_en = NOW() WHERE id = ?`,
     [comprobante_url, agId],
     function (err) {
       if (err) {
@@ -544,7 +523,7 @@ router.get('/clientes-llamados', authMiddleware, gestorOCoordinador, (req, res) 
 });
 
 // ─── POST /api/llamadas/nuevo-agendamiento ───────────────────────────────
-router.post('/nuevo-agendamiento', authMiddleware, (req, res) => {
+router.post('/nuevo-agendamiento', authMiddleware, async (req, res) => {
   const db = getDb();
   const userId = req.user.id;
   const { cliente_id, equipos, tipo_servicio, fecha_agendamiento, costo_cop, observaciones } = req.body;
@@ -553,7 +532,7 @@ router.post('/nuevo-agendamiento', authMiddleware, (req, res) => {
     return res.status(400).json({ error: 'Faltan campos obligatorios (cliente, equipos, tipo, fecha)' });
   }
 
-  db.get('SELECT * FROM clientes WHERE id = ? AND llamado = 1', [cliente_id], (err, cliente) => {
+  db.get('SELECT * FROM clientes WHERE id = ? AND llamado = 1', [cliente_id], async (err, cliente) => {
     if (err || !cliente) return res.status(404).json({ error: 'Cliente no encontrado o no ha sido llamado' });
 
     const esCoord = req.user.rol === 'COORDINADOR';
@@ -561,30 +540,32 @@ router.post('/nuevo-agendamiento', authMiddleware, (req, res) => {
       return res.status(403).json({ error: 'No tienes permiso sobre este cliente' });
     }
 
-    db.serialize(() => {
-      db.run("BEGIN TRANSACTION");
+    let client;
+    try {
+      client = await getClient();
+      await client.query('BEGIN');
 
-      db.run(`
-        INSERT INTO historial_llamadas (cliente_id, usuario_id, inicio_llamada, fin_llamada, duracion_segundos, observaciones, acepto_servicio, creado_en)
-        VALUES (?, ?, datetime('now', '-5 hours'), datetime('now', '-5 hours'), 0, ?, 1, datetime('now', '-5 hours'))
-      `, [cliente_id, userId, observaciones || 'Reagendamiento de servicio'], function(err1) {
-        if (err1) { db.run("ROLLBACK"); return res.status(500).json({ error: 'Error al crear registro de llamada' }); }
+      const hlResult = await client.query(
+        `INSERT INTO historial_llamadas (cliente_id, usuario_id, inicio_llamada, fin_llamada, duracion_segundos, observaciones, acepto_servicio, creado_en)
+         VALUES ($1, $2, NOW(), NOW(), 0, $3, 1, NOW()) RETURNING id`,
+        [cliente_id, userId, observaciones || 'Reagendamiento de servicio']
+      );
 
-        const historialId = this.lastID;
+      const agResult = await client.query(
+        `INSERT INTO agendamientos (historial_id, cliente_id, usuario_id, equipos, tipo_servicio, fecha_agendamiento, costo_cop, estado_servicio, creado_en, actualizado_en)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, 'Agendado', NOW(), NOW()) RETURNING id`,
+        [hlResult.rows[0].id, cliente_id, userId, equipos, tipo_servicio, fecha_agendamiento, parseFloat(costo_cop) || 0]
+      );
 
-        db.run(`
-          INSERT INTO agendamientos (historial_id, cliente_id, usuario_id, equipos, tipo_servicio, fecha_agendamiento, costo_cop, estado_servicio, creado_en, actualizado_en)
-          VALUES (?, ?, ?, ?, ?, ?, ?, 'Agendado', datetime('now', '-5 hours'), datetime('now', '-5 hours'))
-        `, [historialId, cliente_id, userId, equipos, tipo_servicio, fecha_agendamiento, parseFloat(costo_cop) || 0], function(err2) {
-          if (err2) { db.run("ROLLBACK"); return res.status(500).json({ error: 'Error al crear agendamiento' }); }
-
-          db.run("COMMIT", (errC) => {
-            if (errC) return res.status(500).json({ error: 'Error al confirmar' });
-            res.status(201).json({ ok: true, agendamiento_id: this.lastID });
-          });
-        });
-      });
-    });
+      await client.query('COMMIT');
+      res.status(201).json({ ok: true, agendamiento_id: agResult.rows[0].id });
+    } catch (errTx) {
+      if (client) try { await client.query('ROLLBACK'); } catch (e) {}
+      console.error('Error en nuevo-agendamiento:', errTx.message);
+      res.status(500).json({ error: 'Error al crear agendamiento' });
+    } finally {
+      if (client) client.release();
+    }
   });
 });
 
@@ -608,7 +589,7 @@ router.post('/reprogramar', authMiddleware, (req, res) => {
     console.log('[REPROGRAMAR] cliente_id:', cliente_id, 'user:', req.user.id, 'fecha:', fecha_reprogramacion, 'hora:', hora_reprogramacion);
     db.run(`
       INSERT INTO llamadas_reprogramadas (cliente_id, agendamiento_id, usuario_id, fecha_reprogramacion, hora_reprogramacion, motivo, creado_en)
-      VALUES (?, ?, ?, ?, ?, ?, datetime('now', '-5 hours'))
+      VALUES (?, ?, ?, ?, ?, ?, NOW())
     `, [cliente_id, agendamiento_id || null, req.user.id, fecha_reprogramacion, hora_reprogramacion, motivo || null], function(errIns) {
       if (errIns) {
         console.error('Error al reprogramar llamada:', errIns.message, 'Params:', { cliente_id, agendamiento_id, fecha_reprogramacion, hora_reprogramacion });

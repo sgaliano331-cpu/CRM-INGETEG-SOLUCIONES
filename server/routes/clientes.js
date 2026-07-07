@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { getDb } = require('../db');
+const { getDb, getClient } = require('../db');
 const { authMiddleware, soloCoordinador } = require('../middleware/auth');
 const multer = require('multer');
 const path = require('path');
@@ -112,7 +112,7 @@ router.put('/:id', authMiddleware, (req, res) => {
     const { nombre, telefono, direccion, barrio, ciudad } = req.body;
     db.run(`
       UPDATE clientes SET nombre=?, telefono=?, direccion=?, barrio=?, ciudad=?,
-      actualizado_en=datetime('now', '-5 hours') WHERE id=?
+      actualizado_en=NOW() WHERE id=?
     `, [nombre, telefono, direccion, barrio, ciudad, clienteId], function(errUpdate) {
       if (errUpdate) return res.status(500).json({ error: 'Error al actualizar' });
       res.json({ ok: true });
@@ -137,7 +137,7 @@ router.post('/nuevo', authMiddleware, (req, res) => {
 
     db.run(`
       INSERT INTO clientes (nombre, telefono, direccion, barrio, ciudad, asignado_a, posicion_cola, prioridad, llamado, creado_en, actualizado_en)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, datetime('now', '-5 hours'), datetime('now', '-5 hours'))
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, NOW(), NOW())
     `, [nombre || '', telefono || '', direccion || '', barrio || '', ciudad || 'Medellín', targetUserId, posicion, esPrioridad], function(errInsert) {
       if (errInsert) return res.status(500).json({ error: 'Error al guardar el cliente' });
       res.status(201).json({ id: this.lastID, posicion });
@@ -155,8 +155,7 @@ router.get('/asesoras/lista', authMiddleware, soloCoordinador, (req, res) => {
 });
 
 // ─── POST /api/clientes/importar (SOLO COORDINADOR) ──────────────────────
-router.post('/importar', authMiddleware, soloCoordinador, (req, res) => {
-  const db = getDb();
+router.post('/importar', authMiddleware, soloCoordinador, async (req, res) => {
   const { clientes: nuevosClientes, asesora_id, prioridad } = req.body;
   const esPrioridad = prioridad ? 1 : 0;
 
@@ -164,70 +163,60 @@ router.post('/importar', authMiddleware, soloCoordinador, (req, res) => {
     return res.status(400).json({ error: 'Se requiere un arreglo de clientes' });
   }
 
-  if (asesora_id) {
-    // Asignar todos a una asesora específica
-    db.get('SELECT MAX(posicion_cola) as mx FROM clientes WHERE asignado_a = ?', [asesora_id], (errMax, maxRow) => {
-      let pos = ((maxRow ? maxRow.mx : 0) || 0);
+  let client;
+  try {
+    client = await getClient();
+    await client.query('BEGIN');
 
-      db.serialize(() => {
-        db.run("BEGIN TRANSACTION");
-        const stmt = db.prepare(`
-          INSERT INTO clientes (nombre, telefono, direccion, barrio, ciudad, asignado_a, posicion_cola, prioridad, llamado, creado_en, actualizado_en)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, datetime('now', '-5 hours'), datetime('now', '-5 hours'))
-        `);
+    if (asesora_id) {
+      const maxRow = await client.query('SELECT MAX(posicion_cola) as mx FROM clientes WHERE asignado_a = $1', [asesora_id]);
+      let pos = (maxRow.rows[0]?.mx || 0);
 
-        nuevosClientes.forEach((c) => {
-          pos++;
-          stmt.run([c.nombre || '', c.telefono || '', c.direccion || '', c.barrio || '', c.ciudad || 'Medellín', asesora_id, pos, esPrioridad]);
-        });
-
-        stmt.finalize(() => {
-          db.run("COMMIT", (errCommit) => {
-            if (errCommit) return res.status(500).json({ error: 'Error en la transacción de importación' });
-            res.json({ ok: true, importados: nuevosClientes.length });
-          });
-        });
-      });
-    });
-  } else {
-    // Distribuir equitativamente entre todas las asesoras
-    db.all("SELECT id FROM usuarios WHERE rol = 'ASESORA' AND activo = 1 ORDER BY id", [], (err, asesoras) => {
-      if (err || !asesoras || asesoras.length === 0) {
+      for (const c of nuevosClientes) {
+        pos++;
+        await client.query(
+          `INSERT INTO clientes (nombre, telefono, direccion, barrio, ciudad, asignado_a, posicion_cola, prioridad, llamado, creado_en, actualizado_en)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 0, NOW(), NOW())`,
+          [c.nombre || '', c.telefono || '', c.direccion || '', c.barrio || '', c.ciudad || 'Medellín', asesora_id, pos, esPrioridad]
+        );
+      }
+    } else {
+      const asesorasRes = await client.query("SELECT id FROM usuarios WHERE rol = 'ASESORA' AND activo = 1 ORDER BY id");
+      const asesoras = asesorasRes.rows;
+      if (!asesoras || asesoras.length === 0) {
+        await client.query('ROLLBACK');
+        client.release();
         return res.status(400).json({ error: 'No hay asesoras activas para asignar' });
       }
 
-      db.all('SELECT asignado_a, MAX(posicion_cola) as mx FROM clientes GROUP BY asignado_a', [], (errMax, filasMax) => {
-        const maxPosPorAsesora = {};
-        asesoras.forEach(a => maxPosPorAsesora[a.id] = 0);
-        if (filasMax) {
-          filasMax.forEach(f => { maxPosPorAsesora[f.asignado_a] = f.mx || 0; });
-        }
+      const filasMaxRes = await client.query('SELECT asignado_a, MAX(posicion_cola) as mx FROM clientes GROUP BY asignado_a');
+      const maxPosPorAsesora = {};
+      asesoras.forEach(a => maxPosPorAsesora[a.id] = 0);
+      if (filasMaxRes.rows) {
+        filasMaxRes.rows.forEach(f => { maxPosPorAsesora[f.asignado_a] = f.mx || 0; });
+      }
 
-        db.serialize(() => {
-          db.run("BEGIN TRANSACTION");
-          let asesoraIdx = 0;
+      let asesoraIdx = 0;
+      for (const c of nuevosClientes) {
+        const asesoraId = asesoras[asesoraIdx % asesoras.length].id;
+        maxPosPorAsesora[asesoraId]++;
+        await client.query(
+          `INSERT INTO clientes (nombre, telefono, direccion, barrio, ciudad, asignado_a, posicion_cola, prioridad, llamado, creado_en, actualizado_en)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 0, NOW(), NOW())`,
+          [c.nombre || '', c.telefono || '', c.direccion || '', c.barrio || '', c.ciudad || 'Medellín', asesoraId, maxPosPorAsesora[asesoraId], esPrioridad]
+        );
+        asesoraIdx++;
+      }
+    }
 
-          const stmt = db.prepare(`
-            INSERT INTO clientes (nombre, telefono, direccion, barrio, ciudad, asignado_a, posicion_cola, prioridad, llamado, creado_en, actualizado_en)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, datetime('now', '-5 hours'), datetime('now', '-5 hours'))
-          `);
-
-          nuevosClientes.forEach((c) => {
-            const asesoraId = asesoras[asesoraIdx % asesoras.length].id;
-            maxPosPorAsesora[asesoraId]++;
-            stmt.run([c.nombre || '', c.telefono || '', c.direccion || '', c.barrio || '', c.ciudad || 'Medellín', asesoraId, maxPosPorAsesora[asesoraId], esPrioridad]);
-            asesoraIdx++;
-          });
-
-          stmt.finalize(() => {
-            db.run("COMMIT", (errCommit) => {
-              if (errCommit) return res.status(500).json({ error: 'Error en la transacción de importación' });
-              res.json({ ok: true, importados: nuevosClientes.length });
-            });
-          });
-        });
-      });
-    });
+    await client.query('COMMIT');
+    res.json({ ok: true, importados: nuevosClientes.length });
+  } catch (err) {
+    if (client) try { await client.query('ROLLBACK'); } catch (e) {}
+    console.error('Error en importación:', err.message);
+    res.status(500).json({ error: 'Error en la transacción de importación' });
+  } finally {
+    if (client) client.release();
   }
 });
 
@@ -240,7 +229,6 @@ router.get('/fidelizacion/:meses', authMiddleware, (req, res) => {
   const userId = req.user.id;
   const esCoord = req.user.rol === 'COORDINADOR';
 
-  const fechaTarget = `date('now', '-${meses} months')`;
   const query = `
     SELECT DISTINCT c.*, u.nombre AS asesora_nombre,
            a.fecha_agendamiento, a.equipos, a.tipo_servicio
@@ -248,7 +236,7 @@ router.get('/fidelizacion/:meses', authMiddleware, (req, res) => {
     JOIN clientes c ON a.cliente_id = c.id
     LEFT JOIN usuarios u ON c.asignado_a = u.id
     WHERE a.estado_servicio = 'Cumplido'
-      AND date(a.fecha_agendamiento) BETWEEN date(${fechaTarget}, '-7 days') AND date(${fechaTarget}, '+7 days')
+      AND a.fecha_agendamiento::date BETWEEN (NOW() - INTERVAL '${meses} months')::date - 7 AND (NOW() - INTERVAL '${meses} months')::date + 7
       ${!esCoord ? 'AND c.asignado_a = ?' : ''}
     ORDER BY a.fecha_agendamiento ASC
   `;

@@ -86,7 +86,7 @@ router.get('/historial', authMiddleware, (req, res) => {
   db.all(
     `SELECT id, tipo, salida, entrada, duracion_minutos
      FROM descansos
-     WHERE usuario_id = ? AND date(salida) = date('now', 'localtime')
+     WHERE usuario_id = ? AND salida::date = CURRENT_DATE
      ORDER BY salida DESC`,
     [userId],
     (err, rows) => {
@@ -109,11 +109,11 @@ router.get('/auditoria', authMiddleware, soloCoordinador, (req, res) => {
     params.push(asesora_id);
   }
   if (fecha_desde) {
-    where += ' AND date(d.salida) >= ?';
+    where += ' AND d.salida::date >= ?';
     params.push(fecha_desde);
   }
   if (fecha_hasta) {
-    where += ' AND date(d.salida) <= ?';
+    where += ' AND d.salida::date <= ?';
     params.push(fecha_hasta);
   }
 
