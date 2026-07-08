@@ -143,7 +143,10 @@ router.get('/mis-clientes', authMiddleware, (req, res) => {
   `;
 
   db.all(query, [userId], (err, rows) => {
-    if (err) return res.status(500).json({ error: 'Error al consultar clientes' });
+    if (err) {
+      console.error('Error en /mis-clientes:', err.message);
+      return res.status(500).json({ error: 'Error al consultar clientes' });
+    }
 
     const mapaClientes = {};
     for (const row of (rows || [])) {
