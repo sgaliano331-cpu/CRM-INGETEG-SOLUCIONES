@@ -9,8 +9,12 @@ const pool = new Pool({
     : false,
 });
 
+let poolConnected = false;
 pool.on('connect', () => {
-  console.log('Conexión establecida con PostgreSQL');
+  if (!poolConnected) {
+    poolConnected = true;
+    console.log('Conexión establecida con PostgreSQL');
+  }
 });
 
 pool.on('error', (err) => {
