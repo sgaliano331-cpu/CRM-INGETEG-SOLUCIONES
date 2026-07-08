@@ -28,7 +28,7 @@ router.get('/resumen', authMiddleware, soloCoordinador, (req, res) => {
         SELECT u.id, u.nombre,
           COUNT(a.id) AS total_agendamientos,
           SUM(a.costo_cop) AS total_cop,
-          SUM(CASE WHEN a.estado_servicio != 'Cancelado por el cliente' AND a.metodo_pago != 'Pendiente por cobro' THEN a.costo_cop ELSE 0 END) AS ejecutado_cop
+          SUM(CASE WHEN a.estado_servicio != 'Cancelado por el cliente' AND (a.metodo_pago != 'Pendiente por cobro' OR a.comprobante_pago_url IS NOT NULL) THEN a.costo_cop ELSE 0 END) AS ejecutado_cop
         FROM usuarios u
         LEFT JOIN agendamientos a ON a.usuario_id = u.id
         WHERE u.rol = 'ASESORA'
@@ -38,10 +38,10 @@ router.get('/resumen', authMiddleware, soloCoordinador, (req, res) => {
 
         db.all(`
           SELECT a.usuario_id, u.nombre,
-            SUM(CASE WHEN a.estado_servicio != 'Cancelado por el cliente' AND a.metodo_pago != 'Pendiente por cobro' THEN a.costo_cop ELSE 0 END) AS ejecutado_mes
+            SUM(CASE WHEN a.estado_servicio != 'Cancelado por el cliente' AND (a.metodo_pago != 'Pendiente por cobro' OR a.comprobante_pago_url IS NOT NULL) THEN a.costo_cop ELSE 0 END) AS ejecutado_mes
           FROM agendamientos a
           JOIN usuarios u ON a.usuario_id = u.id
-          WHERE TO_CHAR(a.creado_en, 'YYYY-MM') = TO_CHAR(NOW(), 'YYYY-MM')
+          WHERE TO_CHAR(CASE WHEN a.comprobante_pago_url IS NOT NULL THEN a.actualizado_en ELSE a.creado_en END, 'YYYY-MM') = TO_CHAR(NOW(), 'YYYY-MM')
           GROUP BY a.usuario_id, u.nombre
         `, [], (err4, metasMes) => {
           if (err4) return res.status(500).json({ error: err4.message });
@@ -148,8 +148,8 @@ router.get('/metas-asesora', authMiddleware, (req, res) => {
       FROM agendamientos
       WHERE ${scope}
         AND estado_servicio != 'Cancelado por el cliente'
-        AND metodo_pago != 'Pendiente por cobro'
-        AND TO_CHAR(creado_en, 'YYYY-MM') = TO_CHAR(NOW(), 'YYYY-MM')
+        AND (metodo_pago != 'Pendiente por cobro' OR comprobante_pago_url IS NOT NULL)
+        AND TO_CHAR(CASE WHEN comprobante_pago_url IS NOT NULL THEN actualizado_en ELSE creado_en END, 'YYYY-MM') = TO_CHAR(NOW(), 'YYYY-MM')
     `;
 
     db.get(queryMes, scopeParams, (err, mMes) => {
@@ -160,9 +160,9 @@ router.get('/metas-asesora', authMiddleware, (req, res) => {
         FROM agendamientos
         WHERE ${scope}
           AND estado_servicio != 'Cancelado por el cliente'
-          AND metodo_pago != 'Pendiente por cobro'
-          AND creado_en::date >= (CURRENT_DATE - EXTRACT(DOW FROM CURRENT_DATE)::int)
-          AND creado_en::date <= (CURRENT_DATE - EXTRACT(DOW FROM CURRENT_DATE)::int + 7)
+          AND (metodo_pago != 'Pendiente por cobro' OR comprobante_pago_url IS NOT NULL)
+          AND (CASE WHEN comprobante_pago_url IS NOT NULL THEN actualizado_en ELSE creado_en END)::date >= (CURRENT_DATE - EXTRACT(DOW FROM CURRENT_DATE)::int)
+          AND (CASE WHEN comprobante_pago_url IS NOT NULL THEN actualizado_en ELSE creado_en END)::date <= (CURRENT_DATE - EXTRACT(DOW FROM CURRENT_DATE)::int + 7)
       `;
 
       db.get(querySemana, scopeParams, (err2, mSem) => {

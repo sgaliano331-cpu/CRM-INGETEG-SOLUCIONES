@@ -155,7 +155,7 @@ export default function ActualizacionTecnica() {
         fd.append('tecnico', tecnicosSel.join(', '));
         fd.append('fecha_atencion', fechaAtencion);
       }
-      if (isCoordinador) fd.append('costo_cop', costoCop);
+      if (isCoordinador || isGestor) fd.append('costo_cop', costoCop);
       if (comprobante) fd.append('comprobante', comprobante);
 
       await api.put(`/llamadas/actualizar-servicio/${seleccionado.agendamiento_id}`, fd, {
@@ -495,7 +495,7 @@ export default function ActualizacionTecnica() {
                           value={obsTecnica} onChange={e => setObsTecnica(e.target.value)} />
                       </div>
 
-                      {isCoordinador && (
+                      {(isCoordinador || isGestor) && (
                         <div className="col-span-2">
                           <label className="block text-xs font-medium text-slate-500 mb-1.5">Valor del Servicio (COP)</label>
                           <input type="number" className="input-field max-w-[250px]" placeholder="0"

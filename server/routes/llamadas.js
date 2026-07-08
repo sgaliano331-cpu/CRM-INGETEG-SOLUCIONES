@@ -272,7 +272,7 @@ router.put('/actualizar-servicio/:id', authMiddleware, gestorOCoordinador, uploa
         return res.status(400).json({ error: 'Este servicio ya fue marcado como cumplido' });
       }
 
-      const setCosto = esCoord && costo_cop !== undefined && costo_cop !== '';
+      const setCosto = (esCoord || req.user.rol === 'GESTOR') && costo_cop !== undefined && costo_cop !== '';
       const esGestorOCoord = req.user.rol === 'GESTOR' || esCoord;
       const setIdServicio = esGestorOCoord && id_servicio !== undefined;
       const setTecnico = esGestorOCoord && tecnico !== undefined;
