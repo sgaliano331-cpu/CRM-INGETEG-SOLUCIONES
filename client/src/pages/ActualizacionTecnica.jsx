@@ -503,6 +503,18 @@ export default function ActualizacionTecnica() {
                         </div>
                       )}
 
+                      {metodo === 'Transferencia' && (
+                        <div className="col-span-2">
+                          <label className="block text-xs font-medium text-slate-500 mb-1.5">Comprobante de Transferencia *</label>
+                          <input type="file" accept="image/*,application/pdf"
+                            className="input-field text-sm"
+                            onChange={e => setComprobante(e.target.files[0] || null)} />
+                          {!comprobante && !c.comprobante_pago_url && (
+                            <p className="text-xs text-red-500 mt-1">Debes subir el comprobante para guardar con Transferencia</p>
+                          )}
+                        </div>
+                      )}
+
                       {c.comprobante_pago_url && (
                         <div className="col-span-2">
                           <a href={c.comprobante_pago_url} target="_blank" rel="noopener noreferrer"
