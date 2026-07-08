@@ -185,9 +185,9 @@ router.get('/mis-clientes', authMiddleware, (req, res) => {
 
     const clientes = Object.values(mapaClientes);
     clientes.sort((a, b) => {
-      const fa = a.servicios[0]?.inicio_llamada || '';
-      const fb = b.servicios[0]?.inicio_llamada || '';
-      return fb.localeCompare(fa);
+      const fa = new Date(a.servicios[0]?.inicio_llamada || 0).getTime();
+      const fb = new Date(b.servicios[0]?.inicio_llamada || 0).getTime();
+      return fb - fa;
     });
 
     res.json({ clientes });
