@@ -40,9 +40,9 @@ const NAV_ITEMS_COORD = [
 const ICON_CHECK = 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z';
 
 const NAV_ITEMS_GESTOR = [
-  { to: '/actualizacion-tecnica', label: 'Serv. Pendientes', icon: ICON_GEAR, end: true },
+  { to: '/actualizacion-tecnica', label: 'Serv. Pendientes', icon: ICON_GEAR, end: true, badgeKey: 'serviciosPendientes' },
   { to: '/servicios-actualizados', label: 'Serv. Actualizados', icon: ICON_CHECK },
-  { to: '/pendientes-repuesto', label: 'Pend. Repuesto', icon: ICON_FLASK },
+  { to: '/pendientes-repuesto', label: 'Pend. Repuesto', icon: ICON_FLASK, badgeKey: 'pendientesRepuesto' },
 ];
 
 const COORD_ITEMS = [
@@ -107,11 +107,10 @@ export default function MainLayout() {
   }, []);
 
   useEffect(() => {
-    if (isGestor) return;
     fetchBadges();
     const iv = setInterval(fetchBadges, 60000);
     return () => clearInterval(iv);
-  }, [fetchBadges, isGestor]);
+  }, [fetchBadges]);
 
   const getBadgeCount = (key) => {
     if (!key) return 0;

@@ -710,11 +710,31 @@ router.get('/badges', authMiddleware, (req, res) => {
             (err3, cobro) => {
               if (err3) return res.status(500).json({ error: err3.message });
 
-              res.json({
-                reprogramadas: { total: parseInt(reprog?.total || 0), listas: parseInt(reprog?.listas || 0) },
-                cotizaciones: parseInt(cot?.total || 0),
-                pendientesCobro: parseInt(cobro?.total || 0),
-              });
+              // Servicios pendientes (Agendado) — para gestor/coordinador
+              db.get(
+                `SELECT COUNT(*) AS total FROM agendamientos WHERE estado_servicio = 'Agendado'`,
+                [],
+                (err4, servPend) => {
+                  if (err4) return res.status(500).json({ error: err4.message });
+
+                  // Pendientes por repuesto
+                  db.get(
+                    `SELECT COUNT(*) AS total FROM agendamientos WHERE estado_servicio = 'Pendiente por repuesto'`,
+                    [],
+                    (err5, servRep) => {
+                      if (err5) return res.status(500).json({ error: err5.message });
+
+                      res.json({
+                        reprogramadas: { total: parseInt(reprog?.total || 0), listas: parseInt(reprog?.listas || 0) },
+                        cotizaciones: parseInt(cot?.total || 0),
+                        pendientesCobro: parseInt(cobro?.total || 0),
+                        serviciosPendientes: parseInt(servPend?.total || 0),
+                        pendientesRepuesto: parseInt(servRep?.total || 0),
+                      });
+                    }
+                  );
+                }
+              );
             }
           );
         }
