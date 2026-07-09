@@ -1,6 +1,8 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import MetasHUD from '../components/MetasHUD';
+import { useEffect, useState, useRef, useCallback } from 'react';
+import api from '../api/axios';
 
 const ICON_PHONE = 'M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z';
 const ICON_CLIENTS = 'M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z';
@@ -17,9 +19,9 @@ const NAV_ITEMS_ASESORA = [
   { to: '/', label: 'Marcacion', icon: ICON_PHONE, end: true },
   { to: '/clientes-nuevos', label: 'Clientes Nuevos', icon: ICON_CLIENTS },
   { to: '/mis-clientes', label: 'Mis Clientes', icon: ICON_USERS },
-  { to: '/llamadas-reprogramadas', label: 'Reprogramadas', icon: ICON_CLOCK },
-  { to: '/cotizacion-vigente', label: 'Cotizacion Vigente', icon: ICON_DOC },
-  { to: '/pendientes-cobro', label: 'Pend. Cobro', icon: ICON_MONEY },
+  { to: '/llamadas-reprogramadas', label: 'Reprogramadas', icon: ICON_CLOCK, badgeKey: 'reprogramadas' },
+  { to: '/cotizacion-vigente', label: 'Cotizacion Vigente', icon: ICON_DOC, badgeKey: 'cotizaciones' },
+  { to: '/pendientes-cobro', label: 'Pend. Cobro', icon: ICON_MONEY, badgeKey: 'pendientesCobro' },
   { to: '/descansos', label: 'Descansos', icon: ICON_REST },
   { to: '/fidelizacion', label: 'Fidelizacion', icon: ICON_HEART },
 ];
@@ -27,9 +29,9 @@ const NAV_ITEMS_ASESORA = [
 const NAV_ITEMS_COORD = [
   { to: '/clientes-nuevos', label: 'Clientes Nuevos', icon: ICON_CLIENTS, end: true },
   { to: '/actualizacion-tecnica', label: 'Act. Tecnica', icon: ICON_GEAR },
-  { to: '/llamadas-reprogramadas', label: 'Reprogramadas', icon: ICON_CLOCK },
-  { to: '/cotizacion-vigente', label: 'Cotizacion Vigente', icon: ICON_DOC },
-  { to: '/pendientes-cobro', label: 'Pend. Cobro', icon: ICON_MONEY },
+  { to: '/llamadas-reprogramadas', label: 'Reprogramadas', icon: ICON_CLOCK, badgeKey: 'reprogramadas' },
+  { to: '/cotizacion-vigente', label: 'Cotizacion Vigente', icon: ICON_DOC, badgeKey: 'cotizaciones' },
+  { to: '/pendientes-cobro', label: 'Pend. Cobro', icon: ICON_MONEY, badgeKey: 'pendientesCobro' },
   { to: '/pendientes-repuesto', label: 'Pend. Repuesto', icon: ICON_FLASK },
   { to: '/descansos', label: 'Descansos', icon: ICON_REST },
   { to: '/fidelizacion', label: 'Fidelizacion', icon: ICON_HEART },
@@ -56,10 +58,66 @@ function SideIcon({ d }) {
   );
 }
 
+function playRingtone() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const notes = [784, 988, 784, 988, 784, 988];
+    notes.forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.3, ctx.currentTime + i * 0.2);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + i * 0.2 + 0.18);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(ctx.currentTime + i * 0.2);
+      osc.stop(ctx.currentTime + i * 0.2 + 0.18);
+    });
+    setTimeout(() => ctx.close(), 2000);
+  } catch (_) {}
+}
+
+function Badge({ count, pulse }) {
+  if (!count) return null;
+  return (
+    <span className={`ml-auto min-w-[20px] h-[20px] flex items-center justify-center rounded-full text-[10px] font-bold text-white ${pulse ? 'bg-red-500 animate-pulse' : 'bg-amber-500'}`}>
+      {count}
+    </span>
+  );
+}
+
 export default function MainLayout() {
   const { user, logout, isCoordinador, isGestor } = useAuth();
   const navItems = isCoordinador ? NAV_ITEMS_COORD : isGestor ? NAV_ITEMS_GESTOR : NAV_ITEMS_ASESORA;
   const navigate = useNavigate();
+  const [badges, setBadges] = useState({});
+  const prevListasRef = useRef(0);
+
+  const fetchBadges = useCallback(() => {
+    api.get('/llamadas/badges')
+      .then(({ data }) => {
+        setBadges(data);
+        if (data.reprogramadas?.listas > 0 && data.reprogramadas.listas > prevListasRef.current) {
+          playRingtone();
+        }
+        prevListasRef.current = data.reprogramadas?.listas || 0;
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (isGestor) return;
+    fetchBadges();
+    const iv = setInterval(fetchBadges, 60000);
+    return () => clearInterval(iv);
+  }, [fetchBadges, isGestor]);
+
+  const getBadgeCount = (key) => {
+    if (!key) return 0;
+    if (key === 'reprogramadas') return badges.reprogramadas?.total || 0;
+    return badges[key] || 0;
+  };
 
   const handleLogout = () => {
     logout();
@@ -98,6 +156,10 @@ export default function MainLayout() {
             >
               <SideIcon d={item.icon} />
               {item.label}
+              <Badge
+                count={getBadgeCount(item.badgeKey)}
+                pulse={item.badgeKey === 'reprogramadas' && (badges.reprogramadas?.listas || 0) > 0}
+              />
             </NavLink>
           ))}
 

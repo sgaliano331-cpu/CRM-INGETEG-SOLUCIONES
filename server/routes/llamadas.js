@@ -670,4 +670,57 @@ router.put('/reprogramada/:id/completar', authMiddleware, (req, res) => {
   });
 });
 
+// ─── GET /api/llamadas/badges ─────────────────────────────────────────────
+router.get('/badges', authMiddleware, (req, res) => {
+  const db = getDb();
+  const esCoord = req.user.rol === 'COORDINADOR';
+  const esAsesora = req.user.rol === 'ASESORA';
+  const userId = req.user.id;
+
+  const hoy = new Date().toISOString().slice(0, 10);
+  const ahora = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Bogota' });
+
+  // Reprogramadas pendientes para hoy
+  const scopeReprog = esCoord ? '' : ' AND r.usuario_id = ?';
+  const paramsReprog = esCoord ? [hoy] : [hoy, userId];
+  db.get(
+    `SELECT COUNT(*) AS total,
+            SUM(CASE WHEN r.hora_reprogramacion <= ? THEN 1 ELSE 0 END) AS listas
+     FROM llamadas_reprogramadas r
+     WHERE r.estado = 'pendiente' AND r.fecha_reprogramacion = ?${scopeReprog}`,
+    esCoord ? [ahora, hoy] : [ahora, hoy, userId],
+    (err, reprog) => {
+      if (err) return res.status(500).json({ error: err.message });
+
+      // Cotizaciones vigentes pendientes
+      const scopeCot = esAsesora ? ' AND co.asesora_id = ?' : '';
+      const paramsCot = esAsesora ? [userId] : [];
+      db.get(
+        `SELECT COUNT(*) AS total FROM cotizaciones co WHERE co.estado IN ('pendiente', 'piensa')${scopeCot}`,
+        paramsCot,
+        (err2, cot) => {
+          if (err2) return res.status(500).json({ error: err2.message });
+
+          // Pendientes por cobro
+          const scopeCobro = esCoord ? '' : ' AND a.usuario_id = ?';
+          const paramsCobro = esCoord ? [] : [userId];
+          db.get(
+            `SELECT COUNT(*) AS total FROM agendamientos a WHERE a.metodo_pago = 'Pendiente por cobro'${scopeCobro}`,
+            paramsCobro,
+            (err3, cobro) => {
+              if (err3) return res.status(500).json({ error: err3.message });
+
+              res.json({
+                reprogramadas: { total: parseInt(reprog?.total || 0), listas: parseInt(reprog?.listas || 0) },
+                cotizaciones: parseInt(cot?.total || 0),
+                pendientesCobro: parseInt(cobro?.total || 0),
+              });
+            }
+          );
+        }
+      );
+    }
+  );
+});
+
 module.exports = router;
