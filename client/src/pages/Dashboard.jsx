@@ -7,6 +7,10 @@ import {
 
 const DIAS = ['Dom', 'Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab'];
 const fmt = n => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n);
+const fmtFH = iso => {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleString('es-CO', { timeZone: 'America/Bogota', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+};
 const fmtSeg = s => {
   if (!s) return '0s';
   const m = Math.floor(s / 60);
@@ -216,7 +220,7 @@ export default function Dashboard() {
                   <tr key={r.id} className="hover:bg-slate-50 transition-colors">
                     <td className="py-2 px-3 text-slate-600">{r.asesora}</td>
                     <td className="py-2 px-3 text-slate-800 font-medium">{r.cliente}</td>
-                    <td className="py-2 px-3 text-slate-500">{r.inicio_llamada?.slice(0, 16)}</td>
+                    <td className="py-2 px-3 text-slate-500">{fmtFH(r.inicio_llamada)}</td>
                     <td className="py-2 px-3 text-right text-emerald-700 font-semibold">{fmtSeg(r.duracion_segundos)}</td>
                     <td className="py-2 px-3 text-center">
                       {r.acepto_servicio
@@ -287,8 +291,8 @@ export default function Dashboard() {
                           'bg-purple-100 text-purple-700'
                         }`}>{r.tipo}</span>
                       </td>
-                      <td className="py-2 px-3 text-slate-500">{r.salida?.slice(0, 16)}</td>
-                      <td className="py-2 px-3 text-slate-500">{r.entrada?.slice(0, 16)}</td>
+                      <td className="py-2 px-3 text-slate-500">{fmtFH(r.salida)}</td>
+                      <td className="py-2 px-3 text-slate-500">{fmtFH(r.entrada)}</td>
                       <td className="py-2 px-3 text-right text-amber-700 font-semibold">{r.duracion_minutos ? `${r.duracion_minutos} min` : '--'}</td>
                     </tr>
                   ))}
