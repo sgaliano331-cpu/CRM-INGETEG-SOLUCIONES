@@ -44,12 +44,16 @@ export default function Dashboard() {
 
   const cargarAuditoria = async (filtros = {}) => {
     const params = new URLSearchParams(filtros).toString();
-    const [audRes, descRes] = await Promise.all([
-      api.get(`/dashboard/auditoria${params ? '?' + params : ''}`),
-      api.get(`/descansos/auditoria${params ? '?' + params : ''}`),
-    ]);
-    setAuditoria(audRes.data);
-    setDescansosAudit(descRes.data);
+    try {
+      const [audRes, descRes] = await Promise.all([
+        api.get(`/dashboard/auditoria${params ? '?' + params : ''}`),
+        api.get(`/descansos/auditoria${params ? '?' + params : ''}`),
+      ]);
+      setAuditoria(audRes.data);
+      setDescansosAudit(descRes.data);
+    } catch (err) {
+      console.error('Error cargando auditoria:', err.message);
+    }
   };
 
   const handleFiltroAudit = () => {

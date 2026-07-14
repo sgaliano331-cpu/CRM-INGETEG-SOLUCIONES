@@ -113,7 +113,7 @@ router.get('/auditoria', authMiddleware, soloCoordinador, (req, res) => {
       FROM historial_llamadas hl
       JOIN usuarios u ON hl.usuario_id = u.id
       ${where}
-      GROUP BY hl.usuario_id
+      GROUP BY u.id, u.nombre
     `;
 
     db.all(queryTiempo, params, (err2, tiempoTotal) => {

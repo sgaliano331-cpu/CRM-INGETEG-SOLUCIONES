@@ -138,7 +138,7 @@ router.get('/auditoria', authMiddleware, soloCoordinador, (req, res) => {
       FROM descansos d
       JOIN usuarios u ON d.usuario_id = u.id
       ${where}
-      GROUP BY d.usuario_id, d.tipo
+      GROUP BY u.id, u.nombre, d.tipo
       ORDER BY u.nombre, d.tipo
     `;
 
