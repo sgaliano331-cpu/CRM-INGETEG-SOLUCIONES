@@ -133,8 +133,8 @@ router.get('/auditoria', authMiddleware, soloCoordinador, (req, res) => {
     const queryResumen = `
       SELECT u.nombre AS asesora, u.id AS usuario_id, d.tipo,
         COUNT(d.id) AS total_descansos,
-        ROUND(SUM(d.duracion_minutos), 1) AS tiempo_total_min,
-        ROUND(AVG(d.duracion_minutos), 1) AS tiempo_promedio_min
+        ROUND(SUM(d.duracion_minutos)::numeric, 1) AS tiempo_total_min,
+        ROUND(AVG(d.duracion_minutos)::numeric, 1) AS tiempo_promedio_min
       FROM descansos d
       JOIN usuarios u ON d.usuario_id = u.id
       ${where}
