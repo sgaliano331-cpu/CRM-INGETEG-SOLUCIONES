@@ -25,7 +25,13 @@ app.use('/api/cotizaciones', require('./routes/cotizaciones'));
 
 // ─── Frontend (produccion) ────────────────────────────────────────────────
 const clientDist = path.join(__dirname, '..', 'client', 'dist');
-app.use(express.static(clientDist));
+app.use(express.static(clientDist, {
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.html')) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    }
+  }
+}));
 
 // ─── Health Check ─────────────────────────────────────────────────────────
 app.get('/api/health', (req, res) => {
@@ -34,6 +40,7 @@ app.get('/api/health', (req, res) => {
 
 // ─── SPA Fallback ────────────────────────────────────────────────────────
 app.get('*', (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.sendFile(path.join(clientDist, 'index.html'));
 });
 
