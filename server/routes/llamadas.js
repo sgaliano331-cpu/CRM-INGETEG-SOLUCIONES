@@ -846,15 +846,16 @@ router.get('/generar-pdf/:id', authMiddleware, gestorOCoordinador, async (req, r
             let page = doc.addPage([PW, PH]);
             let y = PH - M;
 
-            // Colores
-            const NAVY = rgb(0.06, 0.12, 0.28);
-            const BLUE = rgb(0.15, 0.38, 0.72);
-            const GOLD = rgb(0.85, 0.65, 0.13);
+            // Colores corporativos INGETEG (verde)
+            const DARK_GREEN = rgb(0.02, 0.18, 0.09);
+            const MID_GREEN = rgb(0.08, 0.33, 0.18);
+            const GREEN = rgb(0.09, 0.40, 0.20);
+            const BRIGHT_GREEN = rgb(0.13, 0.77, 0.36);
+            const LIGHT_GREEN = rgb(0.29, 0.87, 0.50);
             const DARK = rgb(0.12, 0.12, 0.12);
             const GRAY = rgb(0.45, 0.45, 0.45);
             const LTGRAY = rgb(0.92, 0.93, 0.95);
             const WHITE = rgb(1, 1, 1);
-            const GREEN = rgb(0.1, 0.55, 0.3);
 
             const addPage = () => { page = doc.addPage([PW, PH]); y = PH - 50; };
             const check = (n) => { if (y - n < 65) addPage(); };
@@ -891,23 +892,23 @@ router.get('/generar-pdf/:id', authMiddleware, gestorOCoordinador, async (req, r
             };
 
             // ═══════════════ HEADER ═══════════════
-            page.drawRectangle({ x: 0, y: PH - 100, width: PW, height: 100, color: NAVY });
-            page.drawRectangle({ x: 0, y: PH - 104, width: PW, height: 4, color: GOLD });
+            page.drawRectangle({ x: 0, y: PH - 100, width: PW, height: 100, color: DARK_GREEN });
+            page.drawRectangle({ x: 0, y: PH - 104, width: PW, height: 4, color: BRIGHT_GREEN });
 
             page.drawText('INGETEG', { x: M, y: PH - 42, size: 28, font: fontBold, color: WHITE });
-            page.drawText('SOLUCIONES S.A.S.', { x: M + fontBold.widthOfTextAtSize('INGETEG ', 28), y: PH - 42, size: 28, font, color: rgb(0.7, 0.78, 0.9) });
-            page.drawText('Mantenimiento y reparacion de electrodomesticos', { x: M, y: PH - 58, size: 8, font, color: rgb(0.55, 0.62, 0.75) });
-            page.drawText('NIT: 901.234.567-8  |  Medellin, Colombia', { x: M, y: PH - 70, size: 8, font, color: rgb(0.55, 0.62, 0.75) });
+            page.drawText('SOLUCIONES S.A.S.', { x: M + fontBold.widthOfTextAtSize('INGETEG ', 28), y: PH - 42, size: 28, font, color: LIGHT_GREEN });
+            page.drawText('Mantenimiento y reparacion de electrodomesticos', { x: M, y: PH - 58, size: 8, font, color: rgb(0.55, 0.75, 0.62) });
+            page.drawText('NIT: 901.641.504  |  Medellin, Colombia', { x: M, y: PH - 70, size: 8, font, color: rgb(0.55, 0.75, 0.62) });
 
-            // Numero de reporte (caja dorada)
+            // Numero de reporte (caja verde brillante)
             const numText = `No. ${servicio.id_servicio || servicio.id}`;
             const numW = fontBold.widthOfTextAtSize(numText, 14) + 24;
-            page.drawRectangle({ x: PW - M - numW, y: PH - 50, width: numW, height: 28, color: GOLD });
-            page.drawText(numText, { x: PW - M - numW + 12, y: PH - 42, size: 14, font: fontBold, color: NAVY });
+            page.drawRectangle({ x: PW - M - numW, y: PH - 50, width: numW, height: 28, color: BRIGHT_GREEN });
+            page.drawText(numText, { x: PW - M - numW + 12, y: PH - 42, size: 14, font: fontBold, color: DARK_GREEN });
 
-            page.drawText('REPORTE DE SERVICIO', { x: PW - M - 155, y: PH - 68, size: 10, font: fontBold, color: rgb(0.7, 0.78, 0.9) });
+            page.drawText('REPORTE DE SERVICIO', { x: PW - M - 155, y: PH - 68, size: 10, font: fontBold, color: LIGHT_GREEN });
             const fecha = new Date().toLocaleDateString('es-CO', { day: '2-digit', month: 'long', year: 'numeric' });
-            page.drawText(fecha, { x: PW - M - 120, y: PH - 82, size: 8, font, color: rgb(0.55, 0.62, 0.75) });
+            page.drawText(fecha, { x: PW - M - 120, y: PH - 82, size: 8, font, color: rgb(0.55, 0.75, 0.62) });
 
             y = PH - 120;
 
@@ -915,8 +916,8 @@ router.get('/generar-pdf/:id', authMiddleware, gestorOCoordinador, async (req, r
             const section = (title, icon) => {
               check(35);
               y -= 8;
-              page.drawRectangle({ x: M, y: y - 4, width: CW, height: 22, color: NAVY });
-              page.drawRectangle({ x: M, y: y - 4, width: 4, height: 22, color: GOLD });
+              page.drawRectangle({ x: M, y: y - 4, width: CW, height: 22, color: MID_GREEN });
+              page.drawRectangle({ x: M, y: y - 4, width: 4, height: 22, color: BRIGHT_GREEN });
               page.drawText(title, { x: M + 14, y: y + 2, size: 10, font: fontBold, color: WHITE });
               y -= 28;
             };
