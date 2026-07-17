@@ -823,6 +823,19 @@ router.get('/generar-pdf/:id', authMiddleware, gestorOCoordinador, async (req, r
         `SELECT * FROM detalle_servicio_tecnico WHERE agendamiento_id = ?`,
         [agId],
         async (err2, detalle) => {
+          // Consultar repuestos usados
+          const repuestos = await new Promise((resolve) => {
+            if (!detalle) return resolve([]);
+            db.all(
+              `SELECT ru.*, rt.nombre AS repuesto_nombre
+               FROM repuestos_usados ru
+               LEFT JOIN repuestos_tecnico rt ON ru.repuesto_id = rt.id
+               WHERE ru.detalle_id = ?`,
+              [detalle.id],
+              (e, rows) => resolve(rows || [])
+            );
+          });
+
           try {
             const { PDFDocument, rgb, StandardFonts } = require('pdf-lib');
             const doc = await PDFDocument.create();
@@ -943,19 +956,64 @@ router.get('/generar-pdf/:id', authMiddleware, gestorOCoordinador, async (req, r
             // ═══════════════ COBRO ═══════════════
             section('DETALLE FINANCIERO');
             const costo = Number(servicio.costo_cop || 0);
-            const costoStr = costo > 0 ? `$ ${costo.toLocaleString('es-CO')} COP` : 'Sin cobro';
-            row('Valor cobrado', costoStr, costo > 0);
+            const totalRepuestos = repuestos.reduce((sum, r) => sum + (Number(r.valor_total) || 0), 0);
+            const manoDeObra = Math.max(costo - totalRepuestos, 0);
+
             row('Metodo de pago', detalle?.metodo_pago_tecnico || servicio.metodo_pago);
+
+            // Tabla de repuestos
+            if (repuestos.length > 0) {
+              check(30);
+              y -= 6;
+              // Header de tabla
+              page.drawRectangle({ x: M + 8, y: y - 4, width: CW - 16, height: 18, color: rgb(0.93, 0.94, 0.96) });
+              page.drawText('Repuesto', { x: M + 14, y: y + 1, size: 7.5, font: fontBold, color: GRAY });
+              page.drawText('Cant.', { x: M + 280, y: y + 1, size: 7.5, font: fontBold, color: GRAY });
+              page.drawText('V. Unitario', { x: M + 330, y: y + 1, size: 7.5, font: fontBold, color: GRAY });
+              page.drawText('V. Total', { x: M + 420, y: y + 1, size: 7.5, font: fontBold, color: GRAY });
+              y -= 20;
+
+              for (const r of repuestos) {
+                check(16);
+                const isEven = repuestos.indexOf(r) % 2 === 0;
+                if (isEven) page.drawRectangle({ x: M + 8, y: y - 4, width: CW - 16, height: 15, color: rgb(0.98, 0.98, 0.99) });
+                page.drawText(r.repuesto_nombre || '—', { x: M + 14, y, size: 8, font, color: DARK });
+                page.drawText(String(r.cantidad || 1), { x: M + 290, y, size: 8, font, color: DARK });
+                page.drawText(`$ ${Number(r.valor_unitario || 0).toLocaleString('es-CO')}`, { x: M + 330, y, size: 8, font, color: DARK });
+                page.drawText(`$ ${Number(r.valor_total || 0).toLocaleString('es-CO')}`, { x: M + 420, y, size: 8, font: fontBold, color: DARK });
+                y -= 15;
+              }
+
+              // Linea separadora
+              y -= 3;
+              page.drawLine({ start: { x: M + 280, y }, end: { x: PW - M - 8, y }, thickness: 0.5, color: GRAY });
+              y -= 12;
+
+              // Subtotal repuestos
+              check(16);
+              page.drawText('Subtotal repuestos:', { x: M + 280, y, size: 8.5, font: fontBold, color: GRAY });
+              page.drawText(`$ ${totalRepuestos.toLocaleString('es-CO')}`, { x: M + 420, y, size: 9, font: fontBold, color: DARK });
+              y -= 16;
+            }
+
+            // Mano de obra
+            check(16);
+            page.drawText('Mano de obra:', { x: M + 280, y, size: 8.5, font: fontBold, color: GRAY });
+            page.drawText(`$ ${manoDeObra.toLocaleString('es-CO')}`, { x: M + 420, y, size: 9, font: fontBold, color: DARK });
+            y -= 18;
 
             // Caja resaltada del total
             if (costo > 0) {
               check(45);
-              y -= 5;
-              page.drawRectangle({ x: PW - M - 180, y: y - 8, width: 180, height: 32, color: rgb(0.95, 0.98, 0.95) });
-              page.drawRectangle({ x: PW - M - 180, y: y - 8, width: 3, height: 32, color: GREEN });
-              page.drawText('TOTAL:', { x: PW - M - 168, y: y + 4, size: 9, font: fontBold, color: GRAY });
-              page.drawText(`$ ${costo.toLocaleString('es-CO')}`, { x: PW - M - 110, y: y + 2, size: 14, font: fontBold, color: GREEN });
-              y -= 35;
+              page.drawRectangle({ x: M + 260, y: y - 8, width: CW - 260 + M - 8, height: 32, color: rgb(0.95, 0.98, 0.95) });
+              page.drawRectangle({ x: M + 260, y: y - 8, width: 3, height: 32, color: GREEN });
+              page.drawText('TOTAL COBRADO:', { x: M + 272, y: y + 4, size: 8.5, font: fontBold, color: GRAY });
+              page.drawText(`$ ${costo.toLocaleString('es-CO')} COP`, { x: M + 420, y: y + 2, size: 12, font: fontBold, color: GREEN });
+              y -= 38;
+            } else {
+              check(20);
+              page.drawText('Sin cobro', { x: M + 420, y, size: 9, font, color: GRAY });
+              y -= 18;
             }
 
             // ═══════════════ OBSERVACIONES ═══════════════
