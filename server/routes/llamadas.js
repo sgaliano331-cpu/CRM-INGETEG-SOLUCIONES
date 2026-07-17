@@ -807,4 +807,173 @@ router.put('/asignar-tecnico', authMiddleware, gestorOCoordinador, (req, res) =>
   });
 });
 
+// ─── GET /api/llamadas/generar-pdf/:id ────────────────────────────────────
+router.get('/generar-pdf/:id', authMiddleware, gestorOCoordinador, async (req, res) => {
+  const db = getDb();
+  const agId = parseInt(req.params.id);
+
+  db.get(
+    `SELECT a.*, c.nombre AS cliente_nombre, c.telefono, c.direccion, c.barrio, c.ciudad
+     FROM agendamientos a JOIN clientes c ON a.cliente_id = c.id WHERE a.id = ?`,
+    [agId],
+    async (err, servicio) => {
+      if (err || !servicio) return res.status(404).json({ error: 'Agendamiento no encontrado' });
+
+      db.get(
+        `SELECT * FROM detalle_servicio_tecnico WHERE agendamiento_id = ?`,
+        [agId],
+        async (err2, detalle) => {
+          try {
+            const { PDFDocument, rgb, StandardFonts } = require('pdf-lib');
+            const doc = await PDFDocument.create();
+            const font = await doc.embedFont(StandardFonts.Helvetica);
+            const fontBold = await doc.embedFont(StandardFonts.HelveticaBold);
+
+            const PW = 595, PH = 842, M = 40, CW = PW - M * 2;
+            let page = doc.addPage([PW, PH]);
+            let y = PH - M;
+
+            const addPage = () => { page = doc.addPage([PW, PH]); y = PH - M; };
+            const check = (n) => { if (y - n < 60) addPage(); };
+
+            const text = (t, x, sz, f = font, c = rgb(0.15, 0.15, 0.15)) => {
+              const s = String(t || '—');
+              const mx = Math.floor(CW / (sz * 0.5));
+              for (let i = 0; i < s.length; i += mx) {
+                check(sz + 6);
+                page.drawText(s.substring(i, i + mx), { x, y, size: sz, font: f, color: c });
+                y -= sz + 4;
+              }
+            };
+
+            const section = (title) => {
+              check(30); y -= 5;
+              page.drawRectangle({ x: M, y: y - 2, width: CW, height: 18, color: rgb(0.93, 0.95, 0.98) });
+              page.drawText(title, { x: M + 8, y: y + 2, size: 11, font: fontBold, color: rgb(0.1, 0.3, 0.6) });
+              y -= 22;
+            };
+
+            const row = (label, value) => {
+              check(16);
+              page.drawText(label, { x: M + 8, y, size: 9, font: fontBold, color: rgb(0.3, 0.3, 0.3) });
+              page.drawText(String(value || '—'), { x: M + 140, y, size: 9, font, color: rgb(0.15, 0.15, 0.15) });
+              y -= 14;
+            };
+
+            const embedImg = async (src) => {
+              try {
+                let bytes;
+                if (src.startsWith('data:')) {
+                  bytes = Buffer.from(src.split(',')[1], 'base64');
+                } else {
+                  const r = await fetch(src);
+                  if (!r.ok) return null;
+                  bytes = Buffer.from(await r.arrayBuffer());
+                }
+                try { return await doc.embedJpg(bytes); } catch { return await doc.embedPng(bytes); }
+              } catch { return null; }
+            };
+
+            // Header
+            page.drawRectangle({ x: 0, y: PH - 80, width: PW, height: 80, color: rgb(0.08, 0.2, 0.45) });
+            page.drawText('INGETEG SOLUCIONES S.A.S.', { x: M, y: PH - 35, size: 20, font: fontBold, color: rgb(1, 1, 1) });
+            page.drawText('NIT: 901.234.567-8', { x: M, y: PH - 52, size: 9, font, color: rgb(0.8, 0.85, 0.95) });
+            const fecha = new Date().toLocaleDateString('es-CO', { day: '2-digit', month: 'long', year: 'numeric' });
+            page.drawText('REPORTE DE SERVICIO', { x: PW - 210, y: PH - 35, size: 14, font: fontBold, color: rgb(1, 1, 1) });
+            page.drawText(`No. ${servicio.id_servicio || servicio.id}`, { x: PW - 210, y: PH - 52, size: 10, font, color: rgb(0.9, 0.9, 0.4) });
+            page.drawText(fecha, { x: PW - 210, y: PH - 64, size: 8, font, color: rgb(0.8, 0.85, 0.95) });
+            y = PH - 95;
+
+            section('DATOS DEL CLIENTE');
+            row('Nombre:', servicio.cliente_nombre);
+            row('Telefono:', servicio.telefono);
+            row('Direccion:', `${servicio.direccion || '—'}, ${servicio.barrio || ''}`);
+            row('Ciudad:', servicio.ciudad);
+
+            section('DATOS DEL SERVICIO');
+            row('Equipo:', servicio.equipos);
+            row('Tipo:', servicio.tipo_servicio);
+            row('ID Servicio:', servicio.id_servicio);
+            row('Tecnico:', servicio.tecnico);
+            row('Fecha agendamiento:', servicio.fecha_agendamiento);
+            row('Fecha atencion:', servicio.fecha_atencion);
+            row('Estado:', servicio.estado_servicio);
+
+            section('DETALLE DE COBRO');
+            const costo = Number(servicio.costo_cop || 0);
+            row('Valor cobrado:', costo > 0 ? `$${costo.toLocaleString('es-CO')} COP` : 'Sin cobro');
+            row('Metodo de pago:', detalle?.metodo_pago_tecnico || servicio.metodo_pago || '—');
+
+            section('OBSERVACIONES');
+            row('Al ingreso:', detalle?.observaciones_ingreso);
+            row('Al cierre:', detalle?.observaciones_cierre || servicio.observaciones_tecnica);
+
+            // Fotos antes
+            const fotosAntes = detalle?.fotos_antes || [];
+            if (fotosAntes.length) {
+              section('FOTOS ANTES DEL SERVICIO');
+              for (const src of fotosAntes) {
+                const img = await embedImg(src);
+                if (img) {
+                  const sc = Math.min(220 / img.width, 180 / img.height, 1);
+                  const w = img.width * sc, h = img.height * sc;
+                  check(h + 15);
+                  page.drawImage(img, { x: M + 8, y: y - h, width: w, height: h });
+                  y -= h + 10;
+                }
+              }
+            }
+
+            // Fotos despues
+            const fotosDespues = detalle?.fotos_despues || [];
+            if (fotosDespues.length) {
+              section('FOTOS DESPUES DEL SERVICIO');
+              for (const src of fotosDespues) {
+                const img = await embedImg(src);
+                if (img) {
+                  const sc = Math.min(220 / img.width, 180 / img.height, 1);
+                  const w = img.width * sc, h = img.height * sc;
+                  check(h + 15);
+                  page.drawImage(img, { x: M + 8, y: y - h, width: w, height: h });
+                  y -= h + 10;
+                }
+              }
+            }
+
+            // Firma
+            if (detalle?.firma_cliente_url) {
+              section('FIRMA DEL CLIENTE');
+              const img = await embedImg(detalle.firma_cliente_url);
+              if (img) {
+                const sc = Math.min(200 / img.width, 80 / img.height, 1);
+                const w = img.width * sc, h = img.height * sc;
+                check(h + 15);
+                page.drawImage(img, { x: M + 8, y: y - h, width: w, height: h });
+                y -= h + 10;
+              }
+            }
+
+            // Footer
+            const pages = doc.getPages();
+            for (let i = 0; i < pages.length; i++) {
+              const p = pages[i];
+              p.drawLine({ start: { x: M, y: 45 }, end: { x: PW - M, y: 45 }, thickness: 0.5, color: rgb(0.8, 0.8, 0.8) });
+              p.drawText('INGETEG Soluciones S.A.S. — Documento generado automaticamente', { x: M, y: 32, size: 7, font, color: rgb(0.5, 0.5, 0.5) });
+              p.drawText(`Pagina ${i + 1} de ${pages.length}`, { x: PW - M - 60, y: 32, size: 7, font, color: rgb(0.5, 0.5, 0.5) });
+            }
+
+            const pdfBytes = await doc.save();
+            res.setHeader('Content-Type', 'application/pdf');
+            res.setHeader('Content-Disposition', `inline; filename="reporte_servicio_${agId}.pdf"`);
+            res.send(Buffer.from(pdfBytes));
+          } catch (pdfErr) {
+            console.error('Error generando PDF:', pdfErr);
+            res.status(500).json({ error: 'Error generando PDF' });
+          }
+        }
+      );
+    }
+  );
+});
+
 module.exports = router;
