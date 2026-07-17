@@ -743,6 +743,15 @@ router.get('/badges', authMiddleware, (req, res) => {
   );
 });
 
+// ─── GET /api/llamadas/tecnicos ────────────────────────────────────────────
+router.get('/tecnicos', authMiddleware, gestorOCoordinador, (req, res) => {
+  const db = getDb();
+  db.all("SELECT id, nombre FROM usuarios WHERE rol = 'TECNICO' AND activo = 1 ORDER BY nombre", [], (err, rows) => {
+    if (err) return res.status(500).json({ error: 'Error al consultar técnicos' });
+    res.json({ tecnicos: rows || [] });
+  });
+});
+
 // ─── GET /api/llamadas/gestion-servicios ──────────────────────────────────
 router.get('/gestion-servicios', authMiddleware, gestorOCoordinador, (req, res) => {
   const db = getDb();

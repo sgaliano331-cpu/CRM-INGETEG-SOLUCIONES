@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import api from '../api/axios';
 
 const ESTADOS = ['Agendado', 'Cumplido', 'Pendiente por repuesto', 'Cancelado por el cliente', 'Cotización vigente'];
-const TECNICOS = ['HERNAN', 'FREDY', 'OMAR', 'SANCHEZ', 'EILER'];
 
 const estadoBadge = {
   'Agendado': 'badge-blue',
@@ -29,6 +28,11 @@ export default function GestionServicios() {
   const [fechaAtencion, setFechaAtencion] = useState('');
   const [guardando, setGuardando] = useState(false);
   const [mensaje, setMensaje] = useState('');
+  const [tecnicos, setTecnicos] = useState([]);
+
+  useEffect(() => {
+    api.get('/llamadas/tecnicos').then(({ data }) => setTecnicos(data.tecnicos || [])).catch(() => {});
+  }, []);
 
   const cargar = async () => {
     setCargando(true);
@@ -102,7 +106,7 @@ export default function GestionServicios() {
             <label className="text-[11px] text-slate-500 font-semibold uppercase">Tecnico</label>
             <select value={filtroTecnico} onChange={e => setFiltroTecnico(e.target.value)} className="input-field mt-1">
               <option value="">Todos</option>
-              {TECNICOS.map(t => <option key={t} value={t}>{t}</option>)}
+              {tecnicos.map(t => <option key={t.id} value={t.nombre}>{t.nombre}</option>)}
             </select>
           </div>
           <div>
@@ -153,14 +157,14 @@ export default function GestionServicios() {
             <div>
               <label className="text-[11px] text-slate-500 font-semibold uppercase">Tecnicos</label>
               <div className="flex flex-wrap gap-2 mt-2">
-                {TECNICOS.map(t => (
-                  <button key={t} onClick={() => toggleTecnico(t)}
+                {tecnicos.map(t => (
+                  <button key={t.id} onClick={() => toggleTecnico(t.nombre)}
                     className={`px-4 py-2 rounded-xl text-sm font-medium border transition-all ${
-                      tecnicosSel.includes(t)
+                      tecnicosSel.includes(t.nombre)
                         ? 'bg-brand-600 text-white border-brand-600'
                         : 'bg-white text-slate-600 border-slate-200 hover:border-brand-300'
                     }`}>
-                    {t}
+                    {t.nombre}
                   </button>
                 ))}
               </div>
