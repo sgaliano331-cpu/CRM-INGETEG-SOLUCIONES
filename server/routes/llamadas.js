@@ -950,7 +950,8 @@ router.get('/generar-pdf/:id', authMiddleware, gestorOCoordinador, async (req, r
             row('Tipo de servicio', servicio.tipo_servicio);
             row('Tecnico asignado', servicio.tecnico);
             row('Fecha agendamiento', servicio.fecha_agendamiento);
-            row('Fecha de atencion', servicio.fecha_atencion);
+            const fechaAtencion = servicio.fecha_atencion || (detalle?.timestamp_fin ? new Date(detalle.timestamp_fin).toLocaleDateString('es-CO', { timeZone: 'America/Bogota', day: '2-digit', month: '2-digit', year: 'numeric' }) : null);
+            row('Fecha de atencion', fechaAtencion);
             row('Estado', servicio.estado_servicio, true);
 
             // ═══════════════ COBRO ═══════════════
@@ -997,23 +998,27 @@ router.get('/generar-pdf/:id', authMiddleware, gestorOCoordinador, async (req, r
             }
 
             // Mano de obra
-            check(16);
+            check(18);
             page.drawText('Mano de obra:', { x: M + 280, y, size: 8.5, font: fontBold, color: GRAY });
             page.drawText(`$ ${manoDeObra.toLocaleString('es-CO')}`, { x: M + 420, y, size: 9, font: fontBold, color: DARK });
-            y -= 18;
+            y -= 22;
+
+            // Linea antes del total
+            page.drawLine({ start: { x: M + 280, y + 4 }, end: { x: PW - M - 8, y + 4 }, thickness: 0.5, color: GRAY });
+            y -= 6;
 
             // Caja resaltada del total
             if (costo > 0) {
-              check(45);
-              page.drawRectangle({ x: M + 260, y: y - 8, width: CW - 260 + M - 8, height: 32, color: rgb(0.95, 0.98, 0.95) });
-              page.drawRectangle({ x: M + 260, y: y - 8, width: 3, height: 32, color: GREEN });
-              page.drawText('TOTAL COBRADO:', { x: M + 272, y: y + 4, size: 8.5, font: fontBold, color: GRAY });
-              page.drawText(`$ ${costo.toLocaleString('es-CO')} COP`, { x: M + 420, y: y + 2, size: 12, font: fontBold, color: GREEN });
-              y -= 38;
+              check(50);
+              page.drawRectangle({ x: M + 260, y: y - 10, width: CW - 260 + M - 8, height: 34, color: rgb(0.95, 0.98, 0.95) });
+              page.drawRectangle({ x: M + 260, y: y - 10, width: 3, height: 34, color: GREEN });
+              page.drawText('TOTAL COBRADO:', { x: M + 272, y: y + 2, size: 8.5, font: fontBold, color: GRAY });
+              page.drawText(`$ ${costo.toLocaleString('es-CO')} COP`, { x: M + 400, y, size: 12, font: fontBold, color: GREEN });
+              y -= 45;
             } else {
               check(20);
               page.drawText('Sin cobro', { x: M + 420, y, size: 9, font, color: GRAY });
-              y -= 18;
+              y -= 22;
             }
 
             // ═══════════════ OBSERVACIONES ═══════════════
@@ -1052,23 +1057,16 @@ router.get('/generar-pdf/:id', authMiddleware, gestorOCoordinador, async (req, r
             const drawPhotos = async (photos, title) => {
               if (!photos.length) return;
               section(title);
-              let col = 0;
-              for (const src of photos) {
-                const img = await embedImg(src);
+              for (let i = 0; i < photos.length; i++) {
+                const img = await embedImg(photos[i]);
                 if (!img) continue;
-                const maxW = (CW - 20) / 2;
-                const sc = Math.min(maxW / img.width, 200 / img.height, 1);
+                const maxW = CW - 20;
+                const sc = Math.min(maxW / img.width, 250 / img.height, 1);
                 const w = img.width * sc, h = img.height * sc;
-                if (col === 0) check(h + 20);
-                const xPos = col === 0 ? M + 5 : M + CW / 2 + 5;
-                page.drawRectangle({ x: xPos - 2, y: y - h - 2, width: w + 4, height: h + 4, color: LTGRAY });
-                page.drawImage(img, { x: xPos, y: y - h, width: w, height: h });
-                if (col === 1 || photos.indexOf(src) === photos.length - 1) {
-                  y -= h + 12;
-                  col = 0;
-                } else {
-                  col = 1;
-                }
+                check(h + 20);
+                page.drawRectangle({ x: M + 8 - 2, y: y - h - 2, width: w + 4, height: h + 4, color: LTGRAY });
+                page.drawImage(img, { x: M + 8, y: y - h, width: w, height: h });
+                y -= h + 15;
               }
             };
 
