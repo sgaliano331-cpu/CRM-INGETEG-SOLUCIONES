@@ -743,4 +743,55 @@ router.get('/badges', authMiddleware, (req, res) => {
   );
 });
 
+// ─── GET /api/llamadas/gestion-servicios ──────────────────────────────────
+router.get('/gestion-servicios', authMiddleware, gestorOCoordinador, (req, res) => {
+  const db = getDb();
+  const { fecha_desde, fecha_hasta, estado, tecnico, buscar } = req.query;
+
+  let query = `
+    SELECT a.*, c.nombre AS cliente_nombre, c.telefono, c.direccion, c.barrio, c.ciudad,
+           u.nombre AS asesora_nombre
+    FROM agendamientos a
+    JOIN clientes c ON a.cliente_id = c.id
+    JOIN usuarios u ON a.usuario_id = u.id
+    WHERE 1=1
+  `;
+  const params = [];
+
+  if (fecha_desde) { query += ' AND a.fecha_agendamiento >= ?'; params.push(fecha_desde); }
+  if (fecha_hasta) { query += ' AND a.fecha_agendamiento <= ?'; params.push(fecha_hasta); }
+  if (estado) { query += ' AND a.estado_servicio = ?'; params.push(estado); }
+  if (tecnico) { query += ' AND a.tecnico LIKE ?'; params.push(`%${tecnico}%`); }
+  if (buscar) { query += ' AND (c.nombre LIKE ? OR c.telefono LIKE ? OR a.id_servicio LIKE ?)'; params.push(`%${buscar}%`, `%${buscar}%`, `%${buscar}%`); }
+
+  query += ' ORDER BY a.fecha_agendamiento DESC LIMIT 200';
+
+  db.all(query, params, (err, servicios) => {
+    if (err) return res.status(500).json({ error: 'Error al consultar servicios' });
+    res.json({ servicios: servicios || [] });
+  });
+});
+
+// ─── PUT /api/llamadas/asignar-tecnico ────────────────────────────────────
+router.put('/asignar-tecnico', authMiddleware, gestorOCoordinador, (req, res) => {
+  const db = getDb();
+  const { agendamiento_id, tecnico, fecha_atencion } = req.body;
+
+  if (!agendamiento_id) return res.status(400).json({ error: 'ID de agendamiento requerido' });
+
+  const sets = ['actualizado_en = NOW()'];
+  const params = [];
+
+  if (tecnico !== undefined) { sets.push('tecnico = ?'); params.push(tecnico); }
+  if (fecha_atencion !== undefined) { sets.push('fecha_atencion = ?'); params.push(fecha_atencion); }
+
+  params.push(agendamiento_id);
+
+  db.run(`UPDATE agendamientos SET ${sets.join(', ')} WHERE id = ?`, params, function(err) {
+    if (err) return res.status(500).json({ error: 'Error al asignar técnico' });
+    if (this.changes === 0) return res.status(404).json({ error: 'Agendamiento no encontrado' });
+    res.json({ ok: true });
+  });
+});
+
 module.exports = router;

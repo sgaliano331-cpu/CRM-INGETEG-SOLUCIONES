@@ -15,6 +15,7 @@ import Descansos from './pages/Descansos';
 import CotizacionVigente from './pages/CotizacionVigente';
 import MisClientes from './pages/MisClientes';
 import ServiciosActualizados from './pages/ServiciosActualizados';
+import GestionServicios from './pages/GestionServicios';
 
 function PrivateRoute({ children, coordinadorOnly = false, gestorOCoord = false }) {
   const { user, isCoordinador, isGestor } = useAuth();
@@ -27,7 +28,7 @@ function PrivateRoute({ children, coordinadorOnly = false, gestorOCoord = false 
 function IndexRedirect() {
   const { isCoordinador, isGestor } = useAuth();
   if (isCoordinador) return <Navigate to="/dashboard" replace />;
-  if (isGestor) return <Navigate to="/actualizacion-tecnica" replace />;
+  if (isGestor) return <Navigate to="/gestion-servicios" replace />;
   return <Marcacion />;
 }
 
@@ -77,6 +78,14 @@ export default function App() {
             <Route path="mis-clientes" element={<MisClientes />} />
             <Route path="descansos" element={<Descansos />} />
             <Route path="fidelizacion" element={<Fidelizacion />} />
+            <Route
+              path="gestion-servicios"
+              element={
+                <PrivateRoute gestorOCoord>
+                  <GestionServicios />
+                </PrivateRoute>
+              }
+            />
             <Route
               path="dashboard"
               element={

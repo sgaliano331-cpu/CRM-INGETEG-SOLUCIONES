@@ -39,8 +39,11 @@ const NAV_ITEMS_COORD = [
 
 const ICON_CHECK = 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z';
 
+const ICON_CLIPBOARD = 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2';
+
 const NAV_ITEMS_GESTOR = [
-  { to: '/actualizacion-tecnica', label: 'Serv. Pendientes', icon: ICON_GEAR, end: true, badgeKey: 'serviciosPendientes' },
+  { to: '/gestion-servicios', label: 'Gestion Servicios', icon: ICON_CLIPBOARD, end: true },
+  { to: '/actualizacion-tecnica', label: 'Serv. Pendientes', icon: ICON_GEAR, badgeKey: 'serviciosPendientes' },
   { to: '/servicios-actualizados', label: 'Serv. Actualizados', icon: ICON_CHECK },
   { to: '/pendientes-repuesto', label: 'Pend. Repuesto', icon: ICON_FLASK, badgeKey: 'pendientesRepuesto' },
 ];
