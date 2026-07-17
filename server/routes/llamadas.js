@@ -759,10 +759,13 @@ router.get('/gestion-servicios', authMiddleware, gestorOCoordinador, (req, res) 
 
   let query = `
     SELECT a.*, c.nombre AS cliente_nombre, c.telefono, c.direccion, c.barrio, c.ciudad,
-           u.nombre AS asesora_nombre
+           u.nombre AS asesora_nombre,
+           d.pdf_reporte_url, d.fotos_antes, d.fotos_despues, d.firma_cliente_url,
+           d.observaciones_ingreso, d.comprobante_url AS comprobante_tecnico_url
     FROM agendamientos a
     JOIN clientes c ON a.cliente_id = c.id
     JOIN usuarios u ON a.usuario_id = u.id
+    LEFT JOIN detalle_servicio_tecnico d ON d.agendamiento_id = a.id
     WHERE 1=1
   `;
   const params = [];

@@ -170,6 +170,12 @@ export default function ServiciosActualizados() {
                   {s.metodo_pago && (
                     <p className="text-[10px] text-slate-400 mt-0.5">{s.metodo_pago}</p>
                   )}
+                  {s.pdf_reporte_url && (
+                    <a href={s.pdf_reporte_url} target="_blank" rel="noopener noreferrer"
+                      className="inline-block mt-2 text-[10px] font-semibold bg-brand-600 text-white px-3 py-1 rounded-lg hover:bg-brand-700 transition-all">
+                      Ver PDF
+                    </a>
+                  )}
                 </div>
               </div>
             </div>
