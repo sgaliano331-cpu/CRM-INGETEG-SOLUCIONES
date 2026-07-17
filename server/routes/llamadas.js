@@ -842,23 +842,20 @@ router.get('/generar-pdf/:id', authMiddleware, gestorOCoordinador, async (req, r
             const font = await doc.embedFont(StandardFonts.Helvetica);
             const fontBold = await doc.embedFont(StandardFonts.HelveticaBold);
 
-            const PW = 595, PH = 842, M = 45, CW = PW - M * 2;
+            const PW = 595, PH = 842, M = 50, CW = PW - M * 2;
             let page = doc.addPage([PW, PH]);
             let y = PH - M;
 
-            // Colores corporativos INGETEG (verde)
-            const DARK_GREEN = rgb(0.02, 0.18, 0.09);
-            const MID_GREEN = rgb(0.08, 0.33, 0.18);
-            const GREEN = rgb(0.09, 0.40, 0.20);
-            const BRIGHT_GREEN = rgb(0.13, 0.77, 0.36);
-            const LIGHT_GREEN = rgb(0.29, 0.87, 0.50);
-            const DARK = rgb(0.12, 0.12, 0.12);
-            const GRAY = rgb(0.45, 0.45, 0.45);
-            const LTGRAY = rgb(0.92, 0.93, 0.95);
+            const DARK = rgb(0.13, 0.13, 0.13);
+            const TEXT = rgb(0.25, 0.25, 0.25);
+            const GRAY = rgb(0.50, 0.50, 0.50);
+            const LGRAY = rgb(0.78, 0.78, 0.78);
+            const BG = rgb(0.96, 0.96, 0.96);
             const WHITE = rgb(1, 1, 1);
+            const ACCENT = rgb(0.09, 0.40, 0.20);
 
             const addPage = () => { page = doc.addPage([PW, PH]); y = PH - 50; };
-            const check = (n) => { if (y - n < 65) addPage(); };
+            const check = (n) => { if (y - n < 60) addPage(); };
 
             const wrapText = (str, maxW, sz, f = font) => {
               const words = String(str || '').split(' ');
@@ -891,51 +888,44 @@ router.get('/generar-pdf/:id', authMiddleware, gestorOCoordinador, async (req, r
               } catch { return null; }
             };
 
-            // ═══════════════ HEADER ═══════════════
-            page.drawRectangle({ x: 0, y: PH - 100, width: PW, height: 100, color: DARK_GREEN });
-            page.drawRectangle({ x: 0, y: PH - 104, width: PW, height: 4, color: BRIGHT_GREEN });
+            // ═══════════════ HEADER CON LOGO ═══════════════
+            const logoImg = await embedImg('https://sgaliano331-cpu.github.io/landing-ingeteg/logo-ingeteg.png');
+            if (logoImg) {
+              const lScale = Math.min(110 / logoImg.width, 55 / logoImg.height, 1);
+              const lw = logoImg.width * lScale;
+              const lh = logoImg.height * lScale;
+              page.drawImage(logoImg, { x: M, y: PH - M - lh + 10, width: lw, height: lh });
+            }
 
-            page.drawText('INGETEG', { x: M, y: PH - 42, size: 28, font: fontBold, color: WHITE });
-            page.drawText('SOLUCIONES S.A.S.', { x: M + fontBold.widthOfTextAtSize('INGETEG ', 28), y: PH - 42, size: 28, font, color: LIGHT_GREEN });
-            page.drawText('Mantenimiento y reparacion de electrodomesticos', { x: M, y: PH - 58, size: 8, font, color: rgb(0.55, 0.75, 0.62) });
-            page.drawText('NIT: 901.641.504  |  Medellin, Colombia', { x: M, y: PH - 70, size: 8, font, color: rgb(0.55, 0.75, 0.62) });
-
-            // Numero de reporte (caja verde brillante)
+            page.drawText('REPORTE DE SERVICIO', { x: PW - M - fontBold.widthOfTextAtSize('REPORTE DE SERVICIO', 14), y: PH - M - 5, size: 14, font: fontBold, color: DARK });
             const numText = `No. ${servicio.id_servicio || servicio.id}`;
-            const numW = fontBold.widthOfTextAtSize(numText, 14) + 24;
-            page.drawRectangle({ x: PW - M - numW, y: PH - 50, width: numW, height: 28, color: BRIGHT_GREEN });
-            page.drawText(numText, { x: PW - M - numW + 12, y: PH - 42, size: 14, font: fontBold, color: DARK_GREEN });
-
-            page.drawText('REPORTE DE SERVICIO', { x: PW - M - 155, y: PH - 68, size: 10, font: fontBold, color: LIGHT_GREEN });
+            page.drawText(numText, { x: PW - M - fontBold.widthOfTextAtSize(numText, 10), y: PH - M - 20, size: 10, font: fontBold, color: ACCENT });
             const fecha = new Date().toLocaleDateString('es-CO', { day: '2-digit', month: 'long', year: 'numeric' });
-            page.drawText(fecha, { x: PW - M - 120, y: PH - 82, size: 8, font, color: rgb(0.55, 0.75, 0.62) });
+            page.drawText(fecha, { x: PW - M - font.widthOfTextAtSize(fecha, 8), y: PH - M - 32, size: 8, font, color: GRAY });
 
-            y = PH - 120;
+            y = PH - M - 50;
+            page.drawLine({ start: { x: M, y }, end: { x: PW - M, y }, thickness: 1, color: ACCENT });
+            y -= 4;
+            page.drawText('NIT: 901.641.504  |  Mantenimiento y reparacion de electrodomesticos  |  Medellin, Colombia', {
+              x: M, y: y - 8, size: 7, font, color: GRAY,
+            });
+            y -= 22;
 
-            // ═══════════════ SECTION HELPER ═══════════════
-            const section = (title, icon) => {
-              check(35);
-              y -= 8;
-              page.drawRectangle({ x: M, y: y - 4, width: CW, height: 22, color: MID_GREEN });
-              page.drawRectangle({ x: M, y: y - 4, width: 4, height: 22, color: BRIGHT_GREEN });
-              page.drawText(title, { x: M + 14, y: y + 2, size: 10, font: fontBold, color: WHITE });
-              y -= 28;
+            // ═══════════════ HELPERS ═══════════════
+            const section = (title) => {
+              check(30);
+              y -= 10;
+              page.drawLine({ start: { x: M, y: y + 4 }, end: { x: PW - M, y: y + 4 }, thickness: 0.5, color: LGRAY });
+              page.drawText(title, { x: M, y: y - 10, size: 9, font: fontBold, color: DARK });
+              y -= 20;
             };
 
-            const row = (label, value, highlight = false) => {
-              check(18);
-              const isEven = Math.floor((PH - y) / 16) % 2 === 0;
-              if (isEven) page.drawRectangle({ x: M, y: y - 4, width: CW, height: 16, color: rgb(0.97, 0.97, 0.98) });
-              page.drawText(label, { x: M + 12, y, size: 8.5, font: fontBold, color: GRAY });
+            const row = (label, value, bold = false) => {
+              check(16);
+              page.drawText(label, { x: M + 8, y, size: 8, font: fontBold, color: GRAY });
               const val = String(value || '—');
-              page.drawText(val, { x: M + 155, y, size: 9, font: highlight ? fontBold : font, color: highlight ? GREEN : DARK });
-              y -= 16;
-            };
-
-            const divider = () => {
-              y -= 3;
-              page.drawLine({ start: { x: M + 12, y }, end: { x: PW - M - 12, y }, thickness: 0.3, color: LTGRAY });
-              y -= 6;
+              page.drawText(val, { x: M + 150, y, size: 8.5, font: bold ? fontBold : font, color: bold ? ACCENT : TEXT });
+              y -= 15;
             };
 
             // ═══════════════ DATOS DEL CLIENTE ═══════════════
@@ -963,77 +953,60 @@ router.get('/generar-pdf/:id', authMiddleware, gestorOCoordinador, async (req, r
 
             row('Metodo de pago', detalle?.metodo_pago_tecnico || servicio.metodo_pago);
 
-            // Tabla de repuestos
             if (repuestos.length > 0) {
               check(30);
-              y -= 6;
-              // Header de tabla
-              page.drawRectangle({ x: M + 8, y: y - 4, width: CW - 16, height: 18, color: rgb(0.93, 0.94, 0.96) });
-              page.drawText('Repuesto', { x: M + 14, y: y + 1, size: 7.5, font: fontBold, color: GRAY });
-              page.drawText('Cant.', { x: M + 280, y: y + 1, size: 7.5, font: fontBold, color: GRAY });
-              page.drawText('V. Unitario', { x: M + 330, y: y + 1, size: 7.5, font: fontBold, color: GRAY });
-              page.drawText('V. Total', { x: M + 420, y: y + 1, size: 7.5, font: fontBold, color: GRAY });
-              y -= 20;
+              y -= 4;
+              page.drawRectangle({ x: M + 4, y: y - 2, width: CW - 8, height: 16, color: BG });
+              page.drawText('Repuesto', { x: M + 10, y: y + 2, size: 7, font: fontBold, color: GRAY });
+              page.drawText('Cant.', { x: M + 280, y: y + 2, size: 7, font: fontBold, color: GRAY });
+              page.drawText('V. Unitario', { x: M + 330, y: y + 2, size: 7, font: fontBold, color: GRAY });
+              page.drawText('V. Total', { x: M + 415, y: y + 2, size: 7, font: fontBold, color: GRAY });
+              y -= 18;
 
               for (const r of repuestos) {
-                check(16);
-                const isEven = repuestos.indexOf(r) % 2 === 0;
-                if (isEven) page.drawRectangle({ x: M + 8, y: y - 4, width: CW - 16, height: 15, color: rgb(0.98, 0.98, 0.99) });
-                page.drawText(r.repuesto_nombre || '—', { x: M + 14, y, size: 8, font, color: DARK });
-                page.drawText(String(r.cantidad || 1), { x: M + 290, y, size: 8, font, color: DARK });
-                page.drawText(`$ ${Number(r.valor_unitario || 0).toLocaleString('es-CO')}`, { x: M + 330, y, size: 8, font, color: DARK });
-                page.drawText(`$ ${Number(r.valor_total || 0).toLocaleString('es-CO')}`, { x: M + 420, y, size: 8, font: fontBold, color: DARK });
-                y -= 15;
+                check(14);
+                page.drawText(r.repuesto_nombre || '—', { x: M + 10, y, size: 8, font, color: TEXT });
+                page.drawText(String(r.cantidad || 1), { x: M + 288, y, size: 8, font, color: TEXT });
+                page.drawText(`$ ${Number(r.valor_unitario || 0).toLocaleString('es-CO')}`, { x: M + 330, y, size: 8, font, color: TEXT });
+                page.drawText(`$ ${Number(r.valor_total || 0).toLocaleString('es-CO')}`, { x: M + 415, y, size: 8, font: fontBold, color: TEXT });
+                y -= 14;
               }
 
-              // Linea separadora
-              y -= 3;
-              page.drawLine({ start: { x: M + 280, y }, end: { x: PW - M - 8, y }, thickness: 0.5, color: GRAY });
+              y -= 2;
+              page.drawLine({ start: { x: M + 280, y }, end: { x: PW - M - 4, y }, thickness: 0.4, color: LGRAY });
               y -= 12;
-
-              // Subtotal repuestos
-              check(16);
-              page.drawText('Subtotal repuestos:', { x: M + 280, y, size: 8.5, font: fontBold, color: GRAY });
-              page.drawText(`$ ${totalRepuestos.toLocaleString('es-CO')}`, { x: M + 420, y, size: 9, font: fontBold, color: DARK });
-              y -= 16;
+              page.drawText('Subtotal repuestos:', { x: M + 280, y, size: 8, font, color: GRAY });
+              page.drawText(`$ ${totalRepuestos.toLocaleString('es-CO')}`, { x: M + 415, y, size: 8.5, font: fontBold, color: TEXT });
+              y -= 14;
             }
 
-            // Mano de obra
-            check(18);
-            page.drawText('Mano de obra:', { x: M + 280, y, size: 8.5, font: fontBold, color: GRAY });
-            page.drawText(`$ ${manoDeObra.toLocaleString('es-CO')}`, { x: M + 420, y, size: 9, font: fontBold, color: DARK });
-            y -= 22;
+            check(16);
+            page.drawText('Mano de obra:', { x: M + 280, y, size: 8, font, color: GRAY });
+            page.drawText(`$ ${manoDeObra.toLocaleString('es-CO')}`, { x: M + 415, y, size: 8.5, font: fontBold, color: TEXT });
+            y -= 18;
 
-            // Linea antes del total
-            const lineY = y + 4;
-            page.drawLine({ start: { x: M + 280, y: lineY }, end: { x: PW - M - 8, y: lineY }, thickness: 0.5, color: GRAY });
-            y -= 6;
+            page.drawLine({ start: { x: M + 280, y: y + 4 }, end: { x: PW - M - 4, y: y + 4 }, thickness: 0.4, color: LGRAY });
+            y -= 4;
 
-            // Caja resaltada del total
             if (costo > 0) {
-              check(50);
-              page.drawRectangle({ x: M + 260, y: y - 10, width: CW - 260 + M - 8, height: 34, color: rgb(0.95, 0.98, 0.95) });
-              page.drawRectangle({ x: M + 260, y: y - 10, width: 3, height: 34, color: GREEN });
-              page.drawText('TOTAL COBRADO:', { x: M + 272, y: y + 2, size: 8.5, font: fontBold, color: GRAY });
-              page.drawText(`$ ${costo.toLocaleString('es-CO')} COP`, { x: M + 400, y, size: 12, font: fontBold, color: GREEN });
-              y -= 45;
+              check(22);
+              page.drawText('TOTAL:', { x: M + 280, y, size: 9, font: fontBold, color: DARK });
+              page.drawText(`$ ${costo.toLocaleString('es-CO')} COP`, { x: M + 390, y, size: 11, font: fontBold, color: ACCENT });
+              y -= 28;
             } else {
-              check(20);
-              page.drawText('Sin cobro', { x: M + 420, y, size: 9, font, color: GRAY });
-              y -= 22;
+              page.drawText('Sin cobro', { x: M + 415, y, size: 8, font, color: GRAY });
+              y -= 20;
             }
 
             // ═══════════════ OBSERVACIONES ═══════════════
-            section('OBSERVACIONES TECNICAS');
             const obsCierre = detalle?.observaciones_cierre || servicio.observaciones_tecnica;
-
             if (obsCierre) {
-              check(30);
-              const lines = wrapText(obsCierre, CW - 30, 9);
+              section('OBSERVACIONES');
+              const lines = wrapText(obsCierre, CW - 16, 8.5);
               for (const l of lines) {
-                check(14);
-                page.drawText(l, { x: M + 12, y, size: 9, font, color: DARK });
-                y -= 13;
+                check(13);
+                page.drawText(l, { x: M + 8, y, size: 8.5, font, color: TEXT });
+                y -= 12;
               }
             }
 
@@ -1047,13 +1020,14 @@ router.get('/generar-pdf/:id', authMiddleware, gestorOCoordinador, async (req, r
               for (let i = 0; i < photos.length; i++) {
                 const img = await embedImg(photos[i]);
                 if (!img) continue;
-                const maxW = CW - 20;
-                const sc = Math.min(maxW / img.width, 250 / img.height, 1);
-                const w = img.width * sc, h = img.height * sc;
-                check(h + 20);
-                page.drawRectangle({ x: M + 8 - 2, y: y - h - 2, width: w + 4, height: h + 4, color: LTGRAY });
+                const maxW = CW - 16;
+                const sc = Math.min(maxW / img.width, 240 / img.height, 1);
+                const w = img.width * sc;
+                const h = img.height * sc;
+                check(h + 15);
+                page.drawRectangle({ x: M + 7, y: y - h - 1, width: w + 2, height: h + 2, color: BG });
                 page.drawImage(img, { x: M + 8, y: y - h, width: w, height: h });
-                y -= h + 15;
+                y -= h + 12;
               }
             };
 
@@ -1065,12 +1039,12 @@ router.get('/generar-pdf/:id', authMiddleware, gestorOCoordinador, async (req, r
               section('COMPROBANTE DE PAGO');
               const img = await embedImg(detalle.comprobante_url);
               if (img) {
-                const sc = Math.min(250 / img.width, 200 / img.height, 1);
-                const w = img.width * sc, h = img.height * sc;
-                check(h + 15);
-                page.drawRectangle({ x: M + 5 - 2, y: y - h - 2, width: w + 4, height: h + 4, color: LTGRAY });
-                page.drawImage(img, { x: M + 5, y: y - h, width: w, height: h });
-                y -= h + 12;
+                const sc = Math.min(240 / img.width, 200 / img.height, 1);
+                const w = img.width * sc;
+                const h = img.height * sc;
+                check(h + 12);
+                page.drawImage(img, { x: M + 8, y: y - h, width: w, height: h });
+                y -= h + 10;
               }
             }
 
@@ -1079,15 +1053,16 @@ router.get('/generar-pdf/:id', authMiddleware, gestorOCoordinador, async (req, r
               section('FIRMA DEL CLIENTE');
               const img = await embedImg(detalle.firma_cliente_url);
               if (img) {
-                const sc = Math.min(200 / img.width, 80 / img.height, 1);
-                const w = img.width * sc, h = img.height * sc;
-                check(h + 35);
-                page.drawImage(img, { x: M + 12, y: y - h, width: w, height: h });
-                y -= h + 8;
-                page.drawLine({ start: { x: M + 12, y }, end: { x: M + 12 + 200, y }, thickness: 0.5, color: GRAY });
+                const sc = Math.min(180 / img.width, 70 / img.height, 1);
+                const w = img.width * sc;
+                const h = img.height * sc;
+                check(h + 30);
+                page.drawImage(img, { x: M + 8, y: y - h, width: w, height: h });
+                y -= h + 6;
+                page.drawLine({ start: { x: M + 8, y }, end: { x: M + 8 + 180, y }, thickness: 0.4, color: LGRAY });
+                y -= 10;
+                page.drawText('Firma de conformidad del cliente', { x: M + 8, y, size: 7, font, color: GRAY });
                 y -= 12;
-                page.drawText('Firma de conformidad del cliente', { x: M + 12, y, size: 7, font, color: GRAY });
-                y -= 15;
               }
             }
 
@@ -1095,13 +1070,12 @@ router.get('/generar-pdf/:id', authMiddleware, gestorOCoordinador, async (req, r
             const allPages = doc.getPages();
             for (let i = 0; i < allPages.length; i++) {
               const p = allPages[i];
-              p.drawRectangle({ x: 0, y: 0, width: PW, height: 40, color: rgb(0.96, 0.96, 0.97) });
-              p.drawLine({ start: { x: 0, y: 40 }, end: { x: PW, y: 40 }, thickness: 0.5, color: LTGRAY });
-              p.drawText('INGETEG Soluciones S.A.S.  |  Documento generado automaticamente  |  Confidencial', {
-                x: M, y: 16, size: 6.5, font, color: GRAY,
+              p.drawLine({ start: { x: M, y: 38 }, end: { x: PW - M, y: 38 }, thickness: 0.4, color: LGRAY });
+              p.drawText('INGETEG Soluciones S.A.S. — NIT 901.641.504 — Documento generado automaticamente', {
+                x: M, y: 24, size: 6, font, color: LGRAY,
               });
-              p.drawText(`${i + 1} / ${allPages.length}`, {
-                x: PW - M - 20, y: 16, size: 7, font: fontBold, color: GRAY,
+              p.drawText(`Pag. ${i + 1} / ${allPages.length}`, {
+                x: PW - M - 35, y: 24, size: 6.5, font, color: LGRAY,
               });
             }
 
