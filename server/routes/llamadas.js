@@ -1024,25 +1024,10 @@ router.get('/generar-pdf/:id', authMiddleware, gestorOCoordinador, async (req, r
 
             // ═══════════════ OBSERVACIONES ═══════════════
             section('OBSERVACIONES TECNICAS');
-            const obsIngreso = detalle?.observaciones_ingreso;
             const obsCierre = detalle?.observaciones_cierre || servicio.observaciones_tecnica;
 
-            if (obsIngreso) {
-              check(30);
-              page.drawText('Al ingreso:', { x: M + 12, y, size: 8, font: fontBold, color: BLUE });
-              y -= 14;
-              const lines = wrapText(obsIngreso, CW - 30, 9);
-              for (const l of lines) {
-                check(14);
-                page.drawText(l, { x: M + 12, y, size: 9, font, color: DARK });
-                y -= 13;
-              }
-              y -= 4;
-            }
             if (obsCierre) {
               check(30);
-              page.drawText('Al cierre:', { x: M + 12, y, size: 8, font: fontBold, color: BLUE });
-              y -= 14;
               const lines = wrapText(obsCierre, CW - 30, 9);
               for (const l of lines) {
                 check(14);
