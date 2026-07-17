@@ -173,7 +173,7 @@ export default function ServiciosActualizados() {
                   <a href={`${api.defaults.baseURL}/llamadas/generar-pdf/${s.id}`}
                     target="_blank" rel="noopener noreferrer"
                     onClick={(e) => {
-                      const token = localStorage.getItem('token');
+                      const token = localStorage.getItem('crm_token');
                       if (token) {
                         e.preventDefault();
                         window.open(`${api.defaults.baseURL}/llamadas/generar-pdf/${s.id}?token=${token}`, '_blank');
