@@ -41,6 +41,31 @@ router.post('/login', (req, res) => {
   });
 });
 
+// POST /api/auth/seed-tecnicos — crea técnicos si no existen
+router.post('/seed-tecnicos', async (req, res) => {
+  const { pool } = require('../db');
+  const tecnicos = [
+    { username: 'hernan', password: 'Tecnico01!', nombre: 'HERNAN HERRERA', rol: 'TECNICO' },
+    { username: 'omar', password: 'Tecnico02!', nombre: 'OMAR HERRERA', rol: 'TECNICO' },
+    { username: 'sanchez', password: 'Tecnico03!', nombre: 'ANDRES SANCHEZ', rol: 'TECNICO' },
+    { username: 'fredy', password: 'Tecnico04!', nombre: 'FREDY CASTAÑEDA', rol: 'TECNICO' },
+  ];
+  let creados = 0;
+  try {
+    for (const t of tecnicos) {
+      const hash = bcrypt.hashSync(t.password, 10);
+      const result = await pool.query(
+        'INSERT INTO usuarios (username, password_hash, nombre, rol) VALUES ($1, $2, $3, $4) ON CONFLICT (username) DO NOTHING',
+        [t.username, hash, t.nombre, t.rol]
+      );
+      if (result.rowCount > 0) creados++;
+    }
+    res.json({ ok: true, creados, mensaje: `${creados} técnicos creados` });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // POST /api/auth/logout
 router.post('/logout', (req, res) => {
   res.json({ message: 'Sesión cerrada' });

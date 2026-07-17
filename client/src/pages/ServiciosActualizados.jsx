@@ -1,72 +1,56 @@
 import { useState, useEffect, useRef } from 'react';
 import api from '../api/axios';
-import { useAuth } from '../context/AuthContext';
 
-const ESTADOS = ['Cumplido', 'Pendiente por repuesto', 'Cancelado por el cliente'];
+const ESTADOS = ['Cumplido', 'Pendiente por repuesto', 'Cancelado por el cliente', 'Cotización vigente'];
 
 const estadoBadge = {
-  'Agendado': 'badge-blue',
   'Cumplido': 'badge-green',
   'Pendiente por repuesto': 'badge-yellow',
   'Cancelado por el cliente': 'badge-red',
+  'Cotización vigente': 'badge-purple',
 };
 
 export default function ServiciosActualizados() {
-  const { isCoordinador } = useAuth();
-
-  const [clientes, setClientes] = useState([]);
-  const [asesoras, setAsesoras] = useState([]);
-  const [filtroAsesora, setFiltroAsesora] = useState('');
+  const [servicios, setServicios] = useState([]);
+  const [tecnicos, setTecnicos] = useState([]);
   const [filtroEstado, setFiltroEstado] = useState('');
-  const [filtroFechaDesde, setFiltroFechaDesde] = useState('');
-  const [filtroFechaHasta, setFiltroFechaHasta] = useState('');
+  const [filtroTecnico, setFiltroTecnico] = useState('');
+  const [fechaDesde, setFechaDesde] = useState('');
+  const [fechaHasta, setFechaHasta] = useState('');
   const [busqueda, setBusqueda] = useState('');
   const [busquedaActiva, setBusquedaActiva] = useState('');
   const [cargando, setCargando] = useState(true);
   const debounceRef = useRef(null);
 
-  const cargarClientes = async () => {
+  useEffect(() => {
+    api.get('/llamadas/tecnicos').then(({ data }) => setTecnicos(data.tecnicos || [])).catch(() => {});
+  }, []);
+
+  const cargar = async () => {
     setCargando(true);
     try {
       const params = new URLSearchParams();
-      if (filtroAsesora) params.append('asesora_id', filtroAsesora);
       if (filtroEstado) params.append('estado', filtroEstado);
+      if (filtroTecnico) params.append('tecnico', filtroTecnico);
+      if (fechaDesde) params.append('fecha_desde', fechaDesde);
+      if (fechaHasta) params.append('fecha_hasta', fechaHasta);
       if (busquedaActiva) params.append('buscar', busquedaActiva);
-      params.append('solo_agendados', '1');
-      const { data } = await api.get(`/llamadas/clientes-llamados?${params}`);
-      let lista = (data.clientes || []).filter(c =>
-        c.agendamiento_id && c.estado_servicio !== 'Agendado'
-      );
-      if (filtroFechaDesde) {
-        lista = lista.filter(c => c.fecha_atencion && c.fecha_atencion >= filtroFechaDesde);
-      }
-      if (filtroFechaHasta) {
-        lista = lista.filter(c => c.fecha_atencion && c.fecha_atencion <= filtroFechaHasta);
-      }
-      setClientes(lista);
+      params.append('excluir_agendado', '1');
+      const { data } = await api.get(`/llamadas/gestion-servicios?${params}`);
+      setServicios(data.servicios || []);
     } catch {
-      setClientes([]);
+      setServicios([]);
     } finally {
       setCargando(false);
     }
   };
 
-  useEffect(() => {
-    api.get('/clientes/asesoras/lista').then(({ data }) => setAsesoras(data.asesoras)).catch(() => {});
-  }, []);
-
-  useEffect(() => { cargarClientes(); }, [filtroAsesora, filtroEstado, filtroFechaDesde, filtroFechaHasta, busquedaActiva]);
+  useEffect(() => { cargar(); }, [filtroEstado, filtroTecnico, fechaDesde, fechaHasta, busquedaActiva]);
 
   const handleBusqueda = (val) => {
     setBusqueda(val);
     clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => setBusquedaActiva(val.trim()), 400);
-  };
-
-  const formatFecha = (iso) => {
-    if (!iso) return '';
-    const d = new Date(iso + (iso.length === 10 ? 'T12:00:00' : ''));
-    return d.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' });
   };
 
   return (
@@ -79,23 +63,10 @@ export default function ServiciosActualizados() {
       <div className="card space-y-3">
         <div>
           <label className="block text-xs font-medium text-slate-500 mb-1">Buscar cliente</label>
-          <input
-            type="text"
-            className="input-field max-w-md"
-            placeholder="Nombre o telefono del cliente..."
-            value={busqueda}
-            onChange={e => handleBusqueda(e.target.value)}
-          />
+          <input type="text" className="input-field max-w-md" placeholder="Nombre o telefono del cliente..."
+            value={busqueda} onChange={e => handleBusqueda(e.target.value)} />
         </div>
         <div className="flex items-end gap-4 flex-wrap">
-          <div className="min-w-[200px]">
-            <label className="block text-xs font-medium text-slate-500 mb-1">Asesora</label>
-            <select className="input-field" value={filtroAsesora} onChange={e => setFiltroAsesora(e.target.value)}>
-              <option value="">Todas las asesoras</option>
-              {asesoras.map(a => <option key={a.id} value={a.id}>{a.nombre}</option>)}
-            </select>
-          </div>
-
           <div className="min-w-[200px]">
             <label className="block text-xs font-medium text-slate-500 mb-1">Estado</label>
             <select className="input-field" value={filtroEstado} onChange={e => setFiltroEstado(e.target.value)}>
@@ -104,21 +75,27 @@ export default function ServiciosActualizados() {
             </select>
           </div>
 
-          <div className="min-w-[150px]">
-            <label className="block text-xs font-medium text-slate-500 mb-1">Atendido desde</label>
-            <input type="date" className="input-field"
-              value={filtroFechaDesde} onChange={e => setFiltroFechaDesde(e.target.value)} />
+          <div className="min-w-[200px]">
+            <label className="block text-xs font-medium text-slate-500 mb-1">Tecnico</label>
+            <select className="input-field" value={filtroTecnico} onChange={e => setFiltroTecnico(e.target.value)}>
+              <option value="">Todos los tecnicos</option>
+              {tecnicos.map(t => <option key={t.id} value={t.nombre}>{t.nombre}</option>)}
+            </select>
           </div>
 
           <div className="min-w-[150px]">
-            <label className="block text-xs font-medium text-slate-500 mb-1">Atendido hasta</label>
-            <input type="date" className="input-field"
-              value={filtroFechaHasta} onChange={e => setFiltroFechaHasta(e.target.value)} />
+            <label className="block text-xs font-medium text-slate-500 mb-1">Desde</label>
+            <input type="date" className="input-field" value={fechaDesde} onChange={e => setFechaDesde(e.target.value)} />
+          </div>
+
+          <div className="min-w-[150px]">
+            <label className="block text-xs font-medium text-slate-500 mb-1">Hasta</label>
+            <input type="date" className="input-field" value={fechaHasta} onChange={e => setFechaHasta(e.target.value)} />
           </div>
 
           <div className="ml-auto text-right">
             <span className="text-xs text-slate-400">Registros</span>
-            <p className="text-lg font-bold text-slate-800">{clientes.length}</p>
+            <p className="text-lg font-bold text-slate-800">{servicios.length}</p>
           </div>
         </div>
       </div>
@@ -127,19 +104,19 @@ export default function ServiciosActualizados() {
         <div className="card text-center py-12">
           <p className="text-slate-400 text-sm">Cargando registros...</p>
         </div>
-      ) : clientes.length === 0 ? (
+      ) : servicios.length === 0 ? (
         <div className="card text-center py-12">
           <svg className="w-10 h-10 text-slate-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
               d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
           <p className="text-slate-500 text-sm font-medium">No hay servicios actualizados</p>
-          <p className="text-slate-400 text-xs mt-1">Los servicios apareceran aqui despues de ser actualizados</p>
+          <p className="text-slate-400 text-xs mt-1">Los servicios apareceran aqui despues de ser actualizados por los tecnicos</p>
         </div>
       ) : (
         <div className="space-y-2">
-          {clientes.map((c, idx) => (
-            <div key={`${c.llamada_id}-${c.agendamiento_id || 'no'}-${idx}`}
+          {servicios.map((s, idx) => (
+            <div key={s.id}
               className="rounded-lg border bg-white border-slate-100 hover:bg-slate-50 px-4 py-3 transition-all">
               <div className="flex items-start gap-4">
                 <span className="text-xs text-slate-400 font-semibold pt-0.5 w-6 text-right flex-shrink-0">
@@ -148,50 +125,50 @@ export default function ServiciosActualizados() {
 
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <p className="text-sm font-semibold text-slate-800 truncate">{c.nombre}</p>
+                    <p className="text-sm font-semibold text-slate-800 truncate">{s.cliente_nombre}</p>
                     <span className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded font-medium flex-shrink-0">
-                      {c.asesora_nombre}
+                      {s.asesora_nombre}
                     </span>
                   </div>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    {c.telefono}
-                    {c.direccion && <> &middot; {c.direccion}</>}
-                    {c.barrio && <>, {c.barrio}</>}
-                    {c.ciudad && <> &middot; {c.ciudad}</>}
+                    {s.telefono}
+                    {s.direccion && <> &middot; {s.direccion}</>}
+                    {s.barrio && <>, {s.barrio}</>}
+                    {s.ciudad && <> &middot; {s.ciudad}</>}
                   </p>
 
-                  {c.observaciones_tecnica && (
+                  {s.observaciones_tecnica && (
                     <div className="mt-2 bg-amber-50 border border-amber-200 rounded px-2.5 py-1.5">
                       <p className="text-[11px] text-amber-700">
-                        <span className="font-semibold">Tecnico:</span> {c.observaciones_tecnica}
+                        <span className="font-semibold">Tecnico:</span> {s.observaciones_tecnica}
                       </p>
                     </div>
                   )}
                 </div>
 
                 <div className="text-right flex-shrink-0">
-                  <span className={`badge ${estadoBadge[c.estado_servicio] || 'badge-blue'}`}>
-                    {c.estado_servicio}
+                  <span className={`badge ${estadoBadge[s.estado_servicio] || 'badge-blue'}`}>
+                    {s.estado_servicio}
                   </span>
-                  {c.id_servicio && (
-                    <p className="text-[10px] font-semibold text-indigo-600 mt-1">ID: {c.id_servicio}</p>
+                  {s.id_servicio && (
+                    <p className="text-[10px] font-semibold text-indigo-600 mt-1">ID: {s.id_servicio}</p>
                   )}
-                  {c.tecnico && (
-                    <p className="text-[10px] font-semibold text-emerald-700 mt-0.5">Tec: {c.tecnico}</p>
+                  {s.tecnico && (
+                    <p className="text-[10px] font-semibold text-emerald-700 mt-0.5">Tec: {s.tecnico}</p>
                   )}
-                  {c.fecha_atencion && (
-                    <p className="text-[10px] text-slate-500 mt-0.5">Atendido: {c.fecha_atencion}</p>
+                  {s.fecha_atencion && (
+                    <p className="text-[10px] text-slate-500 mt-0.5">Atendido: {s.fecha_atencion}</p>
                   )}
-                  <p className="text-xs text-slate-500 mt-1">{c.equipos}</p>
-                  <p className="text-xs text-slate-400">{c.tipo_servicio}</p>
-                  <p className="text-[10px] text-slate-400 mt-0.5">Agendado: {c.fecha_agendamiento}</p>
-                  {c.costo_cop > 0 && (
-                    <p className={`text-xs font-semibold mt-0.5 ${c.estado_servicio === 'Cancelado por el cliente' ? 'text-red-500 line-through' : 'text-emerald-700'}`}>
-                      ${Number(c.costo_cop).toLocaleString('es-CO')}
+                  <p className="text-xs text-slate-500 mt-1">{s.equipos}</p>
+                  <p className="text-xs text-slate-400">{s.tipo_servicio}</p>
+                  <p className="text-[10px] text-slate-400 mt-0.5">Agendado: {s.fecha_agendamiento}</p>
+                  {s.costo_cop > 0 && (
+                    <p className={`text-xs font-semibold mt-0.5 ${s.estado_servicio === 'Cancelado por el cliente' ? 'text-red-500 line-through' : 'text-emerald-700'}`}>
+                      ${Number(s.costo_cop).toLocaleString('es-CO')}
                     </p>
                   )}
-                  {c.metodo_pago && (
-                    <p className="text-[10px] text-slate-400 mt-0.5">{c.metodo_pago}</p>
+                  {s.metodo_pago && (
+                    <p className="text-[10px] text-slate-400 mt-0.5">{s.metodo_pago}</p>
                   )}
                 </div>
               </div>

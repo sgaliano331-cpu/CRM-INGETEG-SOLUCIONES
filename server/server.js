@@ -158,6 +158,10 @@ app.listen(PORT, async () => {
           { username: 'asesora2', password: 'Asesora02!', nombre: 'Yesica Nunez', rol: 'ASESORA' },
           { username: 'asesora3', password: 'Asesora03!', nombre: 'Jessica Rivera', rol: 'ASESORA' },
           { username: 'asesora4', password: 'Asesora04!', nombre: 'Asesora Comercial 4', rol: 'ASESORA' },
+          { username: 'hernan', password: 'Tecnico01!', nombre: 'HERNAN HERRERA', rol: 'TECNICO' },
+          { username: 'omar', password: 'Tecnico02!', nombre: 'OMAR HERRERA', rol: 'TECNICO' },
+          { username: 'sanchez', password: 'Tecnico03!', nombre: 'ANDRES SANCHEZ', rol: 'TECNICO' },
+          { username: 'fredy', password: 'Tecnico04!', nombre: 'FREDY CASTAÑEDA', rol: 'TECNICO' },
         ];
         for (const u of usuarios) {
           const hash = bcrypt.hashSync(u.password, 10);
