@@ -1004,7 +1004,8 @@ router.get('/generar-pdf/:id', authMiddleware, gestorOCoordinador, async (req, r
             y -= 22;
 
             // Linea antes del total
-            page.drawLine({ start: { x: M + 280, y + 4 }, end: { x: PW - M - 8, y + 4 }, thickness: 0.5, color: GRAY });
+            const lineY = y + 4;
+            page.drawLine({ start: { x: M + 280, y: lineY }, end: { x: PW - M - 8, y: lineY }, thickness: 0.5, color: GRAY });
             y -= 6;
 
             // Caja resaltada del total
