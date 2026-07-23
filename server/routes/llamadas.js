@@ -836,6 +836,16 @@ router.get('/generar-pdf/:id', authMiddleware, gestorOCoordinador, async (req, r
             );
           });
 
+          // Consultar detalles por equipo
+          const detallesEquipo = await new Promise((resolve) => {
+            if (!detalle) return resolve([]);
+            db.all(
+              `SELECT * FROM detalle_equipo WHERE detalle_id = ? ORDER BY id ASC`,
+              [detalle.id],
+              (e, rows) => resolve(rows || [])
+            );
+          });
+
           try {
             const { PDFDocument, rgb, StandardFonts } = require('pdf-lib');
             const doc = await PDFDocument.create();
@@ -998,22 +1008,7 @@ router.get('/generar-pdf/:id', authMiddleware, gestorOCoordinador, async (req, r
               y -= 20;
             }
 
-            // ═══════════════ OBSERVACIONES ═══════════════
-            const obsCierre = detalle?.observaciones_cierre || servicio.observaciones_tecnica;
-            if (obsCierre) {
-              section('OBSERVACIONES');
-              const lines = wrapText(obsCierre, CW - 16, 8.5);
-              for (const l of lines) {
-                check(13);
-                page.drawText(l, { x: M + 8, y, size: 8.5, font, color: TEXT });
-                y -= 12;
-              }
-            }
-
-            // ═══════════════ FOTOS ═══════════════
-            const fotosAntes = detalle?.fotos_antes || [];
-            const fotosDespues = detalle?.fotos_despues || [];
-
+            // ═══════════════ FOTOS Y OBSERVACIONES ═══════════════
             const drawPhotos = async (photos, title) => {
               if (!photos.length) return;
               section(title);
@@ -1031,8 +1026,79 @@ router.get('/generar-pdf/:id', authMiddleware, gestorOCoordinador, async (req, r
               }
             };
 
-            await drawPhotos(fotosAntes, 'EVIDENCIA FOTOGRAFICA — ANTES');
-            await drawPhotos(fotosDespues, 'EVIDENCIA FOTOGRAFICA — DESPUES');
+            if (detallesEquipo.length > 0) {
+              // Multi-equipo: sección por cada equipo
+              for (const eq of detallesEquipo) {
+                section(`EQUIPO: ${(eq.equipo_nombre || '').toUpperCase()}`);
+
+                if (eq.observaciones) {
+                  check(16);
+                  page.drawText('Observaciones:', { x: M + 8, y, size: 8, font: fontBold, color: GRAY });
+                  y -= 13;
+                  const lines = wrapText(eq.observaciones, CW - 16, 8.5);
+                  for (const l of lines) {
+                    check(13);
+                    page.drawText(l, { x: M + 8, y, size: 8.5, font, color: TEXT });
+                    y -= 12;
+                  }
+                  y -= 4;
+                }
+
+                const eqFotosAntes = eq.fotos_antes || [];
+                const eqFotosDespues = eq.fotos_despues || [];
+
+                if (eqFotosAntes.length > 0) {
+                  check(20);
+                  page.drawText('Evidencia antes:', { x: M + 8, y, size: 8, font: fontBold, color: GRAY });
+                  y -= 14;
+                  for (const url of eqFotosAntes) {
+                    const img = await embedImg(url);
+                    if (!img) continue;
+                    const sc = Math.min((CW - 16) / img.width, 200 / img.height, 1);
+                    const w = img.width * sc;
+                    const h = img.height * sc;
+                    check(h + 12);
+                    page.drawRectangle({ x: M + 7, y: y - h - 1, width: w + 2, height: h + 2, color: BG });
+                    page.drawImage(img, { x: M + 8, y: y - h, width: w, height: h });
+                    y -= h + 10;
+                  }
+                }
+
+                if (eqFotosDespues.length > 0) {
+                  check(20);
+                  page.drawText('Evidencia despues:', { x: M + 8, y, size: 8, font: fontBold, color: GRAY });
+                  y -= 14;
+                  for (const url of eqFotosDespues) {
+                    const img = await embedImg(url);
+                    if (!img) continue;
+                    const sc = Math.min((CW - 16) / img.width, 200 / img.height, 1);
+                    const w = img.width * sc;
+                    const h = img.height * sc;
+                    check(h + 12);
+                    page.drawRectangle({ x: M + 7, y: y - h - 1, width: w + 2, height: h + 2, color: BG });
+                    page.drawImage(img, { x: M + 8, y: y - h, width: w, height: h });
+                    y -= h + 10;
+                  }
+                }
+              }
+            } else {
+              // Equipo único (flujo original)
+              const obsCierre = detalle?.observaciones_cierre || servicio.observaciones_tecnica;
+              if (obsCierre) {
+                section('OBSERVACIONES');
+                const lines = wrapText(obsCierre, CW - 16, 8.5);
+                for (const l of lines) {
+                  check(13);
+                  page.drawText(l, { x: M + 8, y, size: 8.5, font, color: TEXT });
+                  y -= 12;
+                }
+              }
+
+              const fotosAntes = detalle?.fotos_antes || [];
+              const fotosDespues = detalle?.fotos_despues || [];
+              await drawPhotos(fotosAntes, 'EVIDENCIA FOTOGRAFICA — ANTES');
+              await drawPhotos(fotosDespues, 'EVIDENCIA FOTOGRAFICA — DESPUES');
+            }
 
             // ═══════════════ COMPROBANTE ═══════════════
             if (detalle?.comprobante_url) {
