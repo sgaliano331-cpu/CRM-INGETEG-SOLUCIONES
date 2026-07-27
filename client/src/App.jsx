@@ -87,14 +87,7 @@ export default function App() {
                 </PrivateRoute>
               }
             />
-            <Route
-              path="calendario"
-              element={
-                <PrivateRoute gestorOCoord>
-                  <Calendario />
-                </PrivateRoute>
-              }
-            />
+            <Route path="calendario" element={<Calendario />} />
             <Route
               path="dashboard"
               element={

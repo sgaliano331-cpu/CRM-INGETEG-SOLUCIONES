@@ -20,6 +20,7 @@ const NAV_ITEMS_ASESORA = [
   { to: '/', label: 'Marcacion', icon: ICON_PHONE, end: true },
   { to: '/clientes-nuevos', label: 'Clientes Nuevos', icon: ICON_CLIENTS },
   { to: '/mis-clientes', label: 'Mis Clientes', icon: ICON_USERS },
+  { to: '/calendario', label: 'Calendario', icon: ICON_CALENDAR },
   { to: '/llamadas-reprogramadas', label: 'Reprogramadas', icon: ICON_CLOCK, badgeKey: 'reprogramadas' },
   { to: '/cotizacion-vigente', label: 'Cotizacion Vigente', icon: ICON_DOC, badgeKey: 'cotizaciones' },
   { to: '/pendientes-cobro', label: 'Pend. Cobro', icon: ICON_MONEY, badgeKey: 'pendientesCobro' },
