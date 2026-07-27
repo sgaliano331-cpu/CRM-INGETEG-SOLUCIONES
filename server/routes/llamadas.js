@@ -5,6 +5,7 @@ const { authMiddleware, gestorOCoordinador } = require('../middleware/auth');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const { crearEventoAgendamiento } = require('../google-calendar');
 
 // ─── Multer para comprobantes de pago ─────────────────────────────────────
 const comprobantesDir = path.join(__dirname, '../uploads/comprobantes');
@@ -91,6 +92,15 @@ router.post('/guardar', authMiddleware, async (req, res) => {
         [historial_id, cliente_id, req.user.id, equipos, tipo_servicio, fecha_agendamiento, hora_inicio || null, hora_fin || null, costo_cop || 0]
       );
       agendamientoId = agResult.rows[0].id;
+
+      const clRes = await client.query('SELECT nombre, direccion, barrio, ciudad, telefono FROM clientes WHERE id = $1', [cliente_id]);
+      const cl = clRes.rows[0];
+      crearEventoAgendamiento({
+        clienteNombre: cl?.nombre, clienteDireccion: cl?.direccion, clienteBarrio: cl?.barrio,
+        clienteCiudad: cl?.ciudad, clienteTelefono: cl?.telefono,
+        equipos, tipoServicio: tipo_servicio, fecha: fecha_agendamiento,
+        horaInicio: hora_inicio, horaFin: hora_fin, costoCop: costo_cop, observaciones,
+      }).catch(e => console.error('[Calendar] Error en /guardar:', e.message));
     }
 
     await client.query('COMMIT');
@@ -223,7 +233,18 @@ router.post('/nuevo-servicio', authMiddleware, async (req, res) => {
       [histId, cliente_id, userId, equipos, tipo_servicio, fecha_agendamiento, hora_inicio || null, hora_fin || null, parseFloat(costo_cop) || 0]
     );
 
+    const clRes = await client.query('SELECT nombre, direccion, barrio, ciudad, telefono FROM clientes WHERE id = $1', [cliente_id]);
+    const cl = clRes.rows[0];
+
     await client.query('COMMIT');
+
+    crearEventoAgendamiento({
+      clienteNombre: cl?.nombre, clienteDireccion: cl?.direccion, clienteBarrio: cl?.barrio,
+      clienteCiudad: cl?.ciudad, clienteTelefono: cl?.telefono,
+      equipos, tipoServicio: tipo_servicio, fecha: fecha_agendamiento,
+      horaInicio: hora_inicio, horaFin: hora_fin, costoCop: costo_cop, observaciones,
+    }).catch(e => console.error('[Calendar] Error en /nuevo-servicio:', e.message));
+
     res.json({ ok: true, agendamiento_id: agResult.rows[0].id });
   } catch (err) {
     if (client) try { await client.query('ROLLBACK'); } catch (e) {}
@@ -563,6 +584,14 @@ router.post('/nuevo-agendamiento', authMiddleware, async (req, res) => {
       );
 
       await client.query('COMMIT');
+
+      crearEventoAgendamiento({
+        clienteNombre: cliente.nombre, clienteDireccion: cliente.direccion, clienteBarrio: cliente.barrio,
+        clienteCiudad: cliente.ciudad, clienteTelefono: cliente.telefono,
+        equipos, tipoServicio: tipo_servicio, fecha: fecha_agendamiento,
+        horaInicio: hora_inicio, horaFin: hora_fin, costoCop: costo_cop, observaciones,
+      }).catch(e => console.error('[Calendar] Error en /nuevo-agendamiento:', e.message));
+
       res.status(201).json({ ok: true, agendamiento_id: agResult.rows[0].id });
     } catch (errTx) {
       if (client) try { await client.query('ROLLBACK'); } catch (e) {}
