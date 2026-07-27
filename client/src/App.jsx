@@ -16,6 +16,7 @@ import CotizacionVigente from './pages/CotizacionVigente';
 import MisClientes from './pages/MisClientes';
 import ServiciosActualizados from './pages/ServiciosActualizados';
 import GestionServicios from './pages/GestionServicios';
+import Calendario from './pages/Calendario';
 
 function PrivateRoute({ children, coordinadorOnly = false, gestorOCoord = false }) {
   const { user, isCoordinador, isGestor } = useAuth();
@@ -83,6 +84,14 @@ export default function App() {
               element={
                 <PrivateRoute gestorOCoord>
                   <GestionServicios />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="calendario"
+              element={
+                <PrivateRoute gestorOCoord>
+                  <Calendario />
                 </PrivateRoute>
               }
             />

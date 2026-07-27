@@ -839,6 +839,45 @@ router.put('/asignar-tecnico', authMiddleware, gestorOCoordinador, (req, res) =>
   });
 });
 
+// ─── GET /api/llamadas/calendario ──────────────────────────────────────────
+router.get('/calendario', authMiddleware, (req, res) => {
+  const db = getDb();
+  const { fecha_desde, fecha_hasta } = req.query;
+
+  let query = `
+    SELECT a.id, a.fecha_agendamiento, a.hora_inicio, a.hora_fin, a.equipos,
+           a.tipo_servicio, a.estado_servicio, a.tecnico, a.costo_cop,
+           c.nombre AS cliente_nombre, c.direccion, c.barrio, c.ciudad, c.telefono
+    FROM agendamientos a
+    JOIN clientes c ON a.cliente_id = c.id
+    WHERE a.fecha_agendamiento >= ? AND a.fecha_agendamiento <= ?
+    ORDER BY a.fecha_agendamiento, a.hora_inicio
+  `;
+
+  db.all(query, [fecha_desde || '2020-01-01', fecha_hasta || '2099-12-31'], (err, rows) => {
+    if (err) return res.status(500).json({ error: 'Error al consultar calendario' });
+    res.json({ eventos: rows || [] });
+  });
+});
+
+// ─── PUT /api/llamadas/mover-servicio ─────────────────────────────────────
+router.put('/mover-servicio', authMiddleware, (req, res) => {
+  const db = getDb();
+  const { agendamiento_id, fecha_agendamiento, hora_inicio, hora_fin } = req.body;
+
+  if (!agendamiento_id) return res.status(400).json({ error: 'agendamiento_id requerido' });
+
+  db.run(
+    `UPDATE agendamientos SET fecha_agendamiento = ?, hora_inicio = ?, hora_fin = ?, actualizado_en = NOW() WHERE id = ?`,
+    [fecha_agendamiento, hora_inicio || null, hora_fin || null, agendamiento_id],
+    function(err) {
+      if (err) return res.status(500).json({ error: 'Error al mover servicio' });
+      if (this.changes === 0) return res.status(404).json({ error: 'Agendamiento no encontrado' });
+      res.json({ ok: true });
+    }
+  );
+});
+
 // ─── GET /api/llamadas/generar-pdf/:id ────────────────────────────────────
 router.get('/generar-pdf/:id', authMiddleware, gestorOCoordinador, async (req, res) => {
   const db = getDb();

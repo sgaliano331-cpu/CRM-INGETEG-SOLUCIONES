@@ -14,6 +14,7 @@ const ICON_HEART = 'M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4
 const ICON_REST = 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z M5 3v4M3 5h4M6 17v4M4 19h4M13 1v4M11 3h4';
 const ICON_DOC = 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z';
 const ICON_USERS = 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z';
+const ICON_CALENDAR = 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z';
 
 const NAV_ITEMS_ASESORA = [
   { to: '/', label: 'Marcacion', icon: ICON_PHONE, end: true },
@@ -28,6 +29,7 @@ const NAV_ITEMS_ASESORA = [
 
 const NAV_ITEMS_COORD = [
   { to: '/clientes-nuevos', label: 'Clientes Nuevos', icon: ICON_CLIENTS, end: true },
+  { to: '/calendario', label: 'Calendario', icon: ICON_CALENDAR },
   { to: '/actualizacion-tecnica', label: 'Act. Tecnica', icon: ICON_GEAR },
   { to: '/llamadas-reprogramadas', label: 'Reprogramadas', icon: ICON_CLOCK, badgeKey: 'reprogramadas' },
   { to: '/cotizacion-vigente', label: 'Cotizacion Vigente', icon: ICON_DOC, badgeKey: 'cotizaciones' },
@@ -43,6 +45,7 @@ const ICON_CLIPBOARD = 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 
 
 const NAV_ITEMS_GESTOR = [
   { to: '/gestion-servicios', label: 'Gestion Servicios', icon: ICON_CLIPBOARD, end: true },
+  { to: '/calendario', label: 'Calendario', icon: ICON_CALENDAR },
   { to: '/actualizacion-tecnica', label: 'Serv. Pendientes', icon: ICON_GEAR, badgeKey: 'serviciosPendientes' },
   { to: '/servicios-actualizados', label: 'Serv. Actualizados', icon: ICON_CHECK },
   { to: '/pendientes-repuesto', label: 'Pend. Repuesto', icon: ICON_FLASK, badgeKey: 'pendientesRepuesto' },
