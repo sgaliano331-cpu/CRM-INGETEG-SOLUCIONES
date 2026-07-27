@@ -48,6 +48,9 @@ export default function ActualizacionTecnica() {
   const [nuevoFecha, setNuevoFecha] = useState('');
   const [nuevoCosto, setNuevoCosto] = useState('');
   const [nuevoObs, setNuevoObs] = useState('');
+  const [nuevoHoraInicio, setNuevoHoraInicio] = useState('');
+  const [nuevoHoraFin, setNuevoHoraFin] = useState('');
+  const [nuevoTecnico, setNuevoTecnico] = useState('');
 
   // Reprogramar state
   const [repFecha, setRepFecha] = useState('');
@@ -182,8 +185,11 @@ export default function ActualizacionTecnica() {
         equipos: nuevoEquipos.join(', '),
         tipo_servicio: nuevoTipo,
         fecha_agendamiento: nuevoFecha,
+        hora_inicio: nuevoHoraInicio || null,
+        hora_fin: nuevoHoraFin || null,
         costo_cop: parseFloat(nuevoCosto) || 0,
         observaciones: nuevoObs.trim() || 'Nuevo agendamiento',
+        tecnico: nuevoTecnico || null,
       });
       setMensaje('OK Nuevo servicio agendado correctamente.');
       setTimeout(() => { resetForm(); cargarClientes(); }, 1200);
@@ -582,6 +588,25 @@ export default function ActualizacionTecnica() {
                         <input type="number" className="input-field" placeholder="0" value={nuevoCosto}
                           onChange={e => setNuevoCosto(e.target.value)} />
                       </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-medium text-slate-500 mb-1.5">Hora Inicio</label>
+                        <input type="time" className="input-field" value={nuevoHoraInicio}
+                          onChange={e => setNuevoHoraInicio(e.target.value)} />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-slate-500 mb-1.5">Hora Fin</label>
+                        <input type="time" className="input-field" value={nuevoHoraFin}
+                          onChange={e => setNuevoHoraFin(e.target.value)} />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-500 mb-1.5">Tecnico Asignado</label>
+                      <select className="input-field" value={nuevoTecnico} onChange={e => setNuevoTecnico(e.target.value)}>
+                        <option value="">— Seleccionar tecnico —</option>
+                        {TECNICOS.map(t => <option key={t} value={t}>{t}</option>)}
+                      </select>
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-slate-500 mb-1.5">Observaciones</label>

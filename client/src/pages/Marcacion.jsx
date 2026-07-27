@@ -45,6 +45,7 @@ const emptyAgenda = {
   hora_inicio: '',
   hora_fin: '',
   costo_cop: '',
+  tecnico: '',
 };
 
 export default function Marcacion() {
@@ -66,6 +67,11 @@ export default function Marcacion() {
   const [motivoRechazo, setMotivoRechazo] = useState('');
   const [guardando, setGuardando] = useState(false);
   const [mensaje, setMensaje] = useState('');
+  const [tecnicos, setTecnicos] = useState([]);
+
+  useEffect(() => {
+    api.get('/llamadas/tecnicos').then(({ data }) => setTecnicos(data.tecnicos || [])).catch(() => {});
+  }, []);
 
   const cargarSiguiente = useCallback(async () => {
     setCargando(true);
@@ -192,6 +198,7 @@ export default function Marcacion() {
           hora_inicio: agenda.hora_inicio || null,
           hora_fin: agenda.hora_fin || null,
           costo_cop: parseFloat(agenda.costo_cop) || 0,
+          tecnico: agenda.tecnico || null,
         }),
       });
 
@@ -448,6 +455,15 @@ export default function Marcacion() {
                 <input type="time" className="input-field" value={agenda.hora_fin}
                   onChange={e => setAgenda(a => ({ ...a, hora_fin: e.target.value }))} />
               </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-slate-500 mb-1.5">Tecnico Asignado</label>
+              <select className="input-field" value={agenda.tecnico}
+                onChange={e => setAgenda(a => ({ ...a, tecnico: e.target.value }))}>
+                <option value="">— Seleccionar tecnico —</option>
+                {tecnicos.map(t => <option key={t.id} value={t.nombre}>{t.nombre}</option>)}
+              </select>
             </div>
           </div>
         </div>

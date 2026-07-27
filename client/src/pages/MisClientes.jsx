@@ -86,7 +86,7 @@ export default function MisClientes() {
   const [formCliente, setFormCliente] = useState(null);
   const [obs, setObs] = useState('');
   const [acepto, setAcepto] = useState(false);
-  const [agenda, setAgenda] = useState({ equipos: [], tipo_servicio: 'Mantenimiento', fecha_agendamiento: '', hora_inicio: '', hora_fin: '', costo_cop: '' });
+  const [agenda, setAgenda] = useState({ equipos: [], tipo_servicio: 'Mantenimiento', fecha_agendamiento: '', hora_inicio: '', hora_fin: '', costo_cop: '', tecnico: '' });
   const [reprogramar, setReprogramar] = useState(false);
   const [repFecha, setRepFecha] = useState('');
   const [repHora, setRepHora] = useState('');
@@ -94,6 +94,11 @@ export default function MisClientes() {
   const [motivoRechazo, setMotivoRechazo] = useState('');
   const [guardando, setGuardando] = useState(false);
   const [mensaje, setMensaje] = useState('');
+  const [tecnicos, setTecnicos] = useState([]);
+
+  useEffect(() => {
+    api.get('/llamadas/tecnicos').then(({ data }) => setTecnicos(data.tecnicos || [])).catch(() => {});
+  }, []);
 
   const cargar = () => {
     setCargando(true);
@@ -130,7 +135,7 @@ export default function MisClientes() {
     setFormCliente(cliente);
     setObs('');
     setAcepto(false);
-    setAgenda({ equipos: [], tipo_servicio: 'Mantenimiento', fecha_agendamiento: '', hora_inicio: '', hora_fin: '', costo_cop: '' });
+    setAgenda({ equipos: [], tipo_servicio: 'Mantenimiento', fecha_agendamiento: '', hora_inicio: '', hora_fin: '', costo_cop: '', tecnico: '' });
     setReprogramar(false);
     setRepFecha('');
     setRepHora('');
@@ -221,6 +226,7 @@ export default function MisClientes() {
           hora_inicio: agenda.hora_inicio || null,
           hora_fin: agenda.hora_fin || null,
           costo_cop: parseFloat(agenda.costo_cop) || 0,
+          tecnico: agenda.tecnico || null,
         }),
       });
 
@@ -519,6 +525,15 @@ export default function MisClientes() {
                                 <input type="time" className="input-field" value={agenda.hora_fin}
                                   onChange={e => setAgenda(a => ({ ...a, hora_fin: e.target.value }))} />
                               </div>
+                            </div>
+
+                            <div>
+                              <label className="block text-xs font-medium text-slate-500 mb-1.5">Tecnico Asignado</label>
+                              <select className="input-field" value={agenda.tecnico}
+                                onChange={e => setAgenda(a => ({ ...a, tecnico: e.target.value }))}>
+                                <option value="">— Seleccionar tecnico —</option>
+                                {tecnicos.map(t => <option key={t.id} value={t.nombre}>{t.nombre}</option>)}
+                              </select>
                             </div>
                           </div>
                         )}

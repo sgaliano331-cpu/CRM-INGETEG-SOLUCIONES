@@ -7,13 +7,14 @@ let calendarClient = null;
 function getCalendar() {
   if (calendarClient) return calendarClient;
 
-  const credJson = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
-  if (!credJson) {
+  const credRaw = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
+  if (!credRaw) {
     console.warn('[Google Calendar] GOOGLE_SERVICE_ACCOUNT_JSON no configurada — eventos deshabilitados');
     return null;
   }
 
   try {
+    const credJson = credRaw.startsWith('ey') ? Buffer.from(credRaw, 'base64').toString('utf8') : credRaw;
     const creds = JSON.parse(credJson);
     const auth = new google.auth.GoogleAuth({
       credentials: creds,

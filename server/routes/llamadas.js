@@ -59,6 +59,7 @@ router.post('/guardar', authMiddleware, async (req, res) => {
     hora_inicio,
     hora_fin,
     costo_cop,
+    tecnico,
   } = req.body;
 
   if (!historial_id || !observaciones) {
@@ -87,9 +88,9 @@ router.post('/guardar', authMiddleware, async (req, res) => {
     let agendamientoId = null;
     if (acepto_servicio && equipos && tipo_servicio && fecha_agendamiento) {
       const agResult = await client.query(
-        `INSERT INTO agendamientos (historial_id, cliente_id, usuario_id, equipos, tipo_servicio, fecha_agendamiento, hora_inicio, hora_fin, costo_cop, estado_servicio, creado_en, actualizado_en)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'Agendado', NOW(), NOW()) RETURNING id`,
-        [historial_id, cliente_id, req.user.id, equipos, tipo_servicio, fecha_agendamiento, hora_inicio || null, hora_fin || null, costo_cop || 0]
+        `INSERT INTO agendamientos (historial_id, cliente_id, usuario_id, equipos, tipo_servicio, fecha_agendamiento, hora_inicio, hora_fin, costo_cop, estado_servicio, tecnico, creado_en, actualizado_en)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'Agendado', $10, NOW(), NOW()) RETURNING id`,
+        [historial_id, cliente_id, req.user.id, equipos, tipo_servicio, fecha_agendamiento, hora_inicio || null, hora_fin || null, costo_cop || 0, tecnico || null]
       );
       agendamientoId = agResult.rows[0].id;
 
@@ -99,7 +100,7 @@ router.post('/guardar', authMiddleware, async (req, res) => {
         clienteNombre: cl?.nombre, clienteDireccion: cl?.direccion, clienteBarrio: cl?.barrio,
         clienteCiudad: cl?.ciudad, clienteTelefono: cl?.telefono,
         equipos, tipoServicio: tipo_servicio, fecha: fecha_agendamiento,
-        horaInicio: hora_inicio, horaFin: hora_fin, costoCop: costo_cop, observaciones,
+        horaInicio: hora_inicio, horaFin: hora_fin, costoCop: costo_cop, observaciones, tecnico,
       }).catch(e => console.error('[Calendar] Error en /guardar:', e.message));
     }
 
@@ -209,7 +210,7 @@ router.get('/mis-clientes', authMiddleware, (req, res) => {
 // ─── POST /api/llamadas/nuevo-servicio ──────────────────────────────────────
 router.post('/nuevo-servicio', authMiddleware, async (req, res) => {
   const userId = req.user.id;
-  const { cliente_id, equipos, tipo_servicio, fecha_agendamiento, hora_inicio, hora_fin, costo_cop, observaciones } = req.body;
+  const { cliente_id, equipos, tipo_servicio, fecha_agendamiento, hora_inicio, hora_fin, costo_cop, observaciones, tecnico } = req.body;
 
   if (!cliente_id || !equipos || !tipo_servicio || !fecha_agendamiento) {
     return res.status(400).json({ error: 'Cliente, equipos, tipo de servicio y fecha son requeridos' });
@@ -228,9 +229,9 @@ router.post('/nuevo-servicio', authMiddleware, async (req, res) => {
     const histId = hlResult.rows[0].id;
 
     const agResult = await client.query(
-      `INSERT INTO agendamientos (historial_id, cliente_id, usuario_id, equipos, tipo_servicio, fecha_agendamiento, hora_inicio, hora_fin, costo_cop, estado_servicio, creado_en, actualizado_en)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'Agendado', NOW(), NOW()) RETURNING id`,
-      [histId, cliente_id, userId, equipos, tipo_servicio, fecha_agendamiento, hora_inicio || null, hora_fin || null, parseFloat(costo_cop) || 0]
+      `INSERT INTO agendamientos (historial_id, cliente_id, usuario_id, equipos, tipo_servicio, fecha_agendamiento, hora_inicio, hora_fin, costo_cop, estado_servicio, tecnico, creado_en, actualizado_en)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'Agendado', $10, NOW(), NOW()) RETURNING id`,
+      [histId, cliente_id, userId, equipos, tipo_servicio, fecha_agendamiento, hora_inicio || null, hora_fin || null, parseFloat(costo_cop) || 0, tecnico || null]
     );
 
     const clRes = await client.query('SELECT nombre, direccion, barrio, ciudad, telefono FROM clientes WHERE id = $1', [cliente_id]);
@@ -242,7 +243,7 @@ router.post('/nuevo-servicio', authMiddleware, async (req, res) => {
       clienteNombre: cl?.nombre, clienteDireccion: cl?.direccion, clienteBarrio: cl?.barrio,
       clienteCiudad: cl?.ciudad, clienteTelefono: cl?.telefono,
       equipos, tipoServicio: tipo_servicio, fecha: fecha_agendamiento,
-      horaInicio: hora_inicio, horaFin: hora_fin, costoCop: costo_cop, observaciones,
+      horaInicio: hora_inicio, horaFin: hora_fin, costoCop: costo_cop, observaciones, tecnico,
     }).catch(e => console.error('[Calendar] Error en /nuevo-servicio:', e.message));
 
     res.json({ ok: true, agendamiento_id: agResult.rows[0].id });
@@ -552,7 +553,7 @@ router.get('/clientes-llamados', authMiddleware, gestorOCoordinador, (req, res) 
 router.post('/nuevo-agendamiento', authMiddleware, async (req, res) => {
   const db = getDb();
   const userId = req.user.id;
-  const { cliente_id, equipos, tipo_servicio, fecha_agendamiento, hora_inicio, hora_fin, costo_cop, observaciones } = req.body;
+  const { cliente_id, equipos, tipo_servicio, fecha_agendamiento, hora_inicio, hora_fin, costo_cop, observaciones, tecnico } = req.body;
 
   if (!cliente_id || !equipos || !tipo_servicio || !fecha_agendamiento) {
     return res.status(400).json({ error: 'Faltan campos obligatorios (cliente, equipos, tipo, fecha)' });
@@ -578,9 +579,9 @@ router.post('/nuevo-agendamiento', authMiddleware, async (req, res) => {
       );
 
       const agResult = await client.query(
-        `INSERT INTO agendamientos (historial_id, cliente_id, usuario_id, equipos, tipo_servicio, fecha_agendamiento, hora_inicio, hora_fin, costo_cop, estado_servicio, creado_en, actualizado_en)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'Agendado', NOW(), NOW()) RETURNING id`,
-        [hlResult.rows[0].id, cliente_id, userId, equipos, tipo_servicio, fecha_agendamiento, hora_inicio || null, hora_fin || null, parseFloat(costo_cop) || 0]
+        `INSERT INTO agendamientos (historial_id, cliente_id, usuario_id, equipos, tipo_servicio, fecha_agendamiento, hora_inicio, hora_fin, costo_cop, estado_servicio, tecnico, creado_en, actualizado_en)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'Agendado', $10, NOW(), NOW()) RETURNING id`,
+        [hlResult.rows[0].id, cliente_id, userId, equipos, tipo_servicio, fecha_agendamiento, hora_inicio || null, hora_fin || null, parseFloat(costo_cop) || 0, tecnico || null]
       );
 
       await client.query('COMMIT');
@@ -589,7 +590,7 @@ router.post('/nuevo-agendamiento', authMiddleware, async (req, res) => {
         clienteNombre: cliente.nombre, clienteDireccion: cliente.direccion, clienteBarrio: cliente.barrio,
         clienteCiudad: cliente.ciudad, clienteTelefono: cliente.telefono,
         equipos, tipoServicio: tipo_servicio, fecha: fecha_agendamiento,
-        horaInicio: hora_inicio, horaFin: hora_fin, costoCop: costo_cop, observaciones,
+        horaInicio: hora_inicio, horaFin: hora_fin, costoCop: costo_cop, observaciones, tecnico,
       }).catch(e => console.error('[Calendar] Error en /nuevo-agendamiento:', e.message));
 
       res.status(201).json({ ok: true, agendamiento_id: agResult.rows[0].id });
@@ -775,7 +776,7 @@ router.get('/badges', authMiddleware, (req, res) => {
 });
 
 // ─── GET /api/llamadas/tecnicos ────────────────────────────────────────────
-router.get('/tecnicos', authMiddleware, gestorOCoordinador, (req, res) => {
+router.get('/tecnicos', authMiddleware, (req, res) => {
   const db = getDb();
   db.all("SELECT id, nombre FROM usuarios WHERE rol = 'TECNICO' AND activo = 1 ORDER BY nombre", [], (err, rows) => {
     if (err) return res.status(500).json({ error: 'Error al consultar técnicos' });
