@@ -10,7 +10,7 @@ const EQUIPOS_DISPONIBLES = [
 ];
 const TIPOS_SERVICIO = ['Mantenimiento', 'Reparación', 'Garantía'];
 const MOTIVOS_RECHAZO = ['No le interesa', 'No tiene dinero', 'Ya lo realiza con otra empresa', 'Tiene una mala experiencia', 'Número fuera de servicio', 'No contesta', 'Usuario se comunica', 'Se esta gestionando por WhatsApp', 'Número equivocado', 'Ya realizo el servicio con Ingeteg'];
-const TECNICOS = ['HERNAN', 'FREDY', 'OMAR', 'SANCHEZ', 'EILER'];
+const TECNICOS = ['HERNAN', 'FREDY', 'OMAR', 'SANCHEZ'];
 
 const estadoBadge = {
   'Agendado': 'badge-blue',

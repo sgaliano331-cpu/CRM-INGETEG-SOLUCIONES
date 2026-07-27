@@ -1,6 +1,15 @@
 const { google } = require('googleapis');
 
-const CALENDAR_ID = process.env.GOOGLE_CALENDAR_ID || 'soporteingeteg@gmail.com';
+const CALENDARIOS_TECNICOS = {
+  'HERNAN HERRERA': 'ae47a6b59b357e8a8e800d1ff852277d4bb5563bbd6979df5c7983f8c6855e45@group.calendar.google.com',
+  'HERNAN': 'ae47a6b59b357e8a8e800d1ff852277d4bb5563bbd6979df5c7983f8c6855e45@group.calendar.google.com',
+  'FREDY CASTAÑEDA': '11f8a2529dc139b31e4663bdfed65536dbd42c6754a5d72e19594ce7512a34a3@group.calendar.google.com',
+  'FREDY': '11f8a2529dc139b31e4663bdfed65536dbd42c6754a5d72e19594ce7512a34a3@group.calendar.google.com',
+  'OMAR HERRERA': '2a4c1f86d9b21889e979a7444754d8c4c5ec4977f342a766e1689f1c3a56910e@group.calendar.google.com',
+  'OMAR': '2a4c1f86d9b21889e979a7444754d8c4c5ec4977f342a766e1689f1c3a56910e@group.calendar.google.com',
+  'ANDRES SANCHEZ': '8117d5b14cc385415fcd125bd8890e45b81f442c70506e59d1a0625f734c734b@group.calendar.google.com',
+  'SANCHEZ': '8117d5b14cc385415fcd125bd8890e45b81f442c70506e59d1a0625f734c734b@group.calendar.google.com',
+};
 
 let calendarClient = null;
 
@@ -29,9 +38,21 @@ function getCalendar() {
   }
 }
 
+function getCalendarId(tecnico) {
+  if (!tecnico) return null;
+  const key = tecnico.toUpperCase().trim();
+  return CALENDARIOS_TECNICOS[key] || null;
+}
+
 async function crearEventoAgendamiento({ clienteNombre, clienteDireccion, clienteBarrio, clienteCiudad, clienteTelefono, equipos, tipoServicio, fecha, horaInicio, horaFin, costoCop, observaciones, tecnico }) {
   const calendar = getCalendar();
   if (!calendar) return null;
+
+  const calendarId = getCalendarId(tecnico);
+  if (!calendarId) {
+    console.warn(`[Google Calendar] No se creó evento: técnico "${tecnico}" no tiene calendario asignado`);
+    return null;
+  }
 
   const titulo = `${tipoServicio} — ${clienteNombre}`;
 
@@ -76,13 +97,13 @@ async function crearEventoAgendamiento({ clienteNombre, clienteDireccion, client
 
   try {
     const result = await calendar.events.insert({
-      calendarId: CALENDAR_ID,
+      calendarId,
       requestBody: event,
     });
-    console.log(`[Google Calendar] Evento creado: ${result.data.id}`);
+    console.log(`[Google Calendar] Evento creado en calendario de ${tecnico}: ${result.data.id}`);
     return result.data.id;
   } catch (err) {
-    console.error('[Google Calendar] Error al crear evento:', err.message);
+    console.error(`[Google Calendar] Error al crear evento para ${tecnico}:`, err.message);
     return null;
   }
 }
