@@ -55,6 +55,8 @@ router.post('/guardar', authMiddleware, async (req, res) => {
     equipos,
     tipo_servicio,
     fecha_agendamiento,
+    hora_inicio,
+    hora_fin,
     costo_cop,
   } = req.body;
 
@@ -84,9 +86,9 @@ router.post('/guardar', authMiddleware, async (req, res) => {
     let agendamientoId = null;
     if (acepto_servicio && equipos && tipo_servicio && fecha_agendamiento) {
       const agResult = await client.query(
-        `INSERT INTO agendamientos (historial_id, cliente_id, usuario_id, equipos, tipo_servicio, fecha_agendamiento, costo_cop, estado_servicio, creado_en, actualizado_en)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, 'Agendado', NOW(), NOW()) RETURNING id`,
-        [historial_id, cliente_id, req.user.id, equipos, tipo_servicio, fecha_agendamiento, costo_cop || 0]
+        `INSERT INTO agendamientos (historial_id, cliente_id, usuario_id, equipos, tipo_servicio, fecha_agendamiento, hora_inicio, hora_fin, costo_cop, estado_servicio, creado_en, actualizado_en)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'Agendado', NOW(), NOW()) RETURNING id`,
+        [historial_id, cliente_id, req.user.id, equipos, tipo_servicio, fecha_agendamiento, hora_inicio || null, hora_fin || null, costo_cop || 0]
       );
       agendamientoId = agResult.rows[0].id;
     }
@@ -197,7 +199,7 @@ router.get('/mis-clientes', authMiddleware, (req, res) => {
 // ─── POST /api/llamadas/nuevo-servicio ──────────────────────────────────────
 router.post('/nuevo-servicio', authMiddleware, async (req, res) => {
   const userId = req.user.id;
-  const { cliente_id, equipos, tipo_servicio, fecha_agendamiento, costo_cop, observaciones } = req.body;
+  const { cliente_id, equipos, tipo_servicio, fecha_agendamiento, hora_inicio, hora_fin, costo_cop, observaciones } = req.body;
 
   if (!cliente_id || !equipos || !tipo_servicio || !fecha_agendamiento) {
     return res.status(400).json({ error: 'Cliente, equipos, tipo de servicio y fecha son requeridos' });
@@ -216,9 +218,9 @@ router.post('/nuevo-servicio', authMiddleware, async (req, res) => {
     const histId = hlResult.rows[0].id;
 
     const agResult = await client.query(
-      `INSERT INTO agendamientos (historial_id, cliente_id, usuario_id, equipos, tipo_servicio, fecha_agendamiento, costo_cop, estado_servicio, creado_en, actualizado_en)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, 'Agendado', NOW(), NOW()) RETURNING id`,
-      [histId, cliente_id, userId, equipos, tipo_servicio, fecha_agendamiento, parseFloat(costo_cop) || 0]
+      `INSERT INTO agendamientos (historial_id, cliente_id, usuario_id, equipos, tipo_servicio, fecha_agendamiento, hora_inicio, hora_fin, costo_cop, estado_servicio, creado_en, actualizado_en)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'Agendado', NOW(), NOW()) RETURNING id`,
+      [histId, cliente_id, userId, equipos, tipo_servicio, fecha_agendamiento, hora_inicio || null, hora_fin || null, parseFloat(costo_cop) || 0]
     );
 
     await client.query('COMMIT');
@@ -529,7 +531,7 @@ router.get('/clientes-llamados', authMiddleware, gestorOCoordinador, (req, res) 
 router.post('/nuevo-agendamiento', authMiddleware, async (req, res) => {
   const db = getDb();
   const userId = req.user.id;
-  const { cliente_id, equipos, tipo_servicio, fecha_agendamiento, costo_cop, observaciones } = req.body;
+  const { cliente_id, equipos, tipo_servicio, fecha_agendamiento, hora_inicio, hora_fin, costo_cop, observaciones } = req.body;
 
   if (!cliente_id || !equipos || !tipo_servicio || !fecha_agendamiento) {
     return res.status(400).json({ error: 'Faltan campos obligatorios (cliente, equipos, tipo, fecha)' });
@@ -555,9 +557,9 @@ router.post('/nuevo-agendamiento', authMiddleware, async (req, res) => {
       );
 
       const agResult = await client.query(
-        `INSERT INTO agendamientos (historial_id, cliente_id, usuario_id, equipos, tipo_servicio, fecha_agendamiento, costo_cop, estado_servicio, creado_en, actualizado_en)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, 'Agendado', NOW(), NOW()) RETURNING id`,
-        [hlResult.rows[0].id, cliente_id, userId, equipos, tipo_servicio, fecha_agendamiento, parseFloat(costo_cop) || 0]
+        `INSERT INTO agendamientos (historial_id, cliente_id, usuario_id, equipos, tipo_servicio, fecha_agendamiento, hora_inicio, hora_fin, costo_cop, estado_servicio, creado_en, actualizado_en)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'Agendado', NOW(), NOW()) RETURNING id`,
+        [hlResult.rows[0].id, cliente_id, userId, equipos, tipo_servicio, fecha_agendamiento, hora_inicio || null, hora_fin || null, parseFloat(costo_cop) || 0]
       );
 
       await client.query('COMMIT');

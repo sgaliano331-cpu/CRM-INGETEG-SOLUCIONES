@@ -86,7 +86,7 @@ export default function MisClientes() {
   const [formCliente, setFormCliente] = useState(null);
   const [obs, setObs] = useState('');
   const [acepto, setAcepto] = useState(false);
-  const [agenda, setAgenda] = useState({ equipos: [], tipo_servicio: 'Mantenimiento', fecha_agendamiento: '', costo_cop: '' });
+  const [agenda, setAgenda] = useState({ equipos: [], tipo_servicio: 'Mantenimiento', fecha_agendamiento: '', hora_inicio: '', hora_fin: '', costo_cop: '' });
   const [reprogramar, setReprogramar] = useState(false);
   const [repFecha, setRepFecha] = useState('');
   const [repHora, setRepHora] = useState('');
@@ -130,7 +130,7 @@ export default function MisClientes() {
     setFormCliente(cliente);
     setObs('');
     setAcepto(false);
-    setAgenda({ equipos: [], tipo_servicio: 'Mantenimiento', fecha_agendamiento: '', costo_cop: '' });
+    setAgenda({ equipos: [], tipo_servicio: 'Mantenimiento', fecha_agendamiento: '', hora_inicio: '', hora_fin: '', costo_cop: '' });
     setReprogramar(false);
     setRepFecha('');
     setRepHora('');
@@ -218,6 +218,8 @@ export default function MisClientes() {
           equipos: agenda.equipos.join(', '),
           tipo_servicio: agenda.tipo_servicio,
           fecha_agendamiento: agenda.fecha_agendamiento,
+          hora_inicio: agenda.hora_inicio || null,
+          hora_fin: agenda.hora_fin || null,
           costo_cop: parseFloat(agenda.costo_cop) || 0,
         }),
       });
@@ -503,6 +505,19 @@ export default function MisClientes() {
                                 <label className="block text-xs font-medium text-slate-500 mb-1.5">Costo del Servicio (COP)</label>
                                 <input type="number" className="input-field" placeholder="0" value={agenda.costo_cop}
                                   onChange={e => setAgenda(a => ({ ...a, costo_cop: e.target.value }))} />
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <label className="block text-xs font-medium text-slate-500 mb-1.5">Hora Inicio</label>
+                                <input type="time" className="input-field" value={agenda.hora_inicio}
+                                  onChange={e => setAgenda(a => ({ ...a, hora_inicio: e.target.value }))} />
+                              </div>
+                              <div>
+                                <label className="block text-xs font-medium text-slate-500 mb-1.5">Hora Fin</label>
+                                <input type="time" className="input-field" value={agenda.hora_fin}
+                                  onChange={e => setAgenda(a => ({ ...a, hora_fin: e.target.value }))} />
                               </div>
                             </div>
                           </div>

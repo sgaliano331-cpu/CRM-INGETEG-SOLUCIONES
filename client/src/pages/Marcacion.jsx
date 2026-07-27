@@ -42,6 +42,8 @@ const emptyAgenda = {
   equipos: [],
   tipo_servicio: 'Mantenimiento',
   fecha_agendamiento: '',
+  hora_inicio: '',
+  hora_fin: '',
   costo_cop: '',
 };
 
@@ -187,6 +189,8 @@ export default function Marcacion() {
           equipos: agenda.equipos.join(', '),
           tipo_servicio: agenda.tipo_servicio,
           fecha_agendamiento: agenda.fecha_agendamiento,
+          hora_inicio: agenda.hora_inicio || null,
+          hora_fin: agenda.hora_fin || null,
           costo_cop: parseFloat(agenda.costo_cop) || 0,
         }),
       });
@@ -430,6 +434,19 @@ export default function Marcacion() {
                 <input type="number" className="input-field" placeholder="0"
                   value={agenda.costo_cop}
                   onChange={e => setAgenda(a => ({ ...a, costo_cop: e.target.value }))} />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-1.5">Hora Inicio</label>
+                <input type="time" className="input-field" value={agenda.hora_inicio}
+                  onChange={e => setAgenda(a => ({ ...a, hora_inicio: e.target.value }))} />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-1.5">Hora Fin</label>
+                <input type="time" className="input-field" value={agenda.hora_fin}
+                  onChange={e => setAgenda(a => ({ ...a, hora_fin: e.target.value }))} />
               </div>
             </div>
           </div>

@@ -48,6 +48,8 @@ CREATE TABLE IF NOT EXISTS agendamientos (
   equipos TEXT NOT NULL,
   tipo_servicio TEXT NOT NULL CHECK(tipo_servicio IN ('Mantenimiento','Reparación','Garantía')),
   fecha_agendamiento TEXT NOT NULL,
+  hora_inicio TEXT,
+  hora_fin TEXT,
   costo_cop REAL NOT NULL DEFAULT 0,
   estado_servicio TEXT NOT NULL DEFAULT 'Agendado'
     CHECK(estado_servicio IN ('Agendado','Cumplido','Pendiente por repuesto','Cancelado por el cliente')),
