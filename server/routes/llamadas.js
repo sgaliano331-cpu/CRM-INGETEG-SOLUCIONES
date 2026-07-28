@@ -1236,4 +1236,56 @@ router.get('/generar-pdf/:id', authMiddleware, gestorOCoordinador, async (req, r
   );
 });
 
+// ─── POST /api/llamadas/enviar-rutas-whatsapp ────────────────────────────
+router.post('/enviar-rutas-whatsapp', authMiddleware, gestorOCoordinador, (req, res) => {
+  const db = getDb();
+  const { fecha } = req.body;
+
+  if (!fecha) return res.status(400).json({ error: 'Fecha requerida' });
+
+  const { enviarMensajeWhatsApp, formatearRuta, getNumeroTecnico } = require('../whatsapp');
+
+  db.all(
+    `SELECT a.id, a.fecha_agendamiento, a.hora_inicio, a.hora_fin, a.equipos,
+            a.tipo_servicio, a.estado_servicio, a.tecnico, a.costo_cop,
+            c.nombre AS cliente_nombre, c.direccion, c.barrio, c.ciudad, c.telefono
+     FROM agendamientos a
+     JOIN clientes c ON a.cliente_id = c.id
+     WHERE a.fecha_agendamiento = ? AND a.estado_servicio = 'Agendado' AND a.tecnico IS NOT NULL
+     ORDER BY a.hora_inicio`,
+    [fecha],
+    async (err, servicios) => {
+      if (err) return res.status(500).json({ error: err.message });
+      if (!servicios || servicios.length === 0) {
+        return res.json({ ok: true, enviados: 0, mensaje: 'No hay servicios agendados para esa fecha' });
+      }
+
+      const porTecnico = {};
+      for (const s of servicios) {
+        const key = s.tecnico.toUpperCase().trim().split(' ')[0];
+        if (!porTecnico[key]) porTecnico[key] = [];
+        porTecnico[key].push(s);
+      }
+
+      const resultados = [];
+      for (const [tecnico, lista] of Object.entries(porTecnico)) {
+        const numero = getNumeroTecnico(tecnico);
+        if (!numero) {
+          resultados.push({ tecnico, estado: 'sin_numero', servicios: lista.length });
+          continue;
+        }
+        try {
+          const mensaje = formatearRuta(tecnico, lista);
+          await enviarMensajeWhatsApp(numero, mensaje);
+          resultados.push({ tecnico, estado: 'enviado', servicios: lista.length });
+        } catch (e) {
+          resultados.push({ tecnico, estado: 'error', error: e.message, servicios: lista.length });
+        }
+      }
+
+      res.json({ ok: true, enviados: resultados.filter(r => r.estado === 'enviado').length, resultados });
+    }
+  );
+});
+
 module.exports = router;
