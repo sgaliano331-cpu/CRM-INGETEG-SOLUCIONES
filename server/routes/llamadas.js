@@ -135,12 +135,17 @@ router.get('/mis-registros', authMiddleware, (req, res) => {
 router.get('/mis-clientes', authMiddleware, (req, res) => {
   const db = getDb();
   const userId = req.user.id;
+  const esCoord = req.user.rol === 'COORDINADOR';
+
+  const whereUsuario = esCoord ? '' : 'AND hl.usuario_id = ?';
+  const params = esCoord ? [] : [userId];
 
   const query = `
     SELECT
       c.id AS cliente_id, c.nombre, c.telefono, c.direccion, c.barrio, c.ciudad,
       hl.id AS historial_id, hl.observaciones AS obs_marcacion,
       hl.inicio_llamada, hl.fin_llamada, hl.acepto_servicio,
+      u.nombre AS asesora_nombre,
       a.id AS agendamiento_id, a.equipos, a.tipo_servicio,
       a.fecha_agendamiento, a.estado_servicio, a.metodo_pago,
       a.costo_cop, a.observaciones_tecnica AS obs_tecnica,
@@ -148,14 +153,15 @@ router.get('/mis-clientes', authMiddleware, (req, res) => {
       co.valor_cotizacion, co.observacion_gestor, co.observacion_asesora, co.estado AS estado_cotizacion
     FROM historial_llamadas hl
     JOIN clientes c ON hl.cliente_id = c.id
+    JOIN usuarios u ON hl.usuario_id = u.id
     LEFT JOIN agendamientos a ON a.historial_id = hl.id
     LEFT JOIN cotizaciones co ON co.agendamiento_id = a.id
-    WHERE hl.usuario_id = ?
-      AND hl.fin_llamada IS NOT NULL
+    WHERE hl.fin_llamada IS NOT NULL
+      ${whereUsuario}
     ORDER BY c.nombre ASC, hl.inicio_llamada DESC
   `;
 
-  db.all(query, [userId], (err, rows) => {
+  db.all(query, params, (err, rows) => {
     if (err) {
       console.error('Error en /mis-clientes:', err.message);
       return res.status(500).json({ error: 'Error al consultar clientes' });
