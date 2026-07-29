@@ -29,6 +29,11 @@ export default function ClientesNuevos() {
   const [asesoraSeleccionada, setAsesoraSeleccionada] = useState('');
   const [esPrioridad, setEsPrioridad] = useState(false);
 
+  const [horaInicio, setHoraInicio] = useState('');
+  const [horaFin, setHoraFin] = useState('');
+  const [tecnico, setTecnico] = useState('');
+  const [tecnicos, setTecnicos] = useState([]);
+
   const [guardando, setGuardando] = useState(false);
   const [mensaje, setMensaje] = useState('');
 
@@ -36,6 +41,7 @@ export default function ClientesNuevos() {
     if (isCoordinador) {
       api.get('/clientes/asesoras/lista').then(({ data }) => setAsesoras(data.asesoras)).catch(() => {});
     }
+    api.get('/llamadas/tecnicos').then(({ data }) => setTecnicos(data.tecnicos || [])).catch(() => {});
   }, [isCoordinador]);
 
   const handleToggleEquipo = (equipo) => {
@@ -89,6 +95,9 @@ export default function ClientesNuevos() {
           tipo_servicio: tipoServicio,
           fecha_agendamiento: fechaAgendamiento || new Date().toISOString().split('T')[0],
           costo_cop: parseFloat(costo) || 0,
+          hora_inicio: horaInicio || null,
+          hora_fin: horaFin || null,
+          tecnico: tecnico || null,
         }),
       });
 
@@ -97,6 +106,9 @@ export default function ClientesNuevos() {
       setEquiposSeleccionados([]);
       setFechaAgendamiento('');
       setCosto('18000.0');
+      setHoraInicio('');
+      setHoraFin('');
+      setTecnico('');
       setEsPrioridad(false);
       setMensaje('OK Registro guardado y agendado correctamente.');
 
@@ -259,6 +271,26 @@ export default function ClientesNuevos() {
                 <label className="block text-xs font-medium text-slate-500 mb-1.5">Costo del Servicio (COP)</label>
                 <input type="text" className="input-field"
                   value={costo} onChange={e => setCosto(e.target.value)} />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-4 pt-2">
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-1.5">Hora Inicio</label>
+                <input type="time" className="input-field"
+                  value={horaInicio} onChange={e => setHoraInicio(e.target.value)} />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-1.5">Hora Fin</label>
+                <input type="time" className="input-field"
+                  value={horaFin} onChange={e => setHoraFin(e.target.value)} />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-1.5">Tecnico Asignado</label>
+                <select className="input-field" value={tecnico} onChange={e => setTecnico(e.target.value)}>
+                  <option value="">Sin asignar</option>
+                  {tecnicos.map(t => <option key={t.id} value={t.nombre}>{t.nombre}</option>)}
+                </select>
               </div>
             </div>
           </div>
