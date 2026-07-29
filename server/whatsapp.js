@@ -29,22 +29,12 @@ function enviarMensajeWhatsApp(telefono, mensaje) {
       return reject(new Error('WHATSAPP_TOKEN no configurado'));
     }
 
-    const payload = NUMERO_PRUEBA
-      ? {
-          messaging_product: 'whatsapp',
-          to: telefono,
-          type: 'template',
-          template: {
-            name: 'hello_world',
-            language: { code: 'en_US' },
-          },
-        }
-      : {
-          messaging_product: 'whatsapp',
-          to: telefono,
-          type: 'text',
-          text: { body: mensaje },
-        };
+    const payload = {
+      messaging_product: 'whatsapp',
+      to: telefono,
+      type: 'text',
+      text: { body: mensaje },
+    };
 
     const body = JSON.stringify(payload);
 
