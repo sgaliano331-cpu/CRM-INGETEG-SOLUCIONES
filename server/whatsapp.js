@@ -3,6 +3,8 @@ const https = require('https');
 const WHATSAPP_PHONE_ID = process.env.WHATSAPP_PHONE_ID || '1140616715811080';
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
 
+const NUMERO_PRUEBA = process.env.WHATSAPP_TEST_NUMBER || null;
+
 const TECNICOS_WHATSAPP = {
   'HERNAN': '573043548999',
   'HERNAN HERRERA': '573043548999',
@@ -16,6 +18,7 @@ const TECNICOS_WHATSAPP = {
 
 function getNumeroTecnico(nombre) {
   if (!nombre) return null;
+  if (NUMERO_PRUEBA) return NUMERO_PRUEBA;
   const key = nombre.toUpperCase().trim();
   return TECNICOS_WHATSAPP[key] || TECNICOS_WHATSAPP[key.split(' ')[0]] || null;
 }
