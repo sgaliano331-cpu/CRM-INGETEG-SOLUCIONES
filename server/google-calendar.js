@@ -9,6 +9,7 @@ const CALENDARIOS_TECNICOS = {
   'OMAR': '2a4c1f86d9b21889e979a7444754d8c4c5ec4977f342a766e1689f1c3a56910e@group.calendar.google.com',
   'ANDRES SANCHEZ': '8117d5b14cc385415fcd125bd8890e45b81f442c70506e59d1a0625f734c734b@group.calendar.google.com',
   'SANCHEZ': '8117d5b14cc385415fcd125bd8890e45b81f442c70506e59d1a0625f734c734b@group.calendar.google.com',
+  'TECNICO PRUEBA': '7ffcaa68698de240623c58ab68befdf60608ad2334454ce8ccc261e0f84ba14e@group.calendar.google.com',
 };
 
 let calendarClient = null;
