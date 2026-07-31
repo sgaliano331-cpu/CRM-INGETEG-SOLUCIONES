@@ -474,7 +474,7 @@ router.get('/buscar-agendamiento', authMiddleware, (req, res) => {
     FROM agendamientos a
     JOIN clientes c ON a.cliente_id = c.id
     JOIN usuarios u ON a.usuario_id = u.id
-    WHERE (c.nombre LIKE ? OR c.telefono LIKE ?)
+    WHERE (c.nombre ILIKE ? OR c.telefono ILIKE ?)
       ${!esCoord ? 'AND a.usuario_id = ?' : ''}
     ORDER BY a.creado_en DESC
     LIMIT 20
@@ -529,7 +529,7 @@ router.get('/clientes-llamados', authMiddleware, gestorOCoordinador, (req, res) 
   }
 
   if (buscar) {
-    query += ' AND (c.nombre LIKE ? OR c.telefono LIKE ?)';
+    query += ' AND (c.nombre ILIKE ? OR c.telefono ILIKE ?)';
     const like = `%${buscar}%`;
     params.push(like, like);
   }
@@ -812,8 +812,8 @@ router.get('/gestion-servicios', authMiddleware, gestorOCoordinador, (req, res) 
   if (fecha_desde) { query += ' AND a.fecha_agendamiento >= ?'; params.push(fecha_desde); }
   if (fecha_hasta) { query += ' AND a.fecha_agendamiento <= ?'; params.push(fecha_hasta); }
   if (estado) { query += ' AND a.estado_servicio = ?'; params.push(estado); }
-  if (tecnico) { query += ' AND a.tecnico LIKE ?'; params.push(`%${tecnico}%`); }
-  if (buscar) { query += ' AND (c.nombre LIKE ? OR c.telefono LIKE ? OR a.id_servicio LIKE ?)'; params.push(`%${buscar}%`, `%${buscar}%`, `%${buscar}%`); }
+  if (tecnico) { query += ' AND a.tecnico ILIKE ?'; params.push(`%${tecnico}%`); }
+  if (buscar) { query += ' AND (c.nombre ILIKE ? OR c.telefono ILIKE ? OR a.id_servicio ILIKE ?)'; params.push(`%${buscar}%`, `%${buscar}%`, `%${buscar}%`); }
 
   query += ' ORDER BY a.fecha_agendamiento DESC LIMIT 200';
 

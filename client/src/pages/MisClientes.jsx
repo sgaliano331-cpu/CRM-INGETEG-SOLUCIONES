@@ -113,7 +113,7 @@ export default function MisClientes() {
   const filtrados = clientes.filter(c => {
     if (busqueda) {
       const q = busqueda.toLowerCase();
-      if (!c.nombre.toLowerCase().includes(q) && !c.telefono?.includes(q)) return false;
+      if (!c.nombre?.toLowerCase().includes(q) && !c.telefono?.toLowerCase().includes(q) && !c.direccion?.toLowerCase().includes(q) && !c.barrio?.toLowerCase().includes(q)) return false;
     }
     if (filtroEstado) {
       const tieneEstado = c.servicios.some(s => {
