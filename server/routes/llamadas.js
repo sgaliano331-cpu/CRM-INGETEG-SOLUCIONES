@@ -866,6 +866,34 @@ router.get('/calendario', authMiddleware, (req, res) => {
   });
 });
 
+// ─── POST /api/llamadas/sync-calendario/:id ───────────────────────────────
+router.post('/sync-calendario/:id', authMiddleware, gestorOCoordinador, async (req, res) => {
+  try {
+    const pool = require('../db').getClient ? null : undefined;
+    const client = await getClient();
+    const result = await client.query(
+      `SELECT a.*, c.nombre, c.telefono, c.direccion, c.barrio, c.ciudad
+       FROM agendamientos a JOIN clientes c ON a.cliente_id = c.id WHERE a.id = $1`,
+      [parseInt(req.params.id)]
+    );
+    client.release();
+    if (!result.rows.length) return res.status(404).json({ error: 'Agendamiento no encontrado' });
+    const a = result.rows[0];
+    const eventId = await crearEventoAgendamiento({
+      clienteNombre: a.nombre, clienteDireccion: a.direccion, clienteBarrio: a.barrio,
+      clienteCiudad: a.ciudad, clienteTelefono: a.telefono,
+      equipos: a.equipos, tipoServicio: a.tipo_servicio, fecha: a.fecha_agendamiento,
+      horaInicio: a.hora_inicio, horaFin: a.hora_fin, costoCop: a.costo_cop,
+      observaciones: a.observaciones_tecnica, tecnico: a.tecnico,
+    });
+    if (!eventId) return res.status(500).json({ error: 'No se pudo crear el evento en calendario' });
+    res.json({ ok: true, eventId });
+  } catch (err) {
+    console.error('Error en sync-calendario:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ─── PUT /api/llamadas/mover-servicio ─────────────────────────────────────
 router.put('/mover-servicio', authMiddleware, (req, res) => {
   const db = getDb();
