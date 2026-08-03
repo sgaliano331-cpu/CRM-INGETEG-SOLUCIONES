@@ -973,8 +973,10 @@ router.get('/generar-pdf/:id', authMiddleware, gestorOCoordinador, async (req, r
             const addPage = () => { page = doc.addPage([PW, PH]); y = PH - 50; };
             const check = (n) => { if (y - n < 60) addPage(); };
 
+            const clean = (s) => String(s || '').replace(/[\n\r\t\x00-\x1f]/g, ' ').replace(/\s+/g, ' ').trim();
+
             const wrapText = (str, maxW, sz, f = font) => {
-              const words = String(str || '').split(' ');
+              const words = clean(str).split(' ');
               const lines = [];
               let line = '';
               for (const w of words) {
@@ -1039,7 +1041,7 @@ router.get('/generar-pdf/:id', authMiddleware, gestorOCoordinador, async (req, r
             const row = (label, value, bold = false) => {
               check(16);
               page.drawText(label, { x: M + 8, y, size: 8, font: fontBold, color: GRAY });
-              const val = String(value || '—');
+              const val = clean(value) || '—';
               page.drawText(val, { x: M + 150, y, size: 8.5, font: bold ? fontBold : font, color: bold ? ACCENT : TEXT });
               y -= 15;
             };
@@ -1081,7 +1083,7 @@ router.get('/generar-pdf/:id', authMiddleware, gestorOCoordinador, async (req, r
 
               for (const r of repuestos) {
                 check(14);
-                page.drawText(r.repuesto_nombre || '—', { x: M + 10, y, size: 8, font, color: TEXT });
+                page.drawText(clean(r.repuesto_nombre || r.nombre) || '—', { x: M + 10, y, size: 8, font, color: TEXT });
                 page.drawText(String(r.cantidad || 1), { x: M + 288, y, size: 8, font, color: TEXT });
                 page.drawText(`$ ${Number(r.valor_unitario || 0).toLocaleString('es-CO')}`, { x: M + 330, y, size: 8, font, color: TEXT });
                 page.drawText(`$ ${Number(r.valor_total || 0).toLocaleString('es-CO')}`, { x: M + 415, y, size: 8, font: fontBold, color: TEXT });
