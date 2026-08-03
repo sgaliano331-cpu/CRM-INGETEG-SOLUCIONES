@@ -207,6 +207,7 @@ router.get('/tecnicos', authMiddleware, soloCoordinador, (req, res) => {
     SELECT
       a.tecnico,
       COUNT(a.id) AS total_servicios,
+      SUM(CASE WHEN a.tipo_servicio = 'Garantía' THEN 1 ELSE 0 END) AS total_garantias,
       SUM(a.costo_cop) AS total_recaudado,
       COALESCE(SUM(rep.total_repuestos), 0) AS total_repuestos_cop,
       COALESCE(SUM(rep.cantidad_repuestos), 0) AS cantidad_repuestos,

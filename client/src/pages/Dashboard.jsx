@@ -182,6 +182,7 @@ export default function Dashboard() {
                 <tr className="border-b border-slate-200">
                   <th className="text-left py-3 px-3">Tecnico</th>
                   <th className="text-right py-3 px-3">Servicios</th>
+                  <th className="text-right py-3 px-3">Garantias</th>
                   <th className="text-right py-3 px-3">Total Recaudado</th>
                   <th className="text-right py-3 px-3">Repuestos ($)</th>
                   <th className="text-right py-3 px-3">Cant. Repuestos</th>
@@ -194,6 +195,7 @@ export default function Dashboard() {
                   <tr key={t.tecnico} className="hover:bg-slate-50 transition-colors border-b border-slate-50">
                     <td className="py-3 px-3 font-medium text-slate-800">{t.tecnico}</td>
                     <td className="py-3 px-3 text-right text-slate-600 font-semibold">{t.total_servicios}</td>
+                    <td className="py-3 px-3 text-right text-purple-600">{t.total_garantias || 0}</td>
                     <td className="py-3 px-3 text-right text-emerald-700 font-semibold">{fmt(t.total_recaudado || 0)}</td>
                     <td className="py-3 px-3 text-right text-blue-600">{fmt(t.total_repuestos_cop || 0)}</td>
                     <td className="py-3 px-3 text-right text-slate-500">{t.cantidad_repuestos || 0}</td>
@@ -207,6 +209,7 @@ export default function Dashboard() {
                   <tr className="border-t-2 border-slate-200 bg-slate-50 font-semibold">
                     <td className="py-3 px-3 text-slate-700">TOTAL</td>
                     <td className="py-3 px-3 text-right text-slate-700">{tecnicos.reduce((s, t) => s + Number(t.total_servicios || 0), 0)}</td>
+                    <td className="py-3 px-3 text-right text-purple-600">{tecnicos.reduce((s, t) => s + Number(t.total_garantias || 0), 0)}</td>
                     <td className="py-3 px-3 text-right text-emerald-700">{fmt(tecnicos.reduce((s, t) => s + Number(t.total_recaudado || 0), 0))}</td>
                     <td className="py-3 px-3 text-right text-blue-600">{fmt(tecnicos.reduce((s, t) => s + Number(t.total_repuestos_cop || 0), 0))}</td>
                     <td className="py-3 px-3 text-right text-slate-500">{tecnicos.reduce((s, t) => s + Number(t.cantidad_repuestos || 0), 0)}</td>
