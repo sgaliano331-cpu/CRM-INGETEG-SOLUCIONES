@@ -46,7 +46,7 @@ function getCalendarId(tecnico) {
   return CALENDARIOS_TECNICOS[key] || null;
 }
 
-async function crearEventoAgendamiento({ clienteNombre, clienteDireccion, clienteBarrio, clienteCiudad, clienteTelefono, equipos, tipoServicio, fecha, horaInicio, horaFin, costoCop, observaciones, tecnico }) {
+async function crearEventoAgendamiento({ clienteNombre, clienteDireccion, clienteBarrio, clienteCiudad, clienteTelefono, equipos, tipoServicio, fecha, horaInicio, horaFin, costoCop, observaciones, tecnico, asesora }) {
   const calendar = getCalendar();
   if (!calendar) return null;
 
@@ -56,17 +56,17 @@ async function crearEventoAgendamiento({ clienteNombre, clienteDireccion, client
     return null;
   }
 
-  const titulo = `${tipoServicio} — ${clienteNombre}`;
+  const tituloEquipos = [tipoServicio, equipos].filter(Boolean).join(' ');
+  const titulo = clienteBarrio ? `${tituloEquipos}- ${clienteBarrio}` : tituloEquipos;
 
   const partes = [];
-  if (equipos) partes.push(`Equipos: ${equipos}`);
-  if (clienteDireccion) partes.push(`Dirección: ${clienteDireccion}`);
-  if (clienteBarrio) partes.push(`Barrio: ${clienteBarrio}`);
-  if (clienteCiudad) partes.push(`Ciudad: ${clienteCiudad}`);
-  if (clienteTelefono) partes.push(`Teléfono: ${clienteTelefono}`);
-  if (costoCop) partes.push(`Costo: $${Number(costoCop).toLocaleString('es-CO')} COP`);
-  if (observaciones) partes.push(`Observaciones: ${observaciones}`);
-  if (tecnico) partes.push(`Técnico: ${tecnico}`);
+  if (tipoServicio || equipos) partes.push([tipoServicio, equipos].filter(Boolean).join(' '));
+  if (clienteNombre) partes.push(clienteNombre);
+  if (clienteTelefono) partes.push(clienteTelefono);
+  if (clienteDireccion) partes.push(clienteDireccion);
+  if (clienteBarrio) partes.push(`BARRIO:${clienteBarrio}`);
+  if (costoCop) partes.push(`VALOR:${Number(costoCop).toLocaleString('es-CO')}`);
+  if (asesora) partes.push(asesora);
   const descripcion = partes.join('\n');
 
   const ubicacion = [clienteDireccion, clienteBarrio, clienteCiudad].filter(Boolean).join(', ');

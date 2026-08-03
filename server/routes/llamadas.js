@@ -100,7 +100,7 @@ router.post('/guardar', authMiddleware, async (req, res) => {
         clienteNombre: cl?.nombre, clienteDireccion: cl?.direccion, clienteBarrio: cl?.barrio,
         clienteCiudad: cl?.ciudad, clienteTelefono: cl?.telefono,
         equipos, tipoServicio: tipo_servicio, fecha: fecha_agendamiento,
-        horaInicio: hora_inicio, horaFin: hora_fin, costoCop: costo_cop, observaciones, tecnico,
+        horaInicio: hora_inicio, horaFin: hora_fin, costoCop: costo_cop, observaciones, tecnico, asesora: req.user.nombre,
       }).catch(e => console.error('[Calendar] Error en /guardar:', e.message));
     }
 
@@ -249,7 +249,7 @@ router.post('/nuevo-servicio', authMiddleware, async (req, res) => {
       clienteNombre: cl?.nombre, clienteDireccion: cl?.direccion, clienteBarrio: cl?.barrio,
       clienteCiudad: cl?.ciudad, clienteTelefono: cl?.telefono,
       equipos, tipoServicio: tipo_servicio, fecha: fecha_agendamiento,
-      horaInicio: hora_inicio, horaFin: hora_fin, costoCop: costo_cop, observaciones, tecnico,
+      horaInicio: hora_inicio, horaFin: hora_fin, costoCop: costo_cop, observaciones, tecnico, asesora: req.user.nombre,
     }).catch(e => console.error('[Calendar] Error en /nuevo-servicio:', e.message));
 
     res.json({ ok: true, agendamiento_id: agResult.rows[0].id });
@@ -596,7 +596,7 @@ router.post('/nuevo-agendamiento', authMiddleware, async (req, res) => {
         clienteNombre: cliente.nombre, clienteDireccion: cliente.direccion, clienteBarrio: cliente.barrio,
         clienteCiudad: cliente.ciudad, clienteTelefono: cliente.telefono,
         equipos, tipoServicio: tipo_servicio, fecha: fecha_agendamiento,
-        horaInicio: hora_inicio, horaFin: hora_fin, costoCop: costo_cop, observaciones, tecnico,
+        horaInicio: hora_inicio, horaFin: hora_fin, costoCop: costo_cop, observaciones, tecnico, asesora: req.user.nombre,
       }).catch(e => console.error('[Calendar] Error en /nuevo-agendamiento:', e.message));
 
       res.status(201).json({ ok: true, agendamiento_id: agResult.rows[0].id });
@@ -872,8 +872,8 @@ router.post('/sync-calendario/:id', authMiddleware, gestorOCoordinador, async (r
     const pool = require('../db').getClient ? null : undefined;
     const client = await getClient();
     const result = await client.query(
-      `SELECT a.*, c.nombre, c.telefono, c.direccion, c.barrio, c.ciudad
-       FROM agendamientos a JOIN clientes c ON a.cliente_id = c.id WHERE a.id = $1`,
+      `SELECT a.*, c.nombre, c.telefono, c.direccion, c.barrio, c.ciudad, u.nombre AS asesora_nombre
+       FROM agendamientos a JOIN clientes c ON a.cliente_id = c.id LEFT JOIN usuarios u ON a.usuario_id = u.id WHERE a.id = $1`,
       [parseInt(req.params.id)]
     );
     client.release();
@@ -884,7 +884,7 @@ router.post('/sync-calendario/:id', authMiddleware, gestorOCoordinador, async (r
       clienteCiudad: a.ciudad, clienteTelefono: a.telefono,
       equipos: a.equipos, tipoServicio: a.tipo_servicio, fecha: a.fecha_agendamiento,
       horaInicio: a.hora_inicio, horaFin: a.hora_fin, costoCop: a.costo_cop,
-      observaciones: a.observaciones_tecnica, tecnico: a.tecnico,
+      observaciones: a.observaciones_tecnica, tecnico: a.tecnico, asesora: a.asesora_nombre,
     });
     if (!eventId) return res.status(500).json({ error: 'No se pudo crear el evento en calendario' });
     res.json({ ok: true, eventId });
