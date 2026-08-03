@@ -186,4 +186,50 @@ router.get('/metas-asesora', authMiddleware, (req, res) => {
   }
 });
 
+// ─── GET /api/dashboard/tecnicos ─────────────────────────────────────────
+router.get('/tecnicos', authMiddleware, soloCoordinador, (req, res) => {
+  const db = getDb();
+  const { fecha_desde, fecha_hasta } = req.query;
+
+  let where = "WHERE a.estado_servicio IN ('Cumplido', 'Visita Fallida', 'Pendiente por repuesto') AND a.tecnico IS NOT NULL";
+  const params = [];
+
+  if (fecha_desde) {
+    where += ' AND a.fecha_agendamiento >= ?';
+    params.push(fecha_desde);
+  }
+  if (fecha_hasta) {
+    where += ' AND a.fecha_agendamiento <= ?';
+    params.push(fecha_hasta);
+  }
+
+  const query = `
+    SELECT
+      a.tecnico,
+      COUNT(a.id) AS total_servicios,
+      SUM(a.costo_cop) AS total_recaudado,
+      COALESCE(SUM(rep.total_repuestos), 0) AS total_repuestos_cop,
+      COALESCE(SUM(rep.cantidad_repuestos), 0) AS cantidad_repuestos,
+      SUM(a.costo_cop) - COALESCE(SUM(rep.total_repuestos), 0) AS total_mano_obra,
+      COUNT(DISTINCT a.fecha_agendamiento) AS dias_trabajados,
+      ROUND(COUNT(a.id)::numeric / NULLIF(COUNT(DISTINCT a.fecha_agendamiento), 0), 1) AS promedio_por_dia
+    FROM agendamientos a
+    LEFT JOIN (
+      SELECT ru.detalle_id,
+        SUM(ru.valor_total) AS total_repuestos,
+        SUM(ru.cantidad) AS cantidad_repuestos
+      FROM repuestos_usados ru
+      GROUP BY ru.detalle_id
+    ) rep ON rep.detalle_id = (SELECT dst.id FROM detalle_servicio_tecnico dst WHERE dst.agendamiento_id = a.id LIMIT 1)
+    ${where}
+    GROUP BY a.tecnico
+    ORDER BY total_servicios DESC
+  `;
+
+  db.all(query, params, (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ tecnicos: rows || [] });
+  });
+});
+
 module.exports = router;

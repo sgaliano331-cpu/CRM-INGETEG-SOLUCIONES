@@ -39,10 +39,13 @@ export default function Dashboard() {
   const [asesoras, setAsesoras] = useState([]);
   const [tabAudit, setTabAudit] = useState('tabla');
   const [descansosAudit, setDescansosAudit] = useState(null);
+  const [tecnicos, setTecnicos] = useState(null);
+  const [filtroTecnicos, setFiltroTecnicos] = useState({ fecha_desde: '', fecha_hasta: '' });
 
   useEffect(() => {
     api.get('/dashboard/resumen').then(({ data }) => setData(data)).catch(() => {});
     api.get('/clientes/asesoras/lista').then(({ data }) => setAsesoras(data.asesoras)).catch(() => {});
+    api.get('/dashboard/tecnicos').then(({ data }) => setTecnicos(data.tecnicos)).catch(() => {});
     cargarAuditoria();
   }, []);
 
@@ -58,6 +61,17 @@ export default function Dashboard() {
     } catch (err) {
       console.error('Error cargando auditoria:', err.message);
     }
+  };
+
+  const cargarTecnicos = (filtros = {}) => {
+    const params = new URLSearchParams(filtros).toString();
+    api.get(`/dashboard/tecnicos${params ? '?' + params : ''}`).then(({ data }) => setTecnicos(data.tecnicos)).catch(() => {});
+  };
+
+  const handleFiltroTecnicos = () => {
+    cargarTecnicos(Object.fromEntries(
+      Object.entries(filtroTecnicos).filter(([, v]) => v !== '')
+    ));
   };
 
   const handleFiltroAudit = () => {
@@ -147,6 +161,61 @@ export default function Dashboard() {
                 <p className="text-[10px] text-slate-400">en cola</p>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Technician Stats */}
+      {tecnicos && (
+        <div className="card">
+          <h2 className="text-sm font-semibold text-slate-700 mb-4">Rendimiento por Tecnico</h2>
+          <div className="flex gap-3 mb-4">
+            <input type="date" className="input-field" value={filtroTecnicos.fecha_desde}
+              onChange={e => setFiltroTecnicos(f => ({ ...f, fecha_desde: e.target.value }))} />
+            <input type="date" className="input-field" value={filtroTecnicos.fecha_hasta}
+              onChange={e => setFiltroTecnicos(f => ({ ...f, fecha_hasta: e.target.value }))} />
+            <button onClick={handleFiltroTecnicos} className="btn-secondary">Filtrar</button>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-200">
+                  <th className="text-left py-3 px-3">Tecnico</th>
+                  <th className="text-right py-3 px-3">Servicios</th>
+                  <th className="text-right py-3 px-3">Total Recaudado</th>
+                  <th className="text-right py-3 px-3">Repuestos ($)</th>
+                  <th className="text-right py-3 px-3">Cant. Repuestos</th>
+                  <th className="text-right py-3 px-3">Mano de Obra</th>
+                  <th className="text-right py-3 px-3">Prom/Dia</th>
+                </tr>
+              </thead>
+              <tbody>
+                {tecnicos.map(t => (
+                  <tr key={t.tecnico} className="hover:bg-slate-50 transition-colors border-b border-slate-50">
+                    <td className="py-3 px-3 font-medium text-slate-800">{t.tecnico}</td>
+                    <td className="py-3 px-3 text-right text-slate-600 font-semibold">{t.total_servicios}</td>
+                    <td className="py-3 px-3 text-right text-emerald-700 font-semibold">{fmt(t.total_recaudado || 0)}</td>
+                    <td className="py-3 px-3 text-right text-blue-600">{fmt(t.total_repuestos_cop || 0)}</td>
+                    <td className="py-3 px-3 text-right text-slate-500">{t.cantidad_repuestos || 0}</td>
+                    <td className="py-3 px-3 text-right text-amber-700 font-semibold">{fmt(t.total_mano_obra || 0)}</td>
+                    <td className="py-3 px-3 text-right text-slate-600">{t.promedio_por_dia || 0}</td>
+                  </tr>
+                ))}
+              </tbody>
+              {tecnicos.length > 1 && (
+                <tfoot>
+                  <tr className="border-t-2 border-slate-200 bg-slate-50 font-semibold">
+                    <td className="py-3 px-3 text-slate-700">TOTAL</td>
+                    <td className="py-3 px-3 text-right text-slate-700">{tecnicos.reduce((s, t) => s + Number(t.total_servicios || 0), 0)}</td>
+                    <td className="py-3 px-3 text-right text-emerald-700">{fmt(tecnicos.reduce((s, t) => s + Number(t.total_recaudado || 0), 0))}</td>
+                    <td className="py-3 px-3 text-right text-blue-600">{fmt(tecnicos.reduce((s, t) => s + Number(t.total_repuestos_cop || 0), 0))}</td>
+                    <td className="py-3 px-3 text-right text-slate-500">{tecnicos.reduce((s, t) => s + Number(t.cantidad_repuestos || 0), 0)}</td>
+                    <td className="py-3 px-3 text-right text-amber-700">{fmt(tecnicos.reduce((s, t) => s + Number(t.total_mano_obra || 0), 0))}</td>
+                    <td className="py-3 px-3 text-right text-slate-500">—</td>
+                  </tr>
+                </tfoot>
+              )}
+            </table>
           </div>
         </div>
       )}
