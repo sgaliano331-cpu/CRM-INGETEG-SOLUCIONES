@@ -302,7 +302,8 @@ router.put('/actualizar-servicio/:id', authMiddleware, gestorOCoordinador, uploa
         return res.status(400).json({ error: 'Este servicio ya fue marcado como cumplido' });
       }
 
-      const setCosto = (esCoord || req.user.rol === 'GESTOR') && costo_cop !== undefined && costo_cop !== '';
+      const esVisitaFallida = estado_servicio === 'Visita Fallida';
+      const setCosto = esVisitaFallida || ((esCoord || req.user.rol === 'GESTOR') && costo_cop !== undefined && costo_cop !== '');
       const esGestorOCoord = req.user.rol === 'GESTOR' || esCoord;
       const setIdServicio = esGestorOCoord && id_servicio !== undefined;
       const setTecnico = esGestorOCoord && tecnico !== undefined;
@@ -322,7 +323,7 @@ router.put('/actualizar-servicio/:id', authMiddleware, gestorOCoordinador, uploa
         WHERE id = ?
       `;
       const params = [estado_servicio, metodo_pago, observaciones_tecnica || null, urlComprobante];
-      if (setCosto) params.push(parseFloat(costo_cop) || 0);
+      if (setCosto) params.push(esVisitaFallida ? 0 : (parseFloat(costo_cop) || 0));
       if (setIdServicio) params.push(id_servicio.trim() || null);
       if (setTecnico) params.push(tecnico.trim() || null);
       if (setFechaAtencion) params.push(fecha_atencion.trim() || null);
