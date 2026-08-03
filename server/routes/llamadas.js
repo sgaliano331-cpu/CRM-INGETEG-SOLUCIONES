@@ -1120,17 +1120,35 @@ router.get('/generar-pdf/:id', authMiddleware, gestorOCoordinador, async (req, r
             const drawPhotos = async (photos, title) => {
               if (!photos.length) return;
               section(title);
-              for (let i = 0; i < photos.length; i++) {
-                const img = await embedImg(photos[i]);
-                if (!img) continue;
-                const maxW = CW - 16;
-                const sc = Math.min(maxW / img.width, 240 / img.height, 1);
-                const w = img.width * sc;
-                const h = img.height * sc;
-                check(h + 15);
-                page.drawRectangle({ x: M + 7, y: y - h - 1, width: w + 2, height: h + 2, color: BG });
-                page.drawImage(img, { x: M + 8, y: y - h, width: w, height: h });
-                y -= h + 12;
+              const colW = (CW - 24) / 2;
+              const imgs = [];
+              for (const url of photos) {
+                const img = await embedImg(url);
+                if (img) imgs.push(img);
+              }
+              for (let i = 0; i < imgs.length; i += 2) {
+                const img1 = imgs[i];
+                const img2 = imgs[i + 1];
+                const sc1 = Math.min(colW / img1.width, 200 / img1.height, 1);
+                const h1 = img1.height * sc1;
+                const w1 = img1.width * sc1;
+                let rowH = h1;
+                if (img2) {
+                  const sc2 = Math.min(colW / img2.width, 200 / img2.height, 1);
+                  rowH = Math.max(h1, img2.height * sc2);
+                }
+                check(rowH + 15);
+                page.drawRectangle({ x: M + 7, y: y - h1 - 1, width: w1 + 2, height: h1 + 2, color: BG });
+                page.drawImage(img1, { x: M + 8, y: y - h1, width: w1, height: h1 });
+                if (img2) {
+                  const sc2 = Math.min(colW / img2.width, 200 / img2.height, 1);
+                  const w2 = img2.width * sc2;
+                  const h2 = img2.height * sc2;
+                  const x2 = M + 8 + colW + 8;
+                  page.drawRectangle({ x: x2 - 1, y: y - h2 - 1, width: w2 + 2, height: h2 + 2, color: BG });
+                  page.drawImage(img2, { x: x2, y: y - h2, width: w2, height: h2 });
+                }
+                y -= rowH + 12;
               }
             };
 
@@ -1155,39 +1173,8 @@ router.get('/generar-pdf/:id', authMiddleware, gestorOCoordinador, async (req, r
                 const eqFotosAntes = eq.fotos_antes || [];
                 const eqFotosDespues = eq.fotos_despues || [];
 
-                if (eqFotosAntes.length > 0) {
-                  check(20);
-                  page.drawText('Evidencia antes:', { x: M + 8, y, size: 8, font: fontBold, color: GRAY });
-                  y -= 14;
-                  for (const url of eqFotosAntes) {
-                    const img = await embedImg(url);
-                    if (!img) continue;
-                    const sc = Math.min((CW - 16) / img.width, 200 / img.height, 1);
-                    const w = img.width * sc;
-                    const h = img.height * sc;
-                    check(h + 12);
-                    page.drawRectangle({ x: M + 7, y: y - h - 1, width: w + 2, height: h + 2, color: BG });
-                    page.drawImage(img, { x: M + 8, y: y - h, width: w, height: h });
-                    y -= h + 10;
-                  }
-                }
-
-                if (eqFotosDespues.length > 0) {
-                  check(20);
-                  page.drawText('Evidencia despues:', { x: M + 8, y, size: 8, font: fontBold, color: GRAY });
-                  y -= 14;
-                  for (const url of eqFotosDespues) {
-                    const img = await embedImg(url);
-                    if (!img) continue;
-                    const sc = Math.min((CW - 16) / img.width, 200 / img.height, 1);
-                    const w = img.width * sc;
-                    const h = img.height * sc;
-                    check(h + 12);
-                    page.drawRectangle({ x: M + 7, y: y - h - 1, width: w + 2, height: h + 2, color: BG });
-                    page.drawImage(img, { x: M + 8, y: y - h, width: w, height: h });
-                    y -= h + 10;
-                  }
-                }
+                await drawPhotos(eqFotosAntes, 'EVIDENCIA ANTES');
+                await drawPhotos(eqFotosDespues, 'EVIDENCIA DESPUES');
               }
             } else {
               // Equipo único (flujo original)
