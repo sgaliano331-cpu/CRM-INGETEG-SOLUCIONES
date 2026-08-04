@@ -11,6 +11,8 @@ const CALENDARIOS_TECNICOS = {
   'SANCHEZ': '8117d5b14cc385415fcd125bd8890e45b81f442c70506e59d1a0625f734c734b@group.calendar.google.com',
   'TÉCNICO PRUEBA': '7ffcaa68698de240623c58ab68befdf60608ad2334454ce8ccc261e0f84ba14e@group.calendar.google.com',
   'TECNICO PRUEBA': '7ffcaa68698de240623c58ab68befdf60608ad2334454ce8ccc261e0f84ba14e@group.calendar.google.com',
+  'DIEGO MONTOYA': 'c03a317619439c4359073552d60aaea0f4fe7af05105631145ba9b472b19b289@group.calendar.google.com',
+  'DIEGO': 'c03a317619439c4359073552d60aaea0f4fe7af05105631145ba9b472b19b289@group.calendar.google.com',
 };
 
 let calendarClient = null;

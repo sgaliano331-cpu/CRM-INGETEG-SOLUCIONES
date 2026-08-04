@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import api from '../api/axios';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  CartesianGrid
+  CartesianGrid, PieChart, Pie, Cell, Legend
 } from 'recharts';
 
 const DIAS = ['Dom', 'Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab'];
@@ -17,6 +17,8 @@ const fmtSeg = s => {
   const sec = s % 60;
   return m > 0 ? `${m}m ${sec}s` : `${sec}s`;
 };
+
+const COLORS_TEC = ['#15803d', '#2563eb', '#d97706', '#9333ea', '#dc2626', '#0891b2'];
 
 const CUSTOM_TOOLTIP = ({ active, payload, label }) => {
   if (active && payload?.length) {
@@ -165,60 +167,140 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Technician Stats */}
+      {/* Technician Dashboard */}
       {tecnicos && (
-        <div className="card">
-          <h2 className="text-sm font-semibold text-slate-700 mb-4">Rendimiento por Tecnico</h2>
-          <div className="flex gap-3 mb-4">
-            <input type="date" className="input-field" value={filtroTecnicos.fecha_desde}
-              onChange={e => setFiltroTecnicos(f => ({ ...f, fecha_desde: e.target.value }))} />
-            <input type="date" className="input-field" value={filtroTecnicos.fecha_hasta}
-              onChange={e => setFiltroTecnicos(f => ({ ...f, fecha_hasta: e.target.value }))} />
-            <button onClick={handleFiltroTecnicos} className="btn-secondary">Filtrar</button>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-slate-200">
-                  <th className="text-left py-3 px-3">Tecnico</th>
-                  <th className="text-right py-3 px-3">Servicios</th>
-                  <th className="text-right py-3 px-3">Garantias</th>
-                  <th className="text-right py-3 px-3">Total Recaudado</th>
-                  <th className="text-right py-3 px-3">Repuestos ($)</th>
-                  <th className="text-right py-3 px-3">Cant. Repuestos</th>
-                  <th className="text-right py-3 px-3">Mano de Obra</th>
-                  <th className="text-right py-3 px-3">Prom/Dia</th>
-                </tr>
-              </thead>
-              <tbody>
-                {tecnicos.map(t => (
-                  <tr key={t.tecnico} className="hover:bg-slate-50 transition-colors border-b border-slate-50">
-                    <td className="py-3 px-3 font-medium text-slate-800">{t.tecnico}</td>
-                    <td className="py-3 px-3 text-right text-slate-600 font-semibold">{t.total_servicios}</td>
-                    <td className="py-3 px-3 text-right text-purple-600">{t.total_garantias || 0}</td>
-                    <td className="py-3 px-3 text-right text-emerald-700 font-semibold">{fmt(t.total_recaudado || 0)}</td>
-                    <td className="py-3 px-3 text-right text-blue-600">{fmt(t.total_repuestos_cop || 0)}</td>
-                    <td className="py-3 px-3 text-right text-slate-500">{t.cantidad_repuestos || 0}</td>
-                    <td className="py-3 px-3 text-right text-amber-700 font-semibold">{fmt(t.total_mano_obra || 0)}</td>
-                    <td className="py-3 px-3 text-right text-slate-600">{t.promedio_por_dia || 0}</td>
+        <div className="space-y-4">
+          <div className="card">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-semibold text-slate-700">Rendimiento por Tecnico</h2>
+              <div className="flex gap-3">
+                <input type="date" className="input-field" value={filtroTecnicos.fecha_desde}
+                  onChange={e => setFiltroTecnicos(f => ({ ...f, fecha_desde: e.target.value }))} />
+                <input type="date" className="input-field" value={filtroTecnicos.fecha_hasta}
+                  onChange={e => setFiltroTecnicos(f => ({ ...f, fecha_hasta: e.target.value }))} />
+                <button onClick={handleFiltroTecnicos} className="btn-secondary">Filtrar</button>
+              </div>
+            </div>
+
+            {/* KPI cards per technician */}
+            <div className="grid grid-cols-4 gap-3 mb-6">
+              {tecnicos.map((t, i) => (
+                <div key={t.tecnico} className="bg-slate-50 rounded-xl p-4 border border-slate-100">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS_TEC[i % COLORS_TEC.length] }} />
+                    <p className="text-xs font-semibold text-slate-700 truncate">{t.tecnico}</p>
+                  </div>
+                  <p className="text-xl font-bold text-slate-800">{fmt(t.total_recaudado || 0)}</p>
+                  <p className="text-[10px] text-slate-400 mt-1">{t.total_servicios} servicios · {t.total_garantias || 0} garantias · {t.promedio_por_dia || 0} prom/dia</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Charts row */}
+            <div className="grid grid-cols-3 gap-4 mb-6">
+              {/* Bar: Recaudado por tecnico */}
+              <div className="bg-slate-50 rounded-xl p-4 border border-slate-100">
+                <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Recaudado por Tecnico</h3>
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart data={tecnicos.map((t, i) => ({ name: t.tecnico?.split(' ')[0], recaudado: Number(t.total_recaudado || 0), fill: COLORS_TEC[i % COLORS_TEC.length] }))} barSize={28}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                    <XAxis dataKey="name" tick={{ fill: '#94a3b8', fontSize: 10 }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fill: '#94a3b8', fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={v => `$${(v/1000).toFixed(0)}k`} />
+                    <Tooltip formatter={(v) => fmt(v)} />
+                    <Bar dataKey="recaudado" radius={[4, 4, 0, 0]}>
+                      {tecnicos.map((_, i) => <Cell key={i} fill={COLORS_TEC[i % COLORS_TEC.length]} />)}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* Bar: Servicios y Garantias */}
+              <div className="bg-slate-50 rounded-xl p-4 border border-slate-100">
+                <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Servicios vs Garantias</h3>
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart data={tecnicos.map(t => ({ name: t.tecnico?.split(' ')[0], Servicios: Number(t.total_servicios || 0), Garantias: Number(t.total_garantias || 0) }))} barSize={14}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                    <XAxis dataKey="name" tick={{ fill: '#94a3b8', fontSize: 10 }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fill: '#94a3b8', fontSize: 10 }} axisLine={false} tickLine={false} />
+                    <Tooltip />
+                    <Bar dataKey="Servicios" fill="#15803d" radius={[3, 3, 0, 0]} />
+                    <Bar dataKey="Garantias" fill="#9333ea" radius={[3, 3, 0, 0]} />
+                    <Legend wrapperStyle={{ fontSize: 11 }} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* Pie: Mano de obra vs Repuestos */}
+              <div className="bg-slate-50 rounded-xl p-4 border border-slate-100">
+                <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Mano de Obra vs Repuestos</h3>
+                <ResponsiveContainer width="100%" height={220}>
+                  <PieChart>
+                    <Pie
+                      data={[
+                        { name: 'Mano de Obra', value: tecnicos.reduce((s, t) => s + Number(t.total_mano_obra || 0), 0) },
+                        { name: 'Repuestos', value: tecnicos.reduce((s, t) => s + Number(t.total_repuestos_cop || 0), 0) },
+                      ]}
+                      cx="50%" cy="50%" innerRadius={50} outerRadius={80}
+                      paddingAngle={3} dataKey="value"
+                    >
+                      <Cell fill="#d97706" />
+                      <Cell fill="#2563eb" />
+                    </Pie>
+                    <Tooltip formatter={(v) => fmt(v)} />
+                    <Legend wrapperStyle={{ fontSize: 11 }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* Table */}
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200">
+                    <th className="text-left py-3 px-3">Tecnico</th>
+                    <th className="text-right py-3 px-3">Servicios</th>
+                    <th className="text-right py-3 px-3">Garantias</th>
+                    <th className="text-right py-3 px-3">Total Recaudado</th>
+                    <th className="text-right py-3 px-3">Repuestos ($)</th>
+                    <th className="text-right py-3 px-3">Cant. Repuestos</th>
+                    <th className="text-right py-3 px-3">Mano de Obra</th>
+                    <th className="text-right py-3 px-3">Prom/Dia</th>
                   </tr>
-                ))}
-              </tbody>
-              {tecnicos.length > 1 && (
-                <tfoot>
-                  <tr className="border-t-2 border-slate-200 bg-slate-50 font-semibold">
-                    <td className="py-3 px-3 text-slate-700">TOTAL</td>
-                    <td className="py-3 px-3 text-right text-slate-700">{tecnicos.reduce((s, t) => s + Number(t.total_servicios || 0), 0)}</td>
-                    <td className="py-3 px-3 text-right text-purple-600">{tecnicos.reduce((s, t) => s + Number(t.total_garantias || 0), 0)}</td>
-                    <td className="py-3 px-3 text-right text-emerald-700">{fmt(tecnicos.reduce((s, t) => s + Number(t.total_recaudado || 0), 0))}</td>
-                    <td className="py-3 px-3 text-right text-blue-600">{fmt(tecnicos.reduce((s, t) => s + Number(t.total_repuestos_cop || 0), 0))}</td>
-                    <td className="py-3 px-3 text-right text-slate-500">{tecnicos.reduce((s, t) => s + Number(t.cantidad_repuestos || 0), 0)}</td>
-                    <td className="py-3 px-3 text-right text-amber-700">{fmt(tecnicos.reduce((s, t) => s + Number(t.total_mano_obra || 0), 0))}</td>
-                    <td className="py-3 px-3 text-right text-slate-500">—</td>
-                  </tr>
-                </tfoot>
-              )}
-            </table>
+                </thead>
+                <tbody>
+                  {tecnicos.map((t, i) => (
+                    <tr key={t.tecnico} className="hover:bg-slate-50 transition-colors border-b border-slate-50">
+                      <td className="py-3 px-3 font-medium text-slate-800 flex items-center gap-2">
+                        <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: COLORS_TEC[i % COLORS_TEC.length] }} />
+                        {t.tecnico}
+                      </td>
+                      <td className="py-3 px-3 text-right text-slate-600 font-semibold">{t.total_servicios}</td>
+                      <td className="py-3 px-3 text-right text-purple-600">{t.total_garantias || 0}</td>
+                      <td className="py-3 px-3 text-right text-emerald-700 font-semibold">{fmt(t.total_recaudado || 0)}</td>
+                      <td className="py-3 px-3 text-right text-blue-600">{fmt(t.total_repuestos_cop || 0)}</td>
+                      <td className="py-3 px-3 text-right text-slate-500">{t.cantidad_repuestos || 0}</td>
+                      <td className="py-3 px-3 text-right text-amber-700 font-semibold">{fmt(t.total_mano_obra || 0)}</td>
+                      <td className="py-3 px-3 text-right text-slate-600">{t.promedio_por_dia || 0}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                {tecnicos.length > 1 && (
+                  <tfoot>
+                    <tr className="border-t-2 border-slate-200 bg-slate-50 font-semibold">
+                      <td className="py-3 px-3 text-slate-700">TOTAL</td>
+                      <td className="py-3 px-3 text-right text-slate-700">{tecnicos.reduce((s, t) => s + Number(t.total_servicios || 0), 0)}</td>
+                      <td className="py-3 px-3 text-right text-purple-600">{tecnicos.reduce((s, t) => s + Number(t.total_garantias || 0), 0)}</td>
+                      <td className="py-3 px-3 text-right text-emerald-700">{fmt(tecnicos.reduce((s, t) => s + Number(t.total_recaudado || 0), 0))}</td>
+                      <td className="py-3 px-3 text-right text-blue-600">{fmt(tecnicos.reduce((s, t) => s + Number(t.total_repuestos_cop || 0), 0))}</td>
+                      <td className="py-3 px-3 text-right text-slate-500">{tecnicos.reduce((s, t) => s + Number(t.cantidad_repuestos || 0), 0)}</td>
+                      <td className="py-3 px-3 text-right text-amber-700">{fmt(tecnicos.reduce((s, t) => s + Number(t.total_mano_obra || 0), 0))}</td>
+                      <td className="py-3 px-3 text-right text-slate-500">—</td>
+                    </tr>
+                  </tfoot>
+                )}
+              </table>
+            </div>
           </div>
         </div>
       )}
