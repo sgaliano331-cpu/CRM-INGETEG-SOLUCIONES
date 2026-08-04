@@ -5,7 +5,7 @@ const { authMiddleware, gestorOCoordinador } = require('../middleware/auth');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const { crearEventoAgendamiento, getServiceAccountEmail } = require('../google-calendar');
+const { crearEventoAgendamiento } = require('../google-calendar');
 
 // ─── Multer para comprobantes de pago ─────────────────────────────────────
 const comprobantesDir = path.join(__dirname, '../uploads/comprobantes');
@@ -893,12 +893,6 @@ router.post('/sync-calendario/:id', authMiddleware, gestorOCoordinador, async (r
     console.error('Error en sync-calendario:', err.message);
     res.status(500).json({ error: err.message });
   }
-});
-
-// ─── GET /api/llamadas/service-account-email (temporal) ───────────────────
-router.get('/service-account-email', authMiddleware, (req, res) => {
-  const email = getServiceAccountEmail();
-  res.json({ email: email || 'No configurada' });
 });
 
 // ─── PUT /api/llamadas/mover-servicio ─────────────────────────────────────

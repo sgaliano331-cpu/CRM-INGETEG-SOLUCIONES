@@ -42,15 +42,6 @@ function getCalendar() {
   }
 }
 
-function getServiceAccountEmail() {
-  const credRaw = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
-  if (!credRaw) return null;
-  try {
-    const credJson = credRaw.startsWith('ey') ? Buffer.from(credRaw, 'base64').toString('utf8') : credRaw;
-    return JSON.parse(credJson).client_email || null;
-  } catch { return null; }
-}
-
 function getCalendarId(tecnico) {
   if (!tecnico) return null;
   const key = tecnico.toUpperCase().trim();
@@ -127,4 +118,4 @@ function sumarHoras(hora, horas) {
   return `${String(Math.min(nueva, 23)).padStart(2, '0')}:${String(m || 0).padStart(2, '0')}`;
 }
 
-module.exports = { crearEventoAgendamiento, getServiceAccountEmail };
+module.exports = { crearEventoAgendamiento };
