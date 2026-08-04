@@ -61,7 +61,7 @@ export default function App() {
             <Route
               path="servicios-actualizados"
               element={
-                <PrivateRoute gestorOCoord>
+                <PrivateRoute>
                   <ServiciosActualizados />
                 </PrivateRoute>
               }

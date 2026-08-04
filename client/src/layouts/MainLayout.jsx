@@ -24,6 +24,7 @@ const NAV_ITEMS_ASESORA = [
   { to: '/llamadas-reprogramadas', label: 'Reprogramadas', icon: ICON_CLOCK, badgeKey: 'reprogramadas' },
   { to: '/cotizacion-vigente', label: 'Cotizacion Vigente', icon: ICON_DOC, badgeKey: 'cotizaciones' },
   { to: '/pendientes-cobro', label: 'Pend. Cobro', icon: ICON_MONEY, badgeKey: 'pendientesCobro' },
+  { to: '/servicios-actualizados', label: 'Serv. Actualizados', icon: ICON_CHECK },
   { to: '/descansos', label: 'Descansos', icon: ICON_REST },
   { to: '/fidelizacion', label: 'Fidelizacion', icon: ICON_HEART },
 ];

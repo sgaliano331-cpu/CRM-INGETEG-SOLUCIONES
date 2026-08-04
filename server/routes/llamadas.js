@@ -792,9 +792,10 @@ router.get('/tecnicos', authMiddleware, (req, res) => {
 });
 
 // ─── GET /api/llamadas/gestion-servicios ──────────────────────────────────
-router.get('/gestion-servicios', authMiddleware, gestorOCoordinador, (req, res) => {
+router.get('/gestion-servicios', authMiddleware, (req, res) => {
   const db = getDb();
   const { fecha_desde, fecha_hasta, estado, tecnico, buscar, excluir_agendado } = req.query;
+  const esAsesora = req.user.rol === 'ASESORA';
 
   let query = `
     SELECT a.*, c.nombre AS cliente_nombre, c.telefono, c.direccion, c.barrio, c.ciudad,
@@ -809,6 +810,7 @@ router.get('/gestion-servicios', authMiddleware, gestorOCoordinador, (req, res) 
   `;
   const params = [];
 
+  if (esAsesora) { query += ' AND a.usuario_id = ?'; params.push(req.user.id); }
   if (excluir_agendado === '1') { query += " AND a.estado_servicio != 'Agendado'"; }
   if (fecha_desde) { query += ' AND a.fecha_agendamiento >= ?'; params.push(fecha_desde); }
   if (fecha_hasta) { query += ' AND a.fecha_agendamiento <= ?'; params.push(fecha_hasta); }
