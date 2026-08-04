@@ -916,7 +916,7 @@ router.put('/mover-servicio', authMiddleware, (req, res) => {
 });
 
 // ─── GET /api/llamadas/generar-pdf/:id ────────────────────────────────────
-router.get('/generar-pdf/:id', authMiddleware, gestorOCoordinador, async (req, res) => {
+router.get('/generar-pdf/:id', authMiddleware, async (req, res) => {
   const db = getDb();
   const agId = parseInt(req.params.id);
 
@@ -926,6 +926,7 @@ router.get('/generar-pdf/:id', authMiddleware, gestorOCoordinador, async (req, r
     [agId],
     async (err, servicio) => {
       if (err || !servicio) return res.status(404).json({ error: 'Agendamiento no encontrado' });
+      if (req.user.rol === 'ASESORA' && servicio.usuario_id !== req.user.id) return res.status(403).json({ error: 'No autorizado' });
 
       db.get(
         `SELECT * FROM detalle_servicio_tecnico WHERE agendamiento_id = ?`,
