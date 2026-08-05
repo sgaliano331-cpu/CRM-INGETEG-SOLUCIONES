@@ -5,7 +5,7 @@ const { authMiddleware, gestorOCoordinador } = require('../middleware/auth');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const { crearEventoAgendamiento } = require('../google-calendar');
+const { crearEventoAgendamiento, actualizarDescripcionEvento } = require('../google-calendar');
 
 // ─── Multer para comprobantes de pago ─────────────────────────────────────
 const comprobantesDir = path.join(__dirname, '../uploads/comprobantes');
@@ -1318,6 +1318,69 @@ router.post('/enviar-rutas-whatsapp', authMiddleware, gestorOCoordinador, (req, 
       res.json({ ok: true, enviados: resultados.filter(r => r.estado === 'enviado').length, resultados });
     }
   );
+});
+
+// ─── POST /api/llamadas/sync-observaciones-calendario ─────────────────────
+// Endpoint temporal: re-sincroniza eventos existentes con observaciones
+router.post('/sync-observaciones-calendario', authMiddleware, async (req, res) => {
+  if (req.user.rol !== 'COORDINADOR') return res.status(403).json({ error: 'Solo coordinador' });
+
+  try {
+    const client = await getClient();
+    const { rows } = await client.query(
+      `SELECT a.id, a.google_event_id, a.tecnico, a.equipos, a.tipo_servicio, a.fecha_agendamiento,
+              a.hora_inicio, a.hora_fin, a.costo_cop, a.observaciones_tecnica,
+              c.nombre AS cliente_nombre, c.telefono, c.direccion, c.barrio, c.ciudad,
+              u.nombre AS asesora_nombre
+       FROM agendamientos a
+       JOIN clientes c ON a.cliente_id = c.id
+       JOIN usuarios u ON a.usuario_id = u.id
+       WHERE a.estado_servicio = 'Agendado' AND a.tecnico IS NOT NULL`
+    );
+
+    let actualizados = 0, creados = 0, errores = 0;
+
+    for (const a of rows) {
+      const partes = [];
+      if (a.tipo_servicio || a.equipos) partes.push([a.tipo_servicio, a.equipos].filter(Boolean).join(' '));
+      if (a.cliente_nombre) partes.push(a.cliente_nombre);
+      if (a.telefono) partes.push(a.telefono);
+      if (a.direccion) partes.push(a.direccion);
+      if (a.barrio) partes.push(`BARRIO:${a.barrio}`);
+      if (a.costo_cop) partes.push(`VALOR:${Number(a.costo_cop).toLocaleString('es-CO')}`);
+      if (a.asesora_nombre) partes.push(a.asesora_nombre);
+      if (a.observaciones_tecnica) partes.push(`OBS: ${a.observaciones_tecnica}`);
+      const descripcion = partes.join('\n');
+
+      if (a.google_event_id) {
+        const ok = await actualizarDescripcionEvento(a.tecnico, a.google_event_id, descripcion);
+        if (ok) actualizados++; else errores++;
+      } else {
+        const fecha = a.fecha_agendamiento instanceof Date
+          ? a.fecha_agendamiento.toISOString().split('T')[0]
+          : String(a.fecha_agendamiento).split('T')[0];
+        const eventId = await crearEventoAgendamiento({
+          clienteNombre: a.cliente_nombre, clienteDireccion: a.direccion, clienteBarrio: a.barrio,
+          clienteCiudad: a.ciudad, clienteTelefono: a.telefono,
+          equipos: a.equipos, tipoServicio: a.tipo_servicio, fecha,
+          horaInicio: a.hora_inicio, horaFin: a.hora_fin, costoCop: a.costo_cop,
+          observaciones: a.observaciones_tecnica, tecnico: a.tecnico, asesora: a.asesora_nombre,
+        });
+        if (eventId) {
+          await client.query('UPDATE agendamientos SET google_event_id = $1 WHERE id = $2', [eventId, a.id]);
+          creados++;
+        } else {
+          errores++;
+        }
+      }
+    }
+
+    client.release();
+    res.json({ ok: true, total: rows.length, actualizados, creados, errores });
+  } catch (err) {
+    console.error('Error sync observaciones:', err.message);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 module.exports = router;

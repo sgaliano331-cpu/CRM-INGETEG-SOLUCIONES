@@ -158,4 +158,18 @@ async function moverEventoCalendario(tecnico, eventId, nuevaFecha, horaInicio, h
   }
 }
 
-module.exports = { crearEventoAgendamiento, eliminarEventoCalendario, moverEventoCalendario };
+async function actualizarDescripcionEvento(tecnico, eventId, descripcion) {
+  const calendar = getCalendar();
+  if (!calendar || !eventId) return false;
+  const calendarId = getCalendarId(tecnico);
+  if (!calendarId) return false;
+  try {
+    await calendar.events.patch({ calendarId, eventId, requestBody: { description: descripcion } });
+    return true;
+  } catch (err) {
+    console.error(`[Google Calendar] Error al actualizar descripción:`, err.message);
+    return false;
+  }
+}
+
+module.exports = { crearEventoAgendamiento, eliminarEventoCalendario, moverEventoCalendario, actualizarDescripcionEvento };
