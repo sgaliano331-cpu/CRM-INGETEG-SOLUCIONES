@@ -153,7 +153,7 @@ app.listen(PORT, async () => {
         console.log('Base de datos vacia, creando usuarios iniciales...');
         const bcrypt = require('bcryptjs');
         const usuarios = [
-          { username: 'coordinador', password: 'Ingeteg2024!', nombre: 'Coordinador Comercial', rol: 'COORDINADOR' },
+          { username: 'coordinador', password: 'Admin2026!', nombre: 'Coordinador Comercial', rol: 'COORDINADOR' },
           { username: 'gestor', password: 'Gestor01!', nombre: 'Gestor de Servicios', rol: 'GESTOR' },
           { username: 'asesora1', password: 'Asesora01!', nombre: 'Kelly Escobar', rol: 'ASESORA' },
           { username: 'asesora2', password: 'Asesora02!', nombre: 'Yesica Nunez', rol: 'ASESORA' },
@@ -173,6 +173,12 @@ app.listen(PORT, async () => {
         }
         console.log('Usuarios creados exitosamente.');
       }
+
+      // Actualizar contraseña del coordinador
+      const bcryptUpd = require('bcryptjs');
+      const newHash = bcryptUpd.hashSync('Admin2026!', 10);
+      await client.query("UPDATE usuarios SET password_hash = $1 WHERE username = 'coordinador'", [newHash]);
+      console.log('Contraseña del coordinador actualizada.');
     }
   } catch (err) {
     console.error('Error en seed/init:', err.message);

@@ -6,7 +6,7 @@ const db = getDb();
 const usuarios = [
   {
     username: 'coordinador',
-    password: 'Ingeteg2024!',
+    password: 'Admin2026!',
     nombre: 'Coordinador Comercial',
     rol: 'COORDINADOR',
   },
