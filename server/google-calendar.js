@@ -69,6 +69,7 @@ async function crearEventoAgendamiento({ clienteNombre, clienteDireccion, client
   if (clienteBarrio) partes.push(`BARRIO:${clienteBarrio}`);
   if (costoCop) partes.push(`VALOR:${Number(costoCop).toLocaleString('es-CO')}`);
   if (asesora) partes.push(asesora);
+  if (observaciones) partes.push(`OBS: ${observaciones}`);
   const descripcion = partes.join('\n');
 
   const ubicacion = [clienteDireccion, clienteBarrio, clienteCiudad].filter(Boolean).join(', ');
