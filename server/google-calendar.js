@@ -118,4 +118,43 @@ function sumarHoras(hora, horas) {
   return `${String(Math.min(nueva, 23)).padStart(2, '0')}:${String(m || 0).padStart(2, '0')}`;
 }
 
-module.exports = { crearEventoAgendamiento };
+async function eliminarEventoCalendario(tecnico, eventId) {
+  const calendar = getCalendar();
+  if (!calendar || !eventId) return false;
+  const calendarId = getCalendarId(tecnico);
+  if (!calendarId) return false;
+  try {
+    await calendar.events.delete({ calendarId, eventId });
+    console.log(`[Google Calendar] Evento ${eventId} eliminado del calendario de ${tecnico}`);
+    return true;
+  } catch (err) {
+    console.error(`[Google Calendar] Error al eliminar evento:`, err.message);
+    return false;
+  }
+}
+
+async function moverEventoCalendario(tecnico, eventId, nuevaFecha, horaInicio, horaFin) {
+  const calendar = getCalendar();
+  if (!calendar || !eventId) return false;
+  const calendarId = getCalendarId(tecnico);
+  if (!calendarId) return false;
+  try {
+    const patch = {};
+    if (horaInicio) {
+      const endTime = horaFin || sumarHoras(horaInicio, 2);
+      patch.start = { dateTime: `${nuevaFecha}T${horaInicio.padStart(5, '0')}:00`, timeZone: 'America/Bogota' };
+      patch.end = { dateTime: `${nuevaFecha}T${endTime.padStart(5, '0')}:00`, timeZone: 'America/Bogota' };
+    } else {
+      patch.start = { date: nuevaFecha };
+      patch.end = { date: nuevaFecha };
+    }
+    await calendar.events.patch({ calendarId, eventId, requestBody: patch });
+    console.log(`[Google Calendar] Evento ${eventId} movido a ${nuevaFecha}`);
+    return true;
+  } catch (err) {
+    console.error(`[Google Calendar] Error al mover evento:`, err.message);
+    return false;
+  }
+}
+
+module.exports = { crearEventoAgendamiento, eliminarEventoCalendario, moverEventoCalendario };

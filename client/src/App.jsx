@@ -17,6 +17,7 @@ import MisClientes from './pages/MisClientes';
 import ServiciosActualizados from './pages/ServiciosActualizados';
 import GestionServicios from './pages/GestionServicios';
 import Calendario from './pages/Calendario';
+import SolicitudesCambio from './pages/SolicitudesCambio';
 
 function PrivateRoute({ children, coordinadorOnly = false, gestorOCoord = false }) {
   const { user, isCoordinador, isGestor } = useAuth();
@@ -88,6 +89,7 @@ export default function App() {
               }
             />
             <Route path="calendario" element={<Calendario />} />
+            <Route path="solicitudes-cambio" element={<SolicitudesCambio />} />
             <Route
               path="dashboard"
               element={

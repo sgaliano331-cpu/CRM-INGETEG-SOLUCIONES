@@ -101,6 +101,8 @@ router.post('/guardar', authMiddleware, async (req, res) => {
         clienteCiudad: cl?.ciudad, clienteTelefono: cl?.telefono,
         equipos, tipoServicio: tipo_servicio, fecha: fecha_agendamiento,
         horaInicio: hora_inicio, horaFin: hora_fin, costoCop: costo_cop, observaciones, tecnico, asesora: req.user.nombre,
+      }).then(evId => {
+        if (evId) getClient().then(c => c.query('UPDATE agendamientos SET google_event_id = $1 WHERE id = $2', [evId, agendamientoId]).finally(() => c.release()));
       }).catch(e => console.error('[Calendar] Error en /guardar:', e.message));
     }
 
@@ -245,14 +247,17 @@ router.post('/nuevo-servicio', authMiddleware, async (req, res) => {
 
     await client.query('COMMIT');
 
+    const nuevoAgId = agResult.rows[0].id;
     crearEventoAgendamiento({
       clienteNombre: cl?.nombre, clienteDireccion: cl?.direccion, clienteBarrio: cl?.barrio,
       clienteCiudad: cl?.ciudad, clienteTelefono: cl?.telefono,
       equipos, tipoServicio: tipo_servicio, fecha: fecha_agendamiento,
       horaInicio: hora_inicio, horaFin: hora_fin, costoCop: costo_cop, observaciones, tecnico, asesora: req.user.nombre,
+    }).then(evId => {
+      if (evId) getClient().then(c => c.query('UPDATE agendamientos SET google_event_id = $1 WHERE id = $2', [evId, nuevoAgId]).finally(() => c.release()));
     }).catch(e => console.error('[Calendar] Error en /nuevo-servicio:', e.message));
 
-    res.json({ ok: true, agendamiento_id: agResult.rows[0].id });
+    res.json({ ok: true, agendamiento_id: nuevoAgId });
   } catch (err) {
     if (client) try { await client.query('ROLLBACK'); } catch (e) {}
     console.error('Error en nuevo-servicio:', err.message);
@@ -593,14 +598,17 @@ router.post('/nuevo-agendamiento', authMiddleware, async (req, res) => {
 
       await client.query('COMMIT');
 
+      const nuevoAgId3 = agResult.rows[0].id;
       crearEventoAgendamiento({
         clienteNombre: cliente.nombre, clienteDireccion: cliente.direccion, clienteBarrio: cliente.barrio,
         clienteCiudad: cliente.ciudad, clienteTelefono: cliente.telefono,
         equipos, tipoServicio: tipo_servicio, fecha: fecha_agendamiento,
         horaInicio: hora_inicio, horaFin: hora_fin, costoCop: costo_cop, observaciones, tecnico, asesora: req.user.nombre,
+      }).then(evId => {
+        if (evId) getClient().then(c => c.query('UPDATE agendamientos SET google_event_id = $1 WHERE id = $2', [evId, nuevoAgId3]).finally(() => c.release()));
       }).catch(e => console.error('[Calendar] Error en /nuevo-agendamiento:', e.message));
 
-      res.status(201).json({ ok: true, agendamiento_id: agResult.rows[0].id });
+      res.status(201).json({ ok: true, agendamiento_id: nuevoAgId3 });
     } catch (errTx) {
       if (client) try { await client.query('ROLLBACK'); } catch (e) {}
       console.error('Error en nuevo-agendamiento:', errTx.message);
@@ -890,6 +898,9 @@ router.post('/sync-calendario/:id', authMiddleware, gestorOCoordinador, async (r
       observaciones: a.observaciones_tecnica, tecnico: a.tecnico, asesora: a.asesora_nombre,
     });
     if (!eventId) return res.status(500).json({ error: 'No se pudo crear el evento en calendario' });
+    const cl2 = await getClient();
+    await cl2.query('UPDATE agendamientos SET google_event_id = $1 WHERE id = $2', [eventId, parseInt(req.params.id)]);
+    cl2.release();
     res.json({ ok: true, eventId });
   } catch (err) {
     console.error('Error en sync-calendario:', err.message);

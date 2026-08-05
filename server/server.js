@@ -22,6 +22,7 @@ app.use('/api/llamadas', require('./routes/llamadas'));
 app.use('/api/dashboard', require('./routes/dashboard'));
 app.use('/api/descansos', require('./routes/descansos'));
 app.use('/api/cotizaciones', require('./routes/cotizaciones'));
+app.use('/api/solicitudes', require('./routes/solicitudes'));
 
 // ─── Frontend (produccion) ────────────────────────────────────────────────
 const clientDist = path.join(__dirname, '..', 'client', 'dist');
