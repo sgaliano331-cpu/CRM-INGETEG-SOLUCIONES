@@ -1335,7 +1335,7 @@ router.post('/sync-observaciones-calendario', authMiddleware, async (req, res) =
        FROM agendamientos a
        JOIN clientes c ON a.cliente_id = c.id
        JOIN usuarios u ON a.usuario_id = u.id
-       WHERE a.estado_servicio = 'Agendado' AND a.tecnico IS NOT NULL`
+       WHERE a.estado_servicio = 'Agendado' AND a.tecnico IS NOT NULL AND a.fecha_agendamiento >= CURRENT_DATE + INTERVAL '1 day'`
     );
 
     let actualizados = 0, creados = 0, errores = 0;
