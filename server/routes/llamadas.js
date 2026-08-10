@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { getDb, getClient } = require('../db');
-const { authMiddleware, gestorOCoordinador } = require('../middleware/auth');
+const { authMiddleware, gestorOCoordinador, soloCoordinador } = require('../middleware/auth');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
@@ -867,6 +867,31 @@ router.get('/gestion-servicios', authMiddleware, (req, res) => {
     if (err) return res.status(500).json({ error: 'Error al consultar servicios' });
     res.json({ servicios: servicios || [] });
   });
+});
+
+// ─── DELETE /api/llamadas/eliminar-servicios ─────────────────────────────
+router.delete('/eliminar-servicios', authMiddleware, gestorOCoordinador, async (req, res) => {
+  const { ids } = req.body;
+  if (!ids || !Array.isArray(ids) || ids.length === 0) {
+    return res.status(400).json({ error: 'Se requiere un array de ids' });
+  }
+  try {
+    const client = await getClient();
+    await client.query('BEGIN');
+    await client.query('DELETE FROM cotizaciones WHERE agendamiento_id = ANY($1)', [ids]);
+    try { await client.query('DELETE FROM llamadas_reprogramadas WHERE agendamiento_id = ANY($1)', [ids]); } catch(e) {}
+    try { await client.query('DELETE FROM solicitudes_cambio WHERE agendamiento_id = ANY($1)', [ids]); } catch(e) {}
+    try { await client.query('DELETE FROM repuestos_usados WHERE detalle_id IN (SELECT id FROM detalle_servicio_tecnico WHERE agendamiento_id = ANY($1))', [ids]); } catch(e) {}
+    try { await client.query('DELETE FROM detalle_equipo WHERE detalle_id IN (SELECT id FROM detalle_servicio_tecnico WHERE agendamiento_id = ANY($1))', [ids]); } catch(e) {}
+    try { await client.query('DELETE FROM detalle_servicio_tecnico WHERE agendamiento_id = ANY($1)', [ids]); } catch(e) {}
+    const del = await client.query('DELETE FROM agendamientos WHERE id = ANY($1)', [ids]);
+    await client.query('COMMIT');
+    client.release();
+    res.json({ ok: true, eliminados: del.rowCount });
+  } catch (err) {
+    console.error('Error eliminando servicios:', err.message);
+    res.status(500).json({ error: 'Error al eliminar servicios' });
+  }
 });
 
 // ─── PUT /api/llamadas/liquidar-lote ─────────────────────────────────────
