@@ -60,6 +60,8 @@ CREATE TABLE IF NOT EXISTS agendamientos (
   id_servicio TEXT,
   tecnico TEXT,
   fecha_atencion TEXT,
+  liquidado INTEGER NOT NULL DEFAULT 0,
+  fecha_liquidacion TIMESTAMPTZ,
   creado_en TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   actualizado_en TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

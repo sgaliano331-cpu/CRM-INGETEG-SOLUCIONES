@@ -834,6 +834,25 @@ router.get('/gestion-servicios', authMiddleware, (req, res) => {
   });
 });
 
+// ─── PUT /api/llamadas/liquidar/:id ──────────────────────────────────────
+router.put('/liquidar/:id', authMiddleware, gestorOCoordinador, (req, res) => {
+  const db = getDb();
+  const { id } = req.params;
+  const { liquidado } = req.body;
+  const val = liquidado ? 1 : 0;
+  const fecha = liquidado ? 'NOW()' : 'NULL';
+
+  db.run(
+    `UPDATE agendamientos SET liquidado = ?, fecha_liquidacion = ${fecha}, actualizado_en = NOW() WHERE id = ?`,
+    [val, id],
+    function(err) {
+      if (err) return res.status(500).json({ error: 'Error al actualizar liquidación' });
+      if (this.changes === 0) return res.status(404).json({ error: 'Servicio no encontrado' });
+      res.json({ ok: true, liquidado: val });
+    }
+  );
+});
+
 // ─── PUT /api/llamadas/asignar-tecnico ────────────────────────────────────
 router.put('/asignar-tecnico', authMiddleware, gestorOCoordinador, (req, res) => {
   const db = getDb();

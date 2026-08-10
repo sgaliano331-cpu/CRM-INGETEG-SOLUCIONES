@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
 
 const ESTADOS = ['Cumplido', 'Pendiente por repuesto', 'Cancelado por el cliente', 'Cotización vigente'];
@@ -11,6 +12,7 @@ const estadoBadge = {
 };
 
 export default function ServiciosActualizados() {
+  const { isGestor, isCoordinador } = useAuth();
   const [servicios, setServicios] = useState([]);
   const [tecnicos, setTecnicos] = useState([]);
   const [filtroEstado, setFiltroEstado] = useState('');
@@ -19,7 +21,9 @@ export default function ServiciosActualizados() {
   const [fechaHasta, setFechaHasta] = useState('');
   const [busqueda, setBusqueda] = useState('');
   const [busquedaActiva, setBusquedaActiva] = useState('');
+  const [filtroLiquidado, setFiltroLiquidado] = useState('');
   const [cargando, setCargando] = useState(true);
+  const [liquidando, setLiquidando] = useState(null);
   const debounceRef = useRef(null);
 
   useEffect(() => {
@@ -53,6 +57,28 @@ export default function ServiciosActualizados() {
     debounceRef.current = setTimeout(() => setBusquedaActiva(val.trim()), 400);
   };
 
+  const toggleLiquidado = async (servicio) => {
+    const nuevoEstado = !servicio.liquidado;
+    setLiquidando(servicio.id);
+    try {
+      await api.put(`/llamadas/liquidar/${servicio.id}`, { liquidado: nuevoEstado });
+      setServicios(prev => prev.map(s =>
+        s.id === servicio.id ? { ...s, liquidado: nuevoEstado ? 1 : 0 } : s
+      ));
+    } catch {
+      // silenciar
+    } finally {
+      setLiquidando(null);
+    }
+  };
+
+  const serviciosFiltrados = filtroLiquidado === ''
+    ? servicios
+    : servicios.filter(s => filtroLiquidado === 'si' ? s.liquidado : !s.liquidado);
+
+  const totalLiquidados = servicios.filter(s => s.liquidado).length;
+  const puedeMarcar = isGestor || isCoordinador;
+
   return (
     <div className="max-w-5xl mx-auto space-y-5 pb-12">
       <div>
@@ -83,6 +109,17 @@ export default function ServiciosActualizados() {
             </select>
           </div>
 
+          {puedeMarcar && (
+            <div className="min-w-[150px]">
+              <label className="block text-xs font-medium text-slate-500 mb-1">Liquidacion</label>
+              <select className="input-field" value={filtroLiquidado} onChange={e => setFiltroLiquidado(e.target.value)}>
+                <option value="">Todos</option>
+                <option value="si">Liquidados</option>
+                <option value="no">Sin liquidar</option>
+              </select>
+            </div>
+          )}
+
           <div className="min-w-[150px]">
             <label className="block text-xs font-medium text-slate-500 mb-1">Desde</label>
             <input type="date" className="input-field" value={fechaDesde} onChange={e => setFechaDesde(e.target.value)} />
@@ -95,7 +132,10 @@ export default function ServiciosActualizados() {
 
           <div className="ml-auto text-right">
             <span className="text-xs text-slate-400">Registros</span>
-            <p className="text-lg font-bold text-slate-800">{servicios.length}</p>
+            <p className="text-lg font-bold text-slate-800">{serviciosFiltrados.length}</p>
+            {puedeMarcar && (
+              <p className="text-[10px] text-emerald-600 font-medium">{totalLiquidados} liquidados</p>
+            )}
           </div>
         </div>
       </div>
@@ -104,7 +144,7 @@ export default function ServiciosActualizados() {
         <div className="card text-center py-12">
           <p className="text-slate-400 text-sm">Cargando registros...</p>
         </div>
-      ) : servicios.length === 0 ? (
+      ) : serviciosFiltrados.length === 0 ? (
         <div className="card text-center py-12">
           <svg className="w-10 h-10 text-slate-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
@@ -115,10 +155,32 @@ export default function ServiciosActualizados() {
         </div>
       ) : (
         <div className="space-y-2">
-          {servicios.map((s, idx) => (
+          {serviciosFiltrados.map((s, idx) => (
             <div key={s.id}
-              className="rounded-lg border bg-white border-slate-100 hover:bg-slate-50 px-4 py-3 transition-all">
+              className={`rounded-lg border bg-white px-4 py-3 transition-all ${
+                s.liquidado
+                  ? 'border-emerald-200 bg-emerald-50/30'
+                  : 'border-slate-100 hover:bg-slate-50'
+              }`}>
               <div className="flex items-start gap-4">
+                {puedeMarcar && (
+                  <button
+                    onClick={() => toggleLiquidado(s)}
+                    disabled={liquidando === s.id}
+                    className={`mt-0.5 flex-shrink-0 w-6 h-6 rounded-md border-2 flex items-center justify-center transition-all ${
+                      liquidando === s.id ? 'opacity-50 cursor-wait' :
+                      s.liquidado
+                        ? 'bg-emerald-500 border-emerald-500 text-white hover:bg-emerald-600'
+                        : 'border-slate-300 hover:border-emerald-400 text-transparent hover:text-emerald-300'
+                    }`}
+                    title={s.liquidado ? 'Marcar como no liquidado' : 'Marcar como liquidado'}
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  </button>
+                )}
+
                 <span className="text-xs text-slate-400 font-semibold pt-0.5 w-6 text-right flex-shrink-0">
                   {idx + 1}
                 </span>
@@ -129,6 +191,11 @@ export default function ServiciosActualizados() {
                     <span className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded font-medium flex-shrink-0">
                       {s.asesora_nombre}
                     </span>
+                    {s.liquidado ? (
+                      <span className="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-semibold flex-shrink-0">
+                        LIQUIDADO
+                      </span>
+                    ) : null}
                   </div>
                   <p className="text-xs text-slate-500 mt-0.5">
                     {s.telefono}
