@@ -5,7 +5,7 @@ const { authMiddleware, gestorOCoordinador } = require('../middleware/auth');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const { crearEventoAgendamiento, actualizarDescripcionEvento } = require('../google-calendar');
+const { crearEventoAgendamiento, actualizarDescripcionEvento, moverEventoCalendario, actualizarEventoCompleto, eliminarEventoCalendario } = require('../google-calendar');
 
 // ─── Multer para comprobantes de pago ─────────────────────────────────────
 const comprobantesDir = path.join(__dirname, '../uploads/comprobantes');
@@ -334,10 +334,37 @@ router.put('/actualizar-servicio/:id', authMiddleware, gestorOCoordinador, uploa
       if (setFechaAtencion) params.push(fecha_atencion.trim() || null);
       params.push(agId);
 
-      db.run(sql, params, function(err) {
+      db.run(sql, params, async function(err) {
         if (err) {
           console.error('Error actualizando servicio:', err.message);
           return res.status(500).json({ error: 'Error al actualizar el servicio' });
+        }
+
+        try {
+          const pgClient = await getClient();
+          const { rows } = await pgClient.query(
+            `SELECT a.*, c.nombre AS cliente_nombre, c.telefono, c.direccion, c.barrio, c.ciudad, u.nombre AS asesora_nombre
+             FROM agendamientos a JOIN clientes c ON a.cliente_id = c.id JOIN usuarios u ON a.usuario_id = u.id WHERE a.id = $1`,
+            [agId]
+          );
+          pgClient.release();
+          const ag = rows[0];
+
+          if (ag && ag.tecnico && ag.google_event_id) {
+            if (estado_servicio === 'Cancelado por el cliente') {
+              await eliminarEventoCalendario(ag.tecnico, ag.google_event_id);
+            } else {
+              await actualizarEventoCompleto(ag.tecnico, ag.google_event_id, {
+                clienteNombre: ag.cliente_nombre, clienteDireccion: ag.direccion, clienteBarrio: ag.barrio,
+                clienteCiudad: ag.ciudad, clienteTelefono: ag.telefono,
+                equipos: ag.equipos, tipoServicio: ag.tipo_servicio, fecha: ag.fecha_agendamiento,
+                horaInicio: ag.hora_inicio, horaFin: ag.hora_fin, costoCop: ag.costo_cop,
+                observaciones: ag.observaciones_tecnica, asesora: ag.asesora_nombre,
+              });
+            }
+          }
+        } catch (calErr) {
+          console.error('[Calendar] Error al sincronizar actualizar-servicio:', calErr.message);
         }
 
         res.json({ ok: true, comprobante_url: urlComprobante });
@@ -868,9 +895,43 @@ router.put('/asignar-tecnico', authMiddleware, gestorOCoordinador, (req, res) =>
 
   params.push(agendamiento_id);
 
-  db.run(`UPDATE agendamientos SET ${sets.join(', ')} WHERE id = ?`, params, function(err) {
+  db.run(`UPDATE agendamientos SET ${sets.join(', ')} WHERE id = ?`, params, async function(err) {
     if (err) return res.status(500).json({ error: 'Error al asignar técnico' });
     if (this.changes === 0) return res.status(404).json({ error: 'Agendamiento no encontrado' });
+
+    if (tecnico) {
+      try {
+        const pgClient = await getClient();
+        const { rows } = await pgClient.query(
+          `SELECT a.*, c.nombre AS cliente_nombre, c.telefono, c.direccion, c.barrio, c.ciudad, u.nombre AS asesora_nombre
+           FROM agendamientos a JOIN clientes c ON a.cliente_id = c.id JOIN usuarios u ON a.usuario_id = u.id WHERE a.id = $1`,
+          [agendamiento_id]
+        );
+        pgClient.release();
+        const ag = rows[0];
+
+        if (ag) {
+          if (ag.google_event_id) {
+            await eliminarEventoCalendario(ag.tecnico || tecnico, ag.google_event_id);
+          }
+          const eventId = await crearEventoAgendamiento({
+            clienteNombre: ag.cliente_nombre, clienteDireccion: ag.direccion, clienteBarrio: ag.barrio,
+            clienteCiudad: ag.ciudad, clienteTelefono: ag.telefono,
+            equipos: ag.equipos, tipoServicio: ag.tipo_servicio, fecha: ag.fecha_agendamiento,
+            horaInicio: ag.hora_inicio, horaFin: ag.hora_fin, costoCop: ag.costo_cop,
+            observaciones: ag.observaciones_tecnica, tecnico: tecnico, asesora: ag.asesora_nombre,
+          });
+          if (eventId) {
+            const pgClient2 = await getClient();
+            await pgClient2.query('UPDATE agendamientos SET google_event_id = $1 WHERE id = $2', [eventId, agendamiento_id]);
+            pgClient2.release();
+          }
+        }
+      } catch (calErr) {
+        console.error('[Calendar] Error al sincronizar asignar-tecnico:', calErr.message);
+      }
+    }
+
     res.json({ ok: true });
   });
 });
@@ -937,9 +998,24 @@ router.put('/mover-servicio', authMiddleware, (req, res) => {
   db.run(
     `UPDATE agendamientos SET fecha_agendamiento = ?, hora_inicio = ?, hora_fin = ?, actualizado_en = NOW() WHERE id = ?`,
     [fecha_agendamiento, hora_inicio || null, hora_fin || null, agendamiento_id],
-    function(err) {
+    async function(err) {
       if (err) return res.status(500).json({ error: 'Error al mover servicio' });
       if (this.changes === 0) return res.status(404).json({ error: 'Agendamiento no encontrado' });
+
+      try {
+        const pgClient = await getClient();
+        const { rows } = await pgClient.query(
+          'SELECT google_event_id, tecnico FROM agendamientos WHERE id = $1', [agendamiento_id]
+        );
+        pgClient.release();
+        const ag = rows[0];
+        if (ag && ag.tecnico && ag.google_event_id) {
+          await moverEventoCalendario(ag.tecnico, ag.google_event_id, fecha_agendamiento, hora_inicio, hora_fin);
+        }
+      } catch (calErr) {
+        console.error('[Calendar] Error al sincronizar mover-servicio:', calErr.message);
+      }
+
       res.json({ ok: true });
     }
   );

@@ -172,4 +172,52 @@ async function actualizarDescripcionEvento(tecnico, eventId, descripcion) {
   }
 }
 
-module.exports = { crearEventoAgendamiento, eliminarEventoCalendario, moverEventoCalendario, actualizarDescripcionEvento };
+async function actualizarEventoCompleto(tecnico, eventId, { clienteNombre, clienteDireccion, clienteBarrio, clienteCiudad, clienteTelefono, equipos, tipoServicio, fecha, horaInicio, horaFin, costoCop, observaciones, asesora }) {
+  const calendar = getCalendar();
+  if (!calendar || !eventId) return false;
+  const calendarId = getCalendarId(tecnico);
+  if (!calendarId) return false;
+
+  const tituloEquipos = [tipoServicio, equipos].filter(Boolean).join(' ');
+  const titulo = clienteBarrio ? `${tituloEquipos}- ${clienteBarrio}` : tituloEquipos;
+
+  const partes = [];
+  if (tipoServicio || equipos) partes.push([tipoServicio, equipos].filter(Boolean).join(' '));
+  if (clienteNombre) partes.push(clienteNombre);
+  if (clienteTelefono) partes.push(clienteTelefono);
+  if (clienteDireccion) partes.push(clienteDireccion);
+  if (clienteBarrio) partes.push(`BARRIO:${clienteBarrio}`);
+  if (costoCop) partes.push(`VALOR:${Number(costoCop).toLocaleString('es-CO')}`);
+  if (asesora) partes.push(asesora);
+  if (observaciones) partes.push(`OBS: ${observaciones}`);
+  const descripcion = partes.join('\n');
+  const ubicacion = [clienteDireccion, clienteBarrio, clienteCiudad].filter(Boolean).join(', ');
+
+  const patch = {
+    summary: titulo,
+    description: descripcion,
+    location: ubicacion || undefined,
+  };
+
+  if (fecha) {
+    if (horaInicio) {
+      const endTime = horaFin || sumarHoras(horaInicio, 2);
+      patch.start = { dateTime: `${fecha}T${horaInicio.padStart(5, '0')}:00`, timeZone: 'America/Bogota' };
+      patch.end = { dateTime: `${fecha}T${endTime.padStart(5, '0')}:00`, timeZone: 'America/Bogota' };
+    } else {
+      patch.start = { date: fecha };
+      patch.end = { date: fecha };
+    }
+  }
+
+  try {
+    await calendar.events.patch({ calendarId, eventId, requestBody: patch });
+    console.log(`[Google Calendar] Evento ${eventId} actualizado completamente para ${tecnico}`);
+    return true;
+  } catch (err) {
+    console.error(`[Google Calendar] Error al actualizar evento completo:`, err.message);
+    return false;
+  }
+}
+
+module.exports = { crearEventoAgendamiento, eliminarEventoCalendario, moverEventoCalendario, actualizarDescripcionEvento, actualizarEventoCompleto };

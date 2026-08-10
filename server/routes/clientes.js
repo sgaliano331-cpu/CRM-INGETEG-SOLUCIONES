@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { getDb, getClient } = require('../db');
 const { authMiddleware, soloCoordinador } = require('../middleware/auth');
+const { actualizarEventoCompleto } = require('../google-calendar');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
@@ -113,8 +114,32 @@ router.put('/:id', authMiddleware, (req, res) => {
     db.run(`
       UPDATE clientes SET nombre=?, telefono=?, direccion=?, barrio=?, ciudad=?,
       actualizado_en=NOW() WHERE id=?
-    `, [nombre, telefono, direccion, barrio, ciudad, clienteId], function(errUpdate) {
+    `, [nombre, telefono, direccion, barrio, ciudad, clienteId], async function(errUpdate) {
       if (errUpdate) return res.status(500).json({ error: 'Error al actualizar' });
+
+      try {
+        const pgClient = await getClient();
+        const { rows: agendamientos } = await pgClient.query(
+          `SELECT a.*, u.nombre AS asesora_nombre FROM agendamientos a
+           JOIN usuarios u ON a.usuario_id = u.id
+           WHERE a.cliente_id = $1 AND a.estado_servicio = 'Agendado' AND a.google_event_id IS NOT NULL AND a.tecnico IS NOT NULL`,
+          [clienteId]
+        );
+        pgClient.release();
+
+        for (const a of agendamientos) {
+          await actualizarEventoCompleto(a.tecnico, a.google_event_id, {
+            clienteNombre: nombre, clienteDireccion: direccion, clienteBarrio: barrio,
+            clienteCiudad: ciudad, clienteTelefono: telefono,
+            equipos: a.equipos, tipoServicio: a.tipo_servicio, fecha: a.fecha_agendamiento,
+            horaInicio: a.hora_inicio, horaFin: a.hora_fin, costoCop: a.costo_cop,
+            observaciones: a.observaciones_tecnica, asesora: a.asesora_nombre,
+          });
+        }
+      } catch (calErr) {
+        console.error('[Calendar] Error al sincronizar tras editar cliente:', calErr.message);
+      }
+
       res.json({ ok: true });
     });
   });
