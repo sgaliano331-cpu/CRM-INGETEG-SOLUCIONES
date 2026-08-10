@@ -829,18 +829,26 @@ router.get('/tecnicos', authMiddleware, (req, res) => {
 // ─── GET /api/llamadas/gestion-servicios ──────────────────────────────────
 router.get('/gestion-servicios', authMiddleware, (req, res) => {
   const db = getDb();
-  const { fecha_desde, fecha_hasta, estado, tecnico, buscar, excluir_agendado } = req.query;
+  const { fecha_desde, fecha_hasta, estado, tecnico, buscar, excluir_agendado, ligero } = req.query;
   const esAsesora = req.user.rol === 'ASESORA';
 
+  const campos = ligero === '1'
+    ? `a.id, a.cliente_id, a.equipos, a.tipo_servicio, a.fecha_agendamiento, a.hora_inicio,
+       a.estado_servicio, a.metodo_pago, a.costo_cop, a.observaciones_tecnica, a.id_servicio,
+       a.tecnico, a.fecha_atencion, a.liquidado,
+       c.nombre AS cliente_nombre, c.telefono, c.direccion, c.barrio, c.ciudad,
+       u.nombre AS asesora_nombre`
+    : `a.*, c.nombre AS cliente_nombre, c.telefono, c.direccion, c.barrio, c.ciudad,
+       u.nombre AS asesora_nombre,
+       d.pdf_reporte_url, d.fotos_antes, d.fotos_despues, d.firma_cliente_url,
+       d.observaciones_ingreso, d.comprobante_url AS comprobante_tecnico_url`;
+
   let query = `
-    SELECT a.*, c.nombre AS cliente_nombre, c.telefono, c.direccion, c.barrio, c.ciudad,
-           u.nombre AS asesora_nombre,
-           d.pdf_reporte_url, d.fotos_antes, d.fotos_despues, d.firma_cliente_url,
-           d.observaciones_ingreso, d.comprobante_url AS comprobante_tecnico_url
+    SELECT ${campos}
     FROM agendamientos a
     JOIN clientes c ON a.cliente_id = c.id
     JOIN usuarios u ON a.usuario_id = u.id
-    LEFT JOIN detalle_servicio_tecnico d ON d.agendamiento_id = a.id
+    ${ligero !== '1' ? 'LEFT JOIN detalle_servicio_tecnico d ON d.agendamiento_id = a.id' : ''}
     WHERE 1=1
   `;
   const params = [];

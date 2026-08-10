@@ -41,6 +41,7 @@ export default function ServiciosActualizados() {
       if (fechaHasta) params.append('fecha_hasta', fechaHasta);
       if (busquedaActiva) params.append('buscar', busquedaActiva);
       params.append('excluir_agendado', '1');
+      params.append('ligero', '1');
       const { data } = await api.get(`/llamadas/gestion-servicios?${params}`);
       setServicios(data.servicios || []);
       setCambios({});

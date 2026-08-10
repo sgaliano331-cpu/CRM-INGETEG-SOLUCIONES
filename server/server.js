@@ -185,6 +185,17 @@ app.listen(PORT, async () => {
       // Ya existen, ignorar
     }
 
+    // Índices para acelerar consultas de gestion-servicios
+    const indices = [
+      'CREATE INDEX IF NOT EXISTS idx_agendamientos_tecnico ON agendamientos(tecnico)',
+      'CREATE INDEX IF NOT EXISTS idx_agendamientos_usuario ON agendamientos(usuario_id)',
+      'CREATE INDEX IF NOT EXISTS idx_agendamientos_liquidado ON agendamientos(liquidado)',
+      'CREATE INDEX IF NOT EXISTS idx_detalle_servicio_agendamiento ON detalle_servicio_tecnico(agendamiento_id)',
+    ];
+    for (const idx of indices) {
+      try { await client.query(idx); } catch (e) {}
+    }
+
     // Actualizar contraseña del coordinador
     const bcryptUpd = require('bcryptjs');
     const newHash = bcryptUpd.hashSync('Admin2026!', 10);
