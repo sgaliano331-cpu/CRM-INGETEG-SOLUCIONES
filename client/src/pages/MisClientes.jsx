@@ -675,7 +675,7 @@ export default function MisClientes() {
                                   <svg className="w-3.5 h-3.5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                                   </svg>
-                                  <a href={`http://localhost:3001${s.comprobante_pago_url}`} target="_blank" rel="noreferrer"
+                                  <a href={s.comprobante_pago_url} target="_blank" rel="noreferrer"
                                     className="text-[11px] text-emerald-600 font-medium hover:underline">
                                     Ver comprobante
                                   </a>
