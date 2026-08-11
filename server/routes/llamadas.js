@@ -978,24 +978,27 @@ router.put('/asignar-tecnico', authMiddleware, gestorOCoordinador, (req, res) =>
 });
 
 // ─── GET /api/llamadas/calendario ──────────────────────────────────────────
-router.get('/calendario', authMiddleware, (req, res) => {
-  const db = getDb();
+router.get('/calendario', authMiddleware, async (req, res) => {
   const { fecha_desde, fecha_hasta } = req.query;
-
-  let query = `
-    SELECT a.id, a.fecha_agendamiento, a.hora_inicio, a.hora_fin, a.equipos,
-           a.tipo_servicio, a.estado_servicio, a.tecnico, a.costo_cop,
-           c.nombre AS cliente_nombre, c.direccion, c.barrio, c.ciudad, c.telefono
-    FROM agendamientos a
-    JOIN clientes c ON a.cliente_id = c.id
-    WHERE a.fecha_agendamiento >= ? AND a.fecha_agendamiento <= ?
-    ORDER BY a.fecha_agendamiento, a.hora_inicio
-  `;
-
-  db.all(query, [fecha_desde || '2020-01-01', fecha_hasta || '2099-12-31'], (err, rows) => {
-    if (err) return res.status(500).json({ error: 'Error al consultar calendario' });
+  let client;
+  try {
+    client = await getClient();
+    const { rows } = await client.query(`
+      SELECT a.id, a.fecha_agendamiento, a.hora_inicio, a.hora_fin, a.equipos,
+             a.tipo_servicio, a.estado_servicio, a.tecnico, a.costo_cop,
+             c.nombre AS cliente_nombre, c.direccion, c.barrio, c.ciudad, c.telefono
+      FROM agendamientos a
+      JOIN clientes c ON a.cliente_id = c.id
+      WHERE a.fecha_agendamiento >= $1 AND a.fecha_agendamiento <= $2
+      ORDER BY a.fecha_agendamiento, a.hora_inicio
+    `, [fecha_desde || '2020-01-01', fecha_hasta || '2099-12-31']);
     res.json({ eventos: rows || [] });
-  });
+  } catch (err) {
+    console.error('Error calendario:', err.message);
+    res.status(500).json({ error: 'Error al consultar calendario' });
+  } finally {
+    if (client) client.release();
+  }
 });
 
 // ─── POST /api/llamadas/sync-calendario/:id ───────────────────────────────
@@ -1030,36 +1033,39 @@ router.post('/sync-calendario/:id', authMiddleware, gestorOCoordinador, async (r
 });
 
 // ─── PUT /api/llamadas/mover-servicio ─────────────────────────────────────
-router.put('/mover-servicio', authMiddleware, (req, res) => {
-  const db = getDb();
+router.put('/mover-servicio', authMiddleware, async (req, res) => {
   const { agendamiento_id, fecha_agendamiento, hora_inicio, hora_fin } = req.body;
 
   if (!agendamiento_id) return res.status(400).json({ error: 'agendamiento_id requerido' });
 
-  db.run(
-    `UPDATE agendamientos SET fecha_agendamiento = ?, hora_inicio = ?, hora_fin = ?, actualizado_en = NOW() WHERE id = ?`,
-    [fecha_agendamiento, hora_inicio || null, hora_fin || null, agendamiento_id],
-    async function(err) {
-      if (err) return res.status(500).json({ error: 'Error al mover servicio' });
-      if (this.changes === 0) return res.status(404).json({ error: 'Agendamiento no encontrado' });
+  let client;
+  try {
+    client = await getClient();
+    const result = await client.query(
+      `UPDATE agendamientos SET fecha_agendamiento = $1, hora_inicio = $2, hora_fin = $3, actualizado_en = NOW() WHERE id = $4`,
+      [fecha_agendamiento, hora_inicio || null, hora_fin || null, agendamiento_id]
+    );
+    if (result.rowCount === 0) return res.status(404).json({ error: 'Agendamiento no encontrado' });
 
+    const { rows } = await client.query(
+      'SELECT google_event_id, tecnico FROM agendamientos WHERE id = $1', [agendamiento_id]
+    );
+    const ag = rows[0];
+    if (ag && ag.tecnico && ag.google_event_id) {
       try {
-        const pgClient = await getClient();
-        const { rows } = await pgClient.query(
-          'SELECT google_event_id, tecnico FROM agendamientos WHERE id = $1', [agendamiento_id]
-        );
-        pgClient.release();
-        const ag = rows[0];
-        if (ag && ag.tecnico && ag.google_event_id) {
-          await moverEventoCalendario(ag.tecnico, ag.google_event_id, fecha_agendamiento, hora_inicio, hora_fin);
-        }
+        await moverEventoCalendario(ag.tecnico, ag.google_event_id, fecha_agendamiento, hora_inicio, hora_fin);
       } catch (calErr) {
         console.error('[Calendar] Error al sincronizar mover-servicio:', calErr.message);
       }
-
-      res.json({ ok: true });
     }
-  );
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Error mover servicio:', err.message);
+    res.status(500).json({ error: 'Error al mover servicio' });
+  } finally {
+    if (client) client.release();
+  }
 });
 
 // ─── GET /api/llamadas/generar-pdf/:id ────────────────────────────────────
