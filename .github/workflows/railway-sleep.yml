@@ -1,0 +1,75 @@
+name: Railway Sleep Schedule
+
+on:
+  schedule:
+    # 10pm Colombia (3am UTC) - Apagar
+    - cron: '0 3 * * *'
+    # 5am Colombia (10am UTC) - Encender (lunes a sabado)
+    - cron: '0 10 * * 1-6'
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Accion a ejecutar'
+        required: true
+        type: choice
+        options:
+          - sleep
+          - wake
+
+env:
+  RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+  PROJECT_ID: '8fefe17a-f631-41b7-b98f-03aeb153455c'
+  ENV_ID: '8efdc912-fb89-4068-9d7a-e732a7d95624'
+  CRM_SERVICE_ID: '4abdd6d3-ab9c-4243-996e-aca13ae8b7b5'
+  POSTGRES_SERVICE_ID: '982b4a02-15b2-449d-8fcc-2ff9cee8f8ec'
+
+jobs:
+  sleep:
+    if: >
+      github.event.schedule == '0 3 * * *' ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'sleep')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Apagar CRM
+        run: |
+          curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{\"query\":\"mutation { serviceInstanceUpdate(serviceId: \\\"$CRM_SERVICE_ID\\\", environmentId: \\\"$ENV_ID\\\", input: { numReplicas: 0 }) }\"}"
+          echo "CRM apagado"
+
+      - name: Esperar 10s antes de apagar Postgres
+        run: sleep 10
+
+      - name: Apagar Postgres
+        run: |
+          curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{\"query\":\"mutation { serviceInstanceUpdate(serviceId: \\\"$POSTGRES_SERVICE_ID\\\", environmentId: \\\"$ENV_ID\\\", input: { numReplicas: 0 }) }\"}"
+          echo "Postgres apagado"
+
+  wake:
+    if: >
+      github.event.schedule == '0 10 * * 1-6' ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'wake')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Encender Postgres
+        run: |
+          curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{\"query\":\"mutation { serviceInstanceUpdate(serviceId: \\\"$POSTGRES_SERVICE_ID\\\", environmentId: \\\"$ENV_ID\\\", input: { numReplicas: 1 }) }\"}"
+          echo "Postgres encendido"
+
+      - name: Esperar 15s para que Postgres inicie
+        run: sleep 15
+
+      - name: Encender CRM
+        run: |
+          curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{\"query\":\"mutation { serviceInstanceUpdate(serviceId: \\\"$CRM_SERVICE_ID\\\", environmentId: \\\"$ENV_ID\\\", input: { numReplicas: 1 }) }\"}"
+          echo "CRM encendido"
