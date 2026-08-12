@@ -2,18 +2,17 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const { authMiddleware, soloCoordinador } = require('../middleware/auth');
+const { pool } = require('../db');
 
 // GET /api/usuarios — List all users
 router.get('/', authMiddleware, soloCoordinador, (req, res) => {
-  const db = req.app.locals.db;
-  db.query('SELECT id, username, nombre, rol, activo, creado_en FROM usuarios ORDER BY rol, nombre')
+  pool.query('SELECT id, username, nombre, rol, activo, creado_en FROM usuarios ORDER BY rol, nombre')
     .then(({ rows }) => res.json(rows))
     .catch(err => res.status(500).json({ error: err.message }));
 });
 
 // POST /api/usuarios — Create user
 router.post('/', authMiddleware, soloCoordinador, async (req, res) => {
-  const db = req.app.locals.db;
   const { username, nombre, password, rol } = req.body;
 
   if (!username || !nombre || !password || !rol) {
@@ -26,13 +25,13 @@ router.post('/', authMiddleware, soloCoordinador, async (req, res) => {
   }
 
   try {
-    const existe = await db.query('SELECT id FROM usuarios WHERE username = $1', [username.toLowerCase()]);
+    const existe = await pool.query('SELECT id FROM usuarios WHERE username = $1', [username.toLowerCase()]);
     if (existe.rows.length > 0) {
       return res.status(400).json({ error: 'El nombre de usuario ya existe' });
     }
 
     const hash = bcrypt.hashSync(password, 10);
-    const result = await db.query(
+    const result = await pool.query(
       'INSERT INTO usuarios (username, password_hash, nombre, rol) VALUES ($1, $2, $3, $4) RETURNING id, username, nombre, rol, activo',
       [username.toLowerCase(), hash, nombre, rol]
     );
@@ -44,7 +43,6 @@ router.post('/', authMiddleware, soloCoordinador, async (req, res) => {
 
 // PUT /api/usuarios/:id/password — Change password
 router.put('/:id/password', authMiddleware, soloCoordinador, async (req, res) => {
-  const db = req.app.locals.db;
   const { password } = req.body;
   const id = parseInt(req.params.id);
 
@@ -54,7 +52,7 @@ router.put('/:id/password', authMiddleware, soloCoordinador, async (req, res) =>
 
   try {
     const hash = bcrypt.hashSync(password, 10);
-    const result = await db.query('UPDATE usuarios SET password_hash = $1 WHERE id = $2 RETURNING id, nombre', [hash, id]);
+    const result = await pool.query('UPDATE usuarios SET password_hash = $1 WHERE id = $2 RETURNING id, nombre', [hash, id]);
     if (result.rows.length === 0) return res.status(404).json({ error: 'Usuario no encontrado' });
     res.json({ message: `Contrasena actualizada para ${result.rows[0].nombre}` });
   } catch (err) {
@@ -64,7 +62,6 @@ router.put('/:id/password', authMiddleware, soloCoordinador, async (req, res) =>
 
 // PUT /api/usuarios/:id/toggle — Activate/deactivate
 router.put('/:id/toggle', authMiddleware, soloCoordinador, async (req, res) => {
-  const db = req.app.locals.db;
   const id = parseInt(req.params.id);
 
   if (id === req.user.id) {
@@ -72,7 +69,7 @@ router.put('/:id/toggle', authMiddleware, soloCoordinador, async (req, res) => {
   }
 
   try {
-    const result = await db.query(
+    const result = await pool.query(
       'UPDATE usuarios SET activo = CASE WHEN activo = 1 THEN 0 ELSE 1 END WHERE id = $1 RETURNING id, nombre, activo',
       [id]
     );
@@ -86,7 +83,6 @@ router.put('/:id/toggle', authMiddleware, soloCoordinador, async (req, res) => {
 
 // PUT /api/usuarios/:id — Update user info (name, role)
 router.put('/:id', authMiddleware, soloCoordinador, async (req, res) => {
-  const db = req.app.locals.db;
   const id = parseInt(req.params.id);
   const { nombre, rol } = req.body;
 
@@ -106,7 +102,7 @@ router.put('/:id', authMiddleware, soloCoordinador, async (req, res) => {
     if (sets.length === 0) return res.status(400).json({ error: 'Nada que actualizar' });
 
     params.push(id);
-    const result = await db.query(
+    const result = await pool.query(
       `UPDATE usuarios SET ${sets.join(', ')} WHERE id = $${idx} RETURNING id, username, nombre, rol, activo`,
       params
     );
