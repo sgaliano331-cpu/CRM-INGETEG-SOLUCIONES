@@ -78,7 +78,7 @@ async function crearEventoAgendamiento({ clienteNombre, clienteDireccion, client
 
   if (horaInicio) {
     const startDateTime = `${fecha}T${horaInicio.padStart(5, '0')}:00`;
-    const endTime = horaFin || sumarHoras(horaInicio, 2);
+    const endTime = (horaFin && horaFin !== '00:00' && horaFin > horaInicio) ? horaFin : sumarHoras(horaInicio, 2);
     const endDateTime = `${fecha}T${endTime.padStart(5, '0')}:00`;
 
     event = {
@@ -142,7 +142,7 @@ async function moverEventoCalendario(tecnico, eventId, nuevaFecha, horaInicio, h
   try {
     const patch = {};
     if (horaInicio) {
-      const endTime = horaFin || sumarHoras(horaInicio, 2);
+      const endTime = (horaFin && horaFin !== '00:00' && horaFin > horaInicio) ? horaFin : sumarHoras(horaInicio, 2);
       patch.start = { dateTime: `${nuevaFecha}T${horaInicio.padStart(5, '0')}:00`, timeZone: 'America/Bogota' };
       patch.end = { dateTime: `${nuevaFecha}T${endTime.padStart(5, '0')}:00`, timeZone: 'America/Bogota' };
     } else {
@@ -201,7 +201,7 @@ async function actualizarEventoCompleto(tecnico, eventId, { clienteNombre, clien
 
   if (fecha) {
     if (horaInicio) {
-      const endTime = horaFin || sumarHoras(horaInicio, 2);
+      const endTime = (horaFin && horaFin !== '00:00' && horaFin > horaInicio) ? horaFin : sumarHoras(horaInicio, 2);
       patch.start = { dateTime: `${fecha}T${horaInicio.padStart(5, '0')}:00`, timeZone: 'America/Bogota' };
       patch.end = { dateTime: `${fecha}T${endTime.padStart(5, '0')}:00`, timeZone: 'America/Bogota' };
     } else {
