@@ -18,6 +18,7 @@ import ServiciosActualizados from './pages/ServiciosActualizados';
 import GestionServicios from './pages/GestionServicios';
 import Calendario from './pages/Calendario';
 import SolicitudesCambio from './pages/SolicitudesCambio';
+import Usuarios from './pages/Usuarios';
 
 function PrivateRoute({ children, coordinadorOnly = false, gestorOCoord = false }) {
   const { user, isCoordinador, isGestor } = useAuth();
@@ -103,6 +104,14 @@ export default function App() {
               element={
                 <PrivateRoute coordinadorOnly>
                   <Asignacion />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="usuarios"
+              element={
+                <PrivateRoute coordinadorOnly>
+                  <Usuarios />
                 </PrivateRoute>
               }
             />
