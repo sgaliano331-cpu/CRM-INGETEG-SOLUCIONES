@@ -197,11 +197,6 @@ app.listen(PORT, async () => {
       try { await client.query(idx); } catch (e) {}
     }
 
-    // Actualizar contraseña del coordinador
-    const bcryptUpd = require('bcryptjs');
-    const newHash = bcryptUpd.hashSync('Admin2026!', 10);
-    await client.query("UPDATE usuarios SET password_hash = $1 WHERE username = 'coordinador'", [newHash]);
-    console.log('Contraseña del coordinador actualizada.');
   } catch (err) {
     console.error('Error en seed/init:', err.message);
     if (client) {
