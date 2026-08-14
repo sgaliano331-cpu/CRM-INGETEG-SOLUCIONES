@@ -24,6 +24,7 @@ app.use('/api/descansos', require('./routes/descansos'));
 app.use('/api/cotizaciones', require('./routes/cotizaciones'));
 app.use('/api/solicitudes', require('./routes/solicitudes'));
 app.use('/api/usuarios', require('./routes/usuarios'));
+app.use('/api/whatsapp', require('./routes/whatsapp'));
 
 // ─── Frontend (produccion) ────────────────────────────────────────────────
 const clientDist = path.join(__dirname, '..', 'client', 'dist');
