@@ -12,6 +12,7 @@ export default function Liquidacion() {
   const [informe, setInforme] = useState(null);
   const [loading, setLoading] = useState(false);
   const [tarifas, setTarifas] = useState([]);
+  const [items, setItems] = useState({ equipos: [], repuestos: [] });
   const [newTarifa, setNewTarifa] = useState({ tipo: 'equipo', nombre: '', valor_tecnico: '' });
   const [editId, setEditId] = useState(null);
   const [editVal, setEditVal] = useState('');
@@ -20,6 +21,7 @@ export default function Liquidacion() {
 
   useEffect(() => {
     api.get('/liquidacion/tecnicos').then(({ data }) => setTecnicos(data)).catch(() => {});
+    api.get('/liquidacion/items').then(({ data }) => setItems(data)).catch(() => {});
     fetchTarifas();
   }, []);
 
@@ -174,9 +176,13 @@ export default function Liquidacion() {
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">Nombre</label>
-                <input type="text" value={newTarifa.nombre} onChange={e => setNewTarifa(t => ({ ...t, nombre: e.target.value }))}
-                  placeholder={newTarifa.tipo === 'equipo' ? 'Ej: Estufa' : 'Ej: Bujia de aguja'}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500" required />
+                <select value={newTarifa.nombre} onChange={e => setNewTarifa(t => ({ ...t, nombre: e.target.value }))}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500" required>
+                  <option value="">Seleccionar...</option>
+                  {(newTarifa.tipo === 'equipo' ? items.equipos : items.repuestos)
+                    .filter(name => !tarifas.some(t => t.tipo === newTarifa.tipo && t.nombre.toLowerCase() === name.toLowerCase()))
+                    .map(name => <option key={name} value={name}>{name}</option>)}
+                </select>
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">Valor tecnico ($)</label>

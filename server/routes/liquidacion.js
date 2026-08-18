@@ -144,6 +144,30 @@ router.get('/informe', async (req, res) => {
   }
 });
 
+// GET /api/liquidacion/items — equipos y repuestos distintos ya usados
+router.get('/items', async (req, res) => {
+  try {
+    const { rows: eqRows } = await pool.query(
+      "SELECT DISTINCT equipos FROM agendamientos WHERE equipos IS NOT NULL AND equipos != ''"
+    );
+    const equiposSet = new Set();
+    for (const r of eqRows) {
+      r.equipos.split(',').map(e => e.trim()).filter(Boolean).forEach(e => equiposSet.add(e));
+    }
+
+    const { rows: repRows } = await pool.query(
+      'SELECT DISTINCT nombre FROM repuestos_usados WHERE nombre IS NOT NULL ORDER BY nombre'
+    );
+
+    res.json({
+      equipos: [...equiposSet].sort(),
+      repuestos: repRows.map(r => r.nombre),
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /api/liquidacion/tecnicos
 router.get('/tecnicos', async (req, res) => {
   try {
