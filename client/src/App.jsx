@@ -19,6 +19,8 @@ import GestionServicios from './pages/GestionServicios';
 import Calendario from './pages/Calendario';
 import SolicitudesCambio from './pages/SolicitudesCambio';
 import Usuarios from './pages/Usuarios';
+import WhatsApp from './pages/WhatsApp';
+import Liquidacion from './pages/Liquidacion';
 
 function PrivateRoute({ children, coordinadorOnly = false, gestorOCoord = false }) {
   const { user, isCoordinador, isGestor } = useAuth();
@@ -112,6 +114,22 @@ export default function App() {
               element={
                 <PrivateRoute coordinadorOnly>
                   <Usuarios />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="whatsapp"
+              element={
+                <PrivateRoute coordinadorOnly>
+                  <WhatsApp />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="liquidacion"
+              element={
+                <PrivateRoute coordinadorOnly>
+                  <Liquidacion />
                 </PrivateRoute>
               }
             />
