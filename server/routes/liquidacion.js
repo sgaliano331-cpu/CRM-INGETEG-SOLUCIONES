@@ -17,14 +17,15 @@ router.get('/tarifas', async (req, res) => {
 
 // POST /api/liquidacion/tarifas
 router.post('/tarifas', async (req, res) => {
-  const { tipo, nombre, valor_tecnico } = req.body;
+  const { tipo, nombre, valor_tecnico, tipo_servicio } = req.body;
   if (!tipo || !nombre) return res.status(400).json({ error: 'tipo y nombre requeridos' });
+  const ts = tipo_servicio || 'Mantenimiento';
   try {
     await pool.query(
-      `INSERT INTO tarifas_tecnico (tipo, nombre, valor_tecnico)
-       VALUES ($1, $2, $3)
-       ON CONFLICT (tipo, nombre) DO UPDATE SET valor_tecnico = $3`,
-      [tipo, nombre.trim(), parseFloat(valor_tecnico) || 0]
+      `INSERT INTO tarifas_tecnico (tipo, nombre, valor_tecnico, tipo_servicio)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (tipo, nombre, tipo_servicio) DO UPDATE SET valor_tecnico = $3`,
+      [tipo, nombre.trim(), parseFloat(valor_tecnico) || 0, ts]
     );
     res.json({ ok: true });
   } catch (err) {
@@ -94,27 +95,31 @@ router.get('/informe', async (req, res) => {
     `, ids);
 
     const { rows: tarifas } = await pool.query('SELECT * FROM tarifas_tecnico WHERE activo = 1');
+    // Key: "tipo_servicio|equipo_nombre" -> valor
     const tarifasEquipo = {};
     const tarifasRepuesto = {};
     for (const t of tarifas) {
-      if (t.tipo === 'equipo') tarifasEquipo[t.nombre.toLowerCase()] = t.valor_tecnico;
-      else if (t.tipo === 'repuesto') tarifasRepuesto[t.nombre.toLowerCase()] = t.valor_tecnico;
+      const ts = (t.tipo_servicio || 'Mantenimiento').toLowerCase();
+      if (t.tipo === 'equipo') tarifasEquipo[`${ts}|${t.nombre.toLowerCase()}`] = t.valor_tecnico;
+      else if (t.tipo === 'repuesto') tarifasRepuesto[`${ts}|${t.nombre.toLowerCase()}`] = t.valor_tecnico;
     }
 
     const tarifasCombo = {};
     for (const t of tarifas) {
       if (t.tipo === 'combo') {
+        const ts = (t.tipo_servicio || 'Mantenimiento').toLowerCase();
         const key = t.nombre.split('+').map(e => e.trim().toLowerCase()).sort().join('+');
-        tarifasCombo[key] = t.valor_tecnico;
+        tarifasCombo[`${ts}|${key}`] = t.valor_tecnico;
       }
     }
 
     const resultado = servicios.map(s => {
       const equiposList = (s.equipos || '').split(',').map(e => e.trim()).filter(Boolean);
+      const ts = (s.tipo_servicio || 'Mantenimiento').toLowerCase();
 
-      // Check for combo match: sort equipment names and look for matching combo tariff
+      // Check for combo match
       const eqKey = equiposList.map(e => e.toLowerCase()).sort().join('+');
-      const comboTarifa = tarifasCombo[eqKey];
+      const comboTarifa = tarifasCombo[`${ts}|${eqKey}`];
 
       let equiposDesglose;
       let totalEquipos;
@@ -126,7 +131,7 @@ router.get('/informe', async (req, res) => {
       } else {
         equiposDesglose = equiposList.map(eq => ({
           nombre: eq,
-          tarifa: tarifasEquipo[eq.toLowerCase()] || 0,
+          tarifa: tarifasEquipo[`${ts}|${eq.toLowerCase()}`] || 0,
         }));
         totalEquipos = equiposDesglose.reduce((sum, e) => sum + e.tarifa, 0);
       }
@@ -136,8 +141,8 @@ router.get('/informe', async (req, res) => {
         nombre: r.nombre,
         cantidad: r.cantidad,
         valor_cobrado: r.valor_total,
-        tarifa_tecnico: tarifasRepuesto[r.nombre.toLowerCase()] || 0,
-        total_tecnico: (tarifasRepuesto[r.nombre.toLowerCase()] || 0) * r.cantidad,
+        tarifa_tecnico: tarifasRepuesto[`${ts}|${r.nombre.toLowerCase()}`] || 0,
+        total_tecnico: (tarifasRepuesto[`${ts}|${r.nombre.toLowerCase()}`] || 0) * r.cantidad,
       }));
       const totalRepuestos = repsDesglose.reduce((sum, r) => sum + r.total_tecnico, 0);
 
@@ -145,6 +150,7 @@ router.get('/informe', async (req, res) => {
         id: s.id,
         fecha: s.fecha_agendamiento,
         cliente: s.cliente,
+        tipo_servicio: s.tipo_servicio,
         equipos: s.equipos,
         equipos_desglose: equiposDesglose,
         mano_obra_cobrada: s.costo_cop,

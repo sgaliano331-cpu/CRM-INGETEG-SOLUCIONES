@@ -194,6 +194,14 @@ app.listen(PORT, async () => {
       await client.query("ALTER TABLE tarifas_tecnico ADD CONSTRAINT tarifas_tecnico_tipo_check CHECK(tipo IN ('equipo','repuesto','combo'))");
     } catch (e) {}
 
+    // Migración: agregar tipo_servicio a tarifas_tecnico
+    try {
+      await client.query("ALTER TABLE tarifas_tecnico ADD COLUMN tipo_servicio TEXT NOT NULL DEFAULT 'Mantenimiento'");
+      await client.query("ALTER TABLE tarifas_tecnico DROP CONSTRAINT IF EXISTS tarifas_tecnico_tipo_nombre_key");
+      await client.query("ALTER TABLE tarifas_tecnico ADD CONSTRAINT tarifas_tecnico_tipo_nombre_ts_key UNIQUE(tipo, nombre, tipo_servicio)");
+      console.log('Columna tipo_servicio agregada a tarifas_tecnico.');
+    } catch (e) {}
+
     // Índices para acelerar consultas de gestion-servicios
     const indices = [
       'CREATE INDEX IF NOT EXISTS idx_agendamientos_tecnico ON agendamientos(tecnico)',
