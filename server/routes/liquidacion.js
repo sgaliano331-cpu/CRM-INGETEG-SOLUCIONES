@@ -134,11 +134,38 @@ router.get('/informe', async (req, res) => {
           equiposDesglose.push({ nombre: 'Combo: ' + equiposList.join(' + '), tarifa: comboTarifa, esCombo: true });
           totalEquipos = comboTarifa;
         } else {
-          equiposDesglose = equiposList.map(eq => ({
-            nombre: eq,
-            tarifa: tarifasEquipo[`${ts}|${eq.toLowerCase()}`] || 0,
-          }));
-          totalEquipos = equiposDesglose.reduce((sum, e) => sum + e.tarifa, 0);
+          // Check for partial combo within a larger set
+          let comboFound = null;
+          if (equiposList.length > 2) {
+            for (let i = 0; i < equiposList.length && !comboFound; i++) {
+              for (let j = i + 1; j < equiposList.length && !comboFound; j++) {
+                const subKey = [equiposList[i], equiposList[j]].map(e => e.toLowerCase()).sort().join('+');
+                const subCombo = tarifasCombo[`${ts}|${subKey}`];
+                if (subCombo !== undefined) {
+                  comboFound = { indices: [i, j], names: [equiposList[i], equiposList[j]], tarifa: subCombo };
+                }
+              }
+            }
+          }
+
+          if (comboFound) {
+            equiposDesglose = [];
+            equiposList.forEach((eq, idx) => {
+              if (comboFound.indices.includes(idx)) {
+                equiposDesglose.push({ nombre: eq, tarifa: 0 });
+              } else {
+                equiposDesglose.push({ nombre: eq, tarifa: tarifasEquipo[`${ts}|${eq.toLowerCase()}`] || 0 });
+              }
+            });
+            equiposDesglose.push({ nombre: 'Combo: ' + comboFound.names.join(' + '), tarifa: comboFound.tarifa, esCombo: true });
+            totalEquipos = equiposDesglose.reduce((sum, e) => sum + e.tarifa, 0);
+          } else {
+            equiposDesglose = equiposList.map(eq => ({
+              nombre: eq,
+              tarifa: tarifasEquipo[`${ts}|${eq.toLowerCase()}`] || 0,
+            }));
+            totalEquipos = equiposDesglose.reduce((sum, e) => sum + e.tarifa, 0);
+          }
         }
       }
 
