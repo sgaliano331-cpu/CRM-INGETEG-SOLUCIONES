@@ -182,6 +182,7 @@ export default function Liquidacion() {
                   <option value="combo">Combinacion de equipos</option>
                 </select>
               </div>
+              {newTarifa.tipo !== 'repuesto' && (
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">Tipo Servicio</label>
                 <select value={newTarifa.tipo_servicio} onChange={e => setNewTarifa(t => ({ ...t, tipo_servicio: e.target.value }))}
@@ -191,6 +192,7 @@ export default function Liquidacion() {
                   <option value="Garantía">Garantia</option>
                 </select>
               </div>
+              )}
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">
                   {newTarifa.tipo === 'combo' ? 'Equipos (selecciona 2 o mas)' : 'Nombre'}
@@ -210,7 +212,7 @@ export default function Liquidacion() {
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500" required>
                     <option value="">Seleccionar...</option>
                     {(newTarifa.tipo === 'equipo' ? items.equipos : items.repuestos)
-                      .filter(name => !tarifas.some(t => t.tipo === newTarifa.tipo && t.nombre.toLowerCase() === name.toLowerCase() && (t.tipo_servicio || 'Mantenimiento') === newTarifa.tipo_servicio))
+                      .filter(name => !tarifas.some(t => t.tipo === newTarifa.tipo && t.nombre.toLowerCase() === name.toLowerCase() && (newTarifa.tipo === 'repuesto' || (t.tipo_servicio || 'Mantenimiento') === newTarifa.tipo_servicio)))
                       .map(name => <option key={name} value={name}>{name}</option>)}
                   </select>
                 )}

@@ -19,7 +19,7 @@ router.get('/tarifas', async (req, res) => {
 router.post('/tarifas', async (req, res) => {
   const { tipo, nombre, valor_tecnico, tipo_servicio } = req.body;
   if (!tipo || !nombre) return res.status(400).json({ error: 'tipo y nombre requeridos' });
-  const ts = tipo_servicio || 'Mantenimiento';
+  const ts = tipo === 'repuesto' ? 'Mantenimiento' : (tipo_servicio || 'Mantenimiento');
   try {
     await pool.query(
       `INSERT INTO tarifas_tecnico (tipo, nombre, valor_tecnico, tipo_servicio)
@@ -101,7 +101,7 @@ router.get('/informe', async (req, res) => {
     for (const t of tarifas) {
       const ts = (t.tipo_servicio || 'Mantenimiento').toLowerCase();
       if (t.tipo === 'equipo') tarifasEquipo[`${ts}|${t.nombre.toLowerCase()}`] = t.valor_tecnico;
-      else if (t.tipo === 'repuesto') tarifasRepuesto[`${ts}|${t.nombre.toLowerCase()}`] = t.valor_tecnico;
+      else if (t.tipo === 'repuesto') tarifasRepuesto[t.nombre.toLowerCase()] = t.valor_tecnico;
     }
 
     const tarifasCombo = {};
@@ -141,8 +141,8 @@ router.get('/informe', async (req, res) => {
         nombre: r.nombre,
         cantidad: r.cantidad,
         valor_cobrado: r.valor_total,
-        tarifa_tecnico: tarifasRepuesto[`${ts}|${r.nombre.toLowerCase()}`] || 0,
-        total_tecnico: (tarifasRepuesto[`${ts}|${r.nombre.toLowerCase()}`] || 0) * r.cantidad,
+        tarifa_tecnico: tarifasRepuesto[r.nombre.toLowerCase()] || 0,
+        total_tecnico: (tarifasRepuesto[r.nombre.toLowerCase()] || 0) * r.cantidad,
       }));
       const totalRepuestos = repsDesglose.reduce((sum, r) => sum + r.total_tecnico, 0);
 
