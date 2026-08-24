@@ -210,7 +210,7 @@ export default function Liquidacion() {
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500" required>
                     <option value="">Seleccionar...</option>
                     {(newTarifa.tipo === 'equipo' ? items.equipos : items.repuestos)
-                      .filter(name => !tarifas.some(t => t.tipo === newTarifa.tipo && t.nombre.toLowerCase() === name.toLowerCase()))
+                      .filter(name => !tarifas.some(t => t.tipo === newTarifa.tipo && t.nombre.toLowerCase() === name.toLowerCase() && (t.tipo_servicio || 'Mantenimiento') === newTarifa.tipo_servicio))
                       .map(name => <option key={name} value={name}>{name}</option>)}
                   </select>
                 )}
