@@ -24,7 +24,7 @@ router.post('/tarifas', async (req, res) => {
     await pool.query(
       `INSERT INTO tarifas_tecnico (tipo, nombre, valor_tecnico, tipo_servicio)
        VALUES ($1, $2, $3, $4)
-       ON CONFLICT (tipo, nombre, tipo_servicio) DO UPDATE SET valor_tecnico = $3`,
+       ON CONFLICT (tipo, nombre, tipo_servicio) DO UPDATE SET valor_tecnico = $3, activo = 1`,
       [tipo, nombre.trim(), parseFloat(valor_tecnico) || 0, ts]
     );
     res.json({ ok: true });
