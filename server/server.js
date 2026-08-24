@@ -202,6 +202,12 @@ app.listen(PORT, async () => {
       console.log('Columna tipo_servicio agregada a tarifas_tecnico.');
     } catch (e) {}
 
+    // Migración: honorario_override para pagos específicos por servicio
+    try {
+      await client.query('ALTER TABLE agendamientos ADD COLUMN honorario_override NUMERIC DEFAULT NULL');
+      console.log('Columna honorario_override agregada.');
+    } catch (e) {}
+
     // Índices para acelerar consultas de gestion-servicios
     const indices = [
       'CREATE INDEX IF NOT EXISTS idx_agendamientos_tecnico ON agendamientos(tecnico)',

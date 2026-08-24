@@ -490,7 +490,12 @@ export default function Liquidacion() {
                         <td className="py-2.5 px-3">
                           {s.equipos_desglose.map((eq, j) => (
                             <div key={j} className="flex items-center gap-1">
-                              {eq.esCombo ? (
+                              {eq.esOverride ? (
+                                <>
+                                  <span className="text-emerald-700 font-medium text-xs">{eq.nombre}</span>
+                                  <span className="text-xs text-emerald-600 font-semibold">({fmt(eq.tarifa)})</span>
+                                </>
+                              ) : eq.esCombo ? (
                                 <>
                                   <span className="text-purple-700 font-medium text-xs">{eq.nombre}</span>
                                   <span className="text-xs text-purple-600 font-semibold">({fmt(eq.tarifa)})</span>
@@ -499,7 +504,7 @@ export default function Liquidacion() {
                                 <>
                                   <span className="text-slate-700">{eq.nombre}</span>
                                   {eq.tarifa > 0 && <span className="text-xs text-blue-600">({fmt(eq.tarifa)})</span>}
-                                  {eq.tarifa === 0 && !s.equipos_desglose.some(e => e.esCombo) && <span className="text-xs text-red-400">(sin tarifa)</span>}
+                                  {eq.tarifa === 0 && !s.equipos_desglose.some(e => e.esCombo || e.esOverride) && <span className="text-xs text-red-400">(sin tarifa)</span>}
                                 </>
                               )}
                             </div>

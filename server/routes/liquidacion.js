@@ -73,7 +73,7 @@ router.get('/informe', async (req, res) => {
 
     const { rows: servicios } = await pool.query(`
       SELECT a.id, a.equipos, a.costo_cop, a.tipo_servicio, a.estado_servicio,
-             a.fecha_agendamiento, a.fecha_atencion, a.liquidado,
+             a.fecha_agendamiento, a.fecha_atencion, a.liquidado, a.honorario_override,
              c.nombre as cliente, c.direccion, c.ciudad
       FROM agendamientos a
       JOIN clientes c ON c.id = a.cliente_id
@@ -114,26 +114,32 @@ router.get('/informe', async (req, res) => {
     }
 
     const resultado = servicios.map(s => {
+      const override = s.honorario_override != null ? parseFloat(s.honorario_override) : null;
       const equiposList = (s.equipos || '').split(',').map(e => e.trim()).filter(Boolean);
       const ts = (s.tipo_servicio || 'Mantenimiento').toLowerCase();
-
-      // Check for combo match
-      const eqKey = equiposList.map(e => e.toLowerCase()).sort().join('+');
-      const comboTarifa = tarifasCombo[`${ts}|${eqKey}`];
 
       let equiposDesglose;
       let totalEquipos;
 
-      if (comboTarifa !== undefined && equiposList.length > 1) {
+      if (override !== null) {
         equiposDesglose = equiposList.map(eq => ({ nombre: eq, tarifa: 0 }));
-        equiposDesglose.push({ nombre: 'Combo: ' + equiposList.join(' + '), tarifa: comboTarifa, esCombo: true });
-        totalEquipos = comboTarifa;
+        equiposDesglose.push({ nombre: 'Pago especial', tarifa: override, esOverride: true });
+        totalEquipos = override;
       } else {
-        equiposDesglose = equiposList.map(eq => ({
-          nombre: eq,
-          tarifa: tarifasEquipo[`${ts}|${eq.toLowerCase()}`] || 0,
-        }));
-        totalEquipos = equiposDesglose.reduce((sum, e) => sum + e.tarifa, 0);
+        const eqKey = equiposList.map(e => e.toLowerCase()).sort().join('+');
+        const comboTarifa = tarifasCombo[`${ts}|${eqKey}`];
+
+        if (comboTarifa !== undefined && equiposList.length > 1) {
+          equiposDesglose = equiposList.map(eq => ({ nombre: eq, tarifa: 0 }));
+          equiposDesglose.push({ nombre: 'Combo: ' + equiposList.join(' + '), tarifa: comboTarifa, esCombo: true });
+          totalEquipos = comboTarifa;
+        } else {
+          equiposDesglose = equiposList.map(eq => ({
+            nombre: eq,
+            tarifa: tarifasEquipo[`${ts}|${eq.toLowerCase()}`] || 0,
+          }));
+          totalEquipos = equiposDesglose.reduce((sum, e) => sum + e.tarifa, 0);
+        }
       }
 
       const reps = repuestos.filter(r => r.agendamiento_id === s.id);
@@ -159,6 +165,7 @@ router.get('/informe', async (req, res) => {
         honorario_repuestos: totalRepuestos,
         total_tecnico: totalEquipos + totalRepuestos,
         liquidado: s.liquidado,
+        honorario_override: override,
       };
     });
 
