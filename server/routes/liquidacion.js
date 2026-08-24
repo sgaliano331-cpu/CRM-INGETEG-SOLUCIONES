@@ -98,16 +98,38 @@ router.get('/informe', async (req, res) => {
     const tarifasRepuesto = {};
     for (const t of tarifas) {
       if (t.tipo === 'equipo') tarifasEquipo[t.nombre.toLowerCase()] = t.valor_tecnico;
-      else tarifasRepuesto[t.nombre.toLowerCase()] = t.valor_tecnico;
+      else if (t.tipo === 'repuesto') tarifasRepuesto[t.nombre.toLowerCase()] = t.valor_tecnico;
+    }
+
+    const tarifasCombo = {};
+    for (const t of tarifas) {
+      if (t.tipo === 'combo') {
+        const key = t.nombre.split('+').map(e => e.trim().toLowerCase()).sort().join('+');
+        tarifasCombo[key] = t.valor_tecnico;
+      }
     }
 
     const resultado = servicios.map(s => {
       const equiposList = (s.equipos || '').split(',').map(e => e.trim()).filter(Boolean);
-      const equiposDesglose = equiposList.map(eq => ({
-        nombre: eq,
-        tarifa: tarifasEquipo[eq.toLowerCase()] || 0,
-      }));
-      const totalEquipos = equiposDesglose.reduce((sum, e) => sum + e.tarifa, 0);
+
+      // Check for combo match: sort equipment names and look for matching combo tariff
+      const eqKey = equiposList.map(e => e.toLowerCase()).sort().join('+');
+      const comboTarifa = tarifasCombo[eqKey];
+
+      let equiposDesglose;
+      let totalEquipos;
+
+      if (comboTarifa !== undefined && equiposList.length > 1) {
+        equiposDesglose = equiposList.map(eq => ({ nombre: eq, tarifa: 0 }));
+        equiposDesglose.push({ nombre: 'Combo: ' + equiposList.join(' + '), tarifa: comboTarifa, esCombo: true });
+        totalEquipos = comboTarifa;
+      } else {
+        equiposDesglose = equiposList.map(eq => ({
+          nombre: eq,
+          tarifa: tarifasEquipo[eq.toLowerCase()] || 0,
+        }));
+        totalEquipos = equiposDesglose.reduce((sum, e) => sum + e.tarifa, 0);
+      }
 
       const reps = repuestos.filter(r => r.agendamiento_id === s.id);
       const repsDesglose = reps.map(r => ({
@@ -138,6 +160,7 @@ router.get('/informe', async (req, res) => {
       servicios: resultado,
       tarifas_equipo: tarifas.filter(t => t.tipo === 'equipo'),
       tarifas_repuesto: tarifas.filter(t => t.tipo === 'repuesto'),
+      tarifas_combo: tarifas.filter(t => t.tipo === 'combo'),
     });
   } catch (err) {
     res.status(500).json({ error: err.message });

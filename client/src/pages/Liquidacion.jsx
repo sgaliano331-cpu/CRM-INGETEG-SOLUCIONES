@@ -14,6 +14,7 @@ export default function Liquidacion() {
   const [tarifas, setTarifas] = useState([]);
   const [items, setItems] = useState({ equipos: [], repuestos: [] });
   const [newTarifa, setNewTarifa] = useState({ tipo: 'equipo', nombre: '', valor_tecnico: '' });
+  const [comboEquipos, setComboEquipos] = useState([]);
   const [editId, setEditId] = useState(null);
   const [editVal, setEditVal] = useState('');
   const [msg, setMsg] = useState('');
@@ -48,9 +49,15 @@ export default function Liquidacion() {
 
   const guardarTarifa = async (e) => {
     e.preventDefault();
+    const payload = { ...newTarifa };
+    if (newTarifa.tipo === 'combo') {
+      if (comboEquipos.length < 2) return alert('Selecciona al menos 2 equipos para la combinacion');
+      payload.nombre = comboEquipos.sort().join(' + ');
+    }
     try {
-      await api.post('/liquidacion/tarifas', newTarifa);
+      await api.post('/liquidacion/tarifas', payload);
       setNewTarifa({ tipo: 'equipo', nombre: '', valor_tecnico: '' });
+      setComboEquipos([]);
       fetchTarifas();
       flash('Tarifa guardada');
     } catch (err) {
@@ -168,21 +175,36 @@ export default function Liquidacion() {
             <div className="grid grid-cols-3 gap-4">
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">Tipo</label>
-                <select value={newTarifa.tipo} onChange={e => setNewTarifa(t => ({ ...t, tipo: e.target.value }))}
+                <select value={newTarifa.tipo} onChange={e => { setNewTarifa(t => ({ ...t, tipo: e.target.value, nombre: '' })); setComboEquipos([]); }}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500">
                   <option value="equipo">Equipo (mano de obra)</option>
                   <option value="repuesto">Repuesto</option>
+                  <option value="combo">Combinacion de equipos</option>
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">Nombre</label>
-                <select value={newTarifa.nombre} onChange={e => setNewTarifa(t => ({ ...t, nombre: e.target.value }))}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500" required>
-                  <option value="">Seleccionar...</option>
-                  {(newTarifa.tipo === 'equipo' ? items.equipos : items.repuestos)
-                    .filter(name => !tarifas.some(t => t.tipo === newTarifa.tipo && t.nombre.toLowerCase() === name.toLowerCase()))
-                    .map(name => <option key={name} value={name}>{name}</option>)}
-                </select>
+                <label className="block text-xs font-medium text-slate-600 mb-1">
+                  {newTarifa.tipo === 'combo' ? 'Equipos (selecciona 2 o mas)' : 'Nombre'}
+                </label>
+                {newTarifa.tipo === 'combo' ? (
+                  <div className="flex flex-wrap gap-2 p-2 border border-slate-300 rounded-lg min-h-[38px]">
+                    {items.equipos.map(eq => (
+                      <label key={eq} className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs cursor-pointer transition-colors ${comboEquipos.includes(eq) ? 'bg-purple-100 text-purple-800 border border-purple-300' : 'bg-slate-100 text-slate-600 border border-slate-200 hover:bg-slate-200'}`}>
+                        <input type="checkbox" className="sr-only" checked={comboEquipos.includes(eq)}
+                          onChange={e => setComboEquipos(prev => e.target.checked ? [...prev, eq] : prev.filter(x => x !== eq))} />
+                        {eq}
+                      </label>
+                    ))}
+                  </div>
+                ) : (
+                  <select value={newTarifa.nombre} onChange={e => setNewTarifa(t => ({ ...t, nombre: e.target.value }))}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500" required>
+                    <option value="">Seleccionar...</option>
+                    {(newTarifa.tipo === 'equipo' ? items.equipos : items.repuestos)
+                      .filter(name => !tarifas.some(t => t.tipo === newTarifa.tipo && t.nombre.toLowerCase() === name.toLowerCase()))
+                      .map(name => <option key={name} value={name}>{name}</option>)}
+                  </select>
+                )}
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">Valor tecnico ($)</label>
@@ -282,6 +304,55 @@ export default function Liquidacion() {
               </table>
             </div>
           </div>
+
+          {/* Tarifas combo */}
+          {tarifas.some(t => t.tipo === 'combo') && (
+            <div className="mt-6 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+              <div className="px-4 py-3 bg-purple-50 border-b border-purple-100">
+                <h3 className="text-sm font-semibold text-purple-800">Tarifas por Combinacion</h3>
+                <p className="text-xs text-purple-600 mt-0.5">Tarifa especial cuando el servicio tiene esta combinacion de equipos</p>
+              </div>
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-50">
+                    <th className="text-left py-2 px-4 text-xs font-semibold text-slate-500">Combinacion</th>
+                    <th className="text-right py-2 px-4 text-xs font-semibold text-slate-500">Valor Tecnico</th>
+                    <th className="w-20"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {tarifas.filter(t => t.tipo === 'combo').map(t => (
+                    <tr key={t.id} className="border-b border-slate-50 hover:bg-slate-50">
+                      <td className="py-2 px-4 text-sm text-slate-700">
+                        {t.nombre.split('+').map((eq, i) => (
+                          <span key={i}>
+                            {i > 0 && <span className="text-purple-400 mx-1">+</span>}
+                            <span className="bg-purple-50 px-1.5 py-0.5 rounded text-purple-700">{eq.trim()}</span>
+                          </span>
+                        ))}
+                      </td>
+                      <td className="py-2 px-4 text-right">
+                        {editId === t.id ? (
+                          <div className="flex items-center justify-end gap-1">
+                            <input type="number" value={editVal} onChange={e => setEditVal(e.target.value)}
+                              className="w-24 px-2 py-1 border border-slate-300 rounded text-xs text-right" autoFocus />
+                            <button onClick={() => updateTarifa(t.id)} className="px-2 py-1 bg-emerald-600 text-white rounded text-xs">OK</button>
+                          </div>
+                        ) : (
+                          <span className="text-sm font-semibold text-purple-700 cursor-pointer" onClick={() => { setEditId(t.id); setEditVal(t.valor_tecnico); }}>
+                            {fmt(t.valor_tecnico)}
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-2 px-4 text-center">
+                        <button onClick={() => deleteTarifa(t.id)} className="text-red-400 hover:text-red-600 text-xs">Eliminar</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 
@@ -396,9 +467,18 @@ export default function Liquidacion() {
                         <td className="py-2.5 px-3">
                           {s.equipos_desglose.map((eq, j) => (
                             <div key={j} className="flex items-center gap-1">
-                              <span className="text-slate-700">{eq.nombre}</span>
-                              {eq.tarifa > 0 && <span className="text-xs text-blue-600">({fmt(eq.tarifa)})</span>}
-                              {eq.tarifa === 0 && <span className="text-xs text-red-400">(sin tarifa)</span>}
+                              {eq.esCombo ? (
+                                <>
+                                  <span className="text-purple-700 font-medium text-xs">{eq.nombre}</span>
+                                  <span className="text-xs text-purple-600 font-semibold">({fmt(eq.tarifa)})</span>
+                                </>
+                              ) : (
+                                <>
+                                  <span className="text-slate-700">{eq.nombre}</span>
+                                  {eq.tarifa > 0 && <span className="text-xs text-blue-600">({fmt(eq.tarifa)})</span>}
+                                  {eq.tarifa === 0 && !s.equipos_desglose.some(e => e.esCombo) && <span className="text-xs text-red-400">(sin tarifa)</span>}
+                                </>
+                              )}
                             </div>
                           ))}
                         </td>

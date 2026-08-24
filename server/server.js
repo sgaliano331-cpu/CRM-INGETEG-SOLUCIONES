@@ -188,6 +188,12 @@ app.listen(PORT, async () => {
       // Ya existen, ignorar
     }
 
+    // Migración: permitir tipo 'combo' en tarifas_tecnico
+    try {
+      await client.query("ALTER TABLE tarifas_tecnico DROP CONSTRAINT IF EXISTS tarifas_tecnico_tipo_check");
+      await client.query("ALTER TABLE tarifas_tecnico ADD CONSTRAINT tarifas_tecnico_tipo_check CHECK(tipo IN ('equipo','repuesto','combo'))");
+    } catch (e) {}
+
     // Índices para acelerar consultas de gestion-servicios
     const indices = [
       'CREATE INDEX IF NOT EXISTS idx_agendamientos_tecnico ON agendamientos(tecnico)',
