@@ -21,6 +21,7 @@ import SolicitudesCambio from './pages/SolicitudesCambio';
 import Usuarios from './pages/Usuarios';
 import WhatsApp from './pages/WhatsApp';
 import Liquidacion from './pages/Liquidacion';
+import GenerarCotizacion from './pages/GenerarCotizacion';
 
 function PrivateRoute({ children, coordinadorOnly = false, gestorOCoord = false }) {
   const { user, isCoordinador, isGestor } = useAuth();
@@ -130,6 +131,14 @@ export default function App() {
               element={
                 <PrivateRoute coordinadorOnly>
                   <Liquidacion />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="generar-cotizacion"
+              element={
+                <PrivateRoute coordinadorOnly>
+                  <GenerarCotizacion />
                 </PrivateRoute>
               }
             />
