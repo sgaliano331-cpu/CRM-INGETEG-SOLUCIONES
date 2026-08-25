@@ -179,6 +179,11 @@ router.get('/informe', async (req, res) => {
       }));
       const totalRepuestos = repsDesglose.reduce((sum, r) => sum + r.total_tecnico, 0);
 
+      if (ts === 'reparación' && repsDesglose.length > 0 && override === null) {
+        equiposDesglose = equiposList.map(eq => ({ nombre: eq, tarifa: 0 }));
+        totalEquipos = 0;
+      }
+
       return {
         id: s.id,
         fecha: s.fecha_agendamiento,
