@@ -17,7 +17,7 @@ export default function GenerarCotizacion() {
   const [historial, setHistorial] = useState([]);
   const [showHistorial, setShowHistorial] = useState(false);
 
-  const total = items.reduce((s, i) => s + (parseFloat(i.valor) || 0), 0);
+  const total = items.reduce((s, i) => s + (parseFloat(i.valor) || 0) * (parseInt(i.cantidad) || 1), 0);
 
   const updateItem = (idx, field, value) => {
     setItems(prev => prev.map((it, i) => i === idx ? { ...it, [field]: value } : it));

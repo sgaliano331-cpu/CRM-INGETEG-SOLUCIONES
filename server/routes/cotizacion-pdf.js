@@ -104,15 +104,18 @@ router.post('/generar', async (req, res) => {
     y -= 22;
     const col1 = M;
     const col2 = M + 115;
-    const col3 = PW - M - 85;
-    const col4 = PW - M;
+    const col3 = PW - M - 145;
+    const col4 = PW - M - 75;
+    const col5 = PW - M;
 
     page.drawText('CONCEPTO', { x: col1, y, size: 7.5, font: fontBold, color: TEXT_SEC });
     page.drawText('DESCRIPCION', { x: col2, y, size: 7.5, font: fontBold, color: TEXT_SEC });
     const cantW = fontBold.widthOfTextAtSize('CANT.', 7.5);
     page.drawText('CANT.', { x: col3 + 28 - cantW, y, size: 7.5, font: fontBold, color: TEXT_SEC });
-    const valW = fontBold.widthOfTextAtSize('VALOR', 7.5);
-    page.drawText('VALOR', { x: col4 - valW, y, size: 7.5, font: fontBold, color: TEXT_SEC });
+    const vuW = fontBold.widthOfTextAtSize('V. UNIT.', 7.5);
+    page.drawText('V. UNIT.', { x: col4 + 28 - vuW, y, size: 7.5, font: fontBold, color: TEXT_SEC });
+    const valW = fontBold.widthOfTextAtSize('TOTAL', 7.5);
+    page.drawText('TOTAL', { x: col5 - valW, y, size: 7.5, font: fontBold, color: TEXT_SEC });
 
     y -= 8;
     page.drawLine({ start: { x: M, y }, end: { x: PW - M, y }, thickness: 1.2, color: BORDER });
@@ -120,8 +123,10 @@ router.post('/generar', async (req, res) => {
     // Rows
     let totalGeneral = 0;
     for (const item of items) {
-      const valor = parseFloat(item.valor) || 0;
-      totalGeneral += valor;
+      const valorUnit = parseFloat(item.valor) || 0;
+      const cantidad = parseInt(item.cantidad) || 1;
+      const valorTotal = valorUnit * cantidad;
+      totalGeneral += valorTotal;
 
       y -= 18;
       page.drawText(item.concepto || '', { x: col1, y, size: 9, font: fontBold, color: TEXT_COLOR });
@@ -134,13 +139,17 @@ router.post('/generar', async (req, res) => {
         page.drawText(line, { x: col2, y: y - i * 12, size: 9, font, color: TEXT_COLOR });
       });
 
-      const cantText = String(item.cantidad || 1);
+      const cantText = String(cantidad);
       const cantTw = font.widthOfTextAtSize(cantText, 9);
       page.drawText(cantText, { x: col3 + 28 - cantTw, y, size: 9, font, color: TEXT_COLOR });
 
-      const valText = fmt(valor);
+      const vuText = fmt(valorUnit);
+      const vuTw = font.widthOfTextAtSize(vuText, 9);
+      page.drawText(vuText, { x: col4 + 28 - vuTw, y, size: 9, font, color: TEXT_COLOR });
+
+      const valText = fmt(valorTotal);
       const valTw = font.widthOfTextAtSize(valText, 9);
-      page.drawText(valText, { x: col4 - valTw, y, size: 9, font, color: TEXT_COLOR });
+      page.drawText(valText, { x: col5 - valTw, y, size: 9, font, color: TEXT_COLOR });
 
       y -= Math.max(28, descLines.length * 12 + 10);
       page.drawLine({ start: { x: M, y }, end: { x: PW - M, y }, thickness: 0.5, color: BORDER });
@@ -152,9 +161,11 @@ router.post('/generar', async (req, res) => {
     const totRight = PW - M;
 
     for (const item of items) {
-      const valor = parseFloat(item.valor) || 0;
+      const valorUnit = parseFloat(item.valor) || 0;
+      const cantidad = parseInt(item.cantidad) || 1;
+      const valorTotal = valorUnit * cantidad;
       page.drawText(item.concepto || '', { x: totLeft, y, size: 9, font, color: TEXT_SEC });
-      const vt = fmt(valor);
+      const vt = fmt(valorTotal);
       page.drawText(vt, { x: totRight - font.widthOfTextAtSize(vt, 9), y, size: 9, font, color: TEXT_SEC });
       y -= 15;
     }
