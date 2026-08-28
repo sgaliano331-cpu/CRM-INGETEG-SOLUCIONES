@@ -201,8 +201,8 @@ router.post('/generar', async (req, res) => {
 
     const contactoW = fontBold.widthOfTextAtSize('Contacto', 8);
     page.drawText('Contacto', { x: PW - M - contactoW, y: footY, size: 8, font: fontBold, color: TEXT_COLOR });
-    const emailW = font.widthOfTextAtSize('info@ingeteg.com', 7.5);
-    page.drawText('info@ingeteg.com', { x: PW - M - emailW, y: footY - 12, size: 7.5, font, color: TEXT_SEC });
+    const emailW = font.widthOfTextAtSize('administrativo@ingeteg.com', 7.5);
+    page.drawText('administrativo@ingeteg.com', { x: PW - M - emailW, y: footY - 12, size: 7.5, font, color: TEXT_SEC });
     const webW = font.widthOfTextAtSize('ingeteg.com', 7.5);
     page.drawText('ingeteg.com', { x: PW - M - webW, y: footY - 24, size: 7.5, font, color: TEXT_SEC });
 
