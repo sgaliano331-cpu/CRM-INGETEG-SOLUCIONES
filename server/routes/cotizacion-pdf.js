@@ -195,7 +195,7 @@ router.post('/generar', async (req, res) => {
     page.drawRectangle({ x: 0, y: 0, width: PW, height: footY + 15, color: SURFACE });
     page.drawLine({ start: { x: 0, y: footY + 15 }, end: { x: PW, y: footY + 15 }, thickness: 0.5, color: BORDER });
 
-    page.drawText('INGETEG Soluciones', { x: M, y: footY, size: 8, font: fontBold, color: TEXT_COLOR });
+    page.drawText('INGETEG SOLUCIONES', { x: M, y: footY, size: 8, font: fontBold, color: TEXT_COLOR });
     page.drawText('Medellin, Colombia', { x: M, y: footY - 12, size: 7.5, font, color: TEXT_SEC });
     page.drawText('NIT: 901.641.504', { x: M, y: footY - 24, size: 7.5, font, color: TEXT_SEC });
 
