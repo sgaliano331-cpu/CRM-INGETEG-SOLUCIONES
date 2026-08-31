@@ -43,6 +43,11 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// ─── Pagina de privacidad (requerida por Meta) ───────────────────────────
+app.get('/privacy', (req, res) => {
+  res.sendFile(path.join(clientDist, 'privacy.html'));
+});
+
 // ─── SPA Fallback ────────────────────────────────────────────────────────
 app.get('*', (req, res) => {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
