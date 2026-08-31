@@ -42,6 +42,13 @@ export default function WhatsApp() {
   const [search, setSearch] = useState('');
   const [masivo, setMasivo] = useState({ plantilla: 'hello_world', telefonos: '', enviando: false, resultado: null });
   const [envioDirecto, setEnvioDirecto] = useState({ telefono: '', mensaje: '', enviando: false });
+  const [plantilla, setPlantilla] = useState({
+    telefono: '',
+    nombre: 'certificaciones_2026',
+    params: { fecha: '', direccion: '' },
+    enviando: false,
+    resultado: null,
+  });
   const chatRef = useRef(null);
   const pollRef = useRef(null);
 
@@ -119,6 +126,38 @@ export default function WhatsApp() {
     }
   };
 
+  const enviarPlantilla = async (e) => {
+    e.preventDefault();
+    if (!plantilla.telefono || !plantilla.nombre) return;
+    setPlantilla(p => ({ ...p, enviando: true, resultado: null }));
+    try {
+      const components = [];
+      const paramValues = Object.values(plantilla.params).filter(v => v.trim());
+      if (paramValues.length > 0) {
+        components.push({
+          type: 'body',
+          parameters: paramValues.map(v => ({ type: 'text', text: v })),
+        });
+      }
+      await api.post('/whatsapp/enviar', {
+        telefono: plantilla.telefono,
+        plantilla: plantilla.nombre,
+        plantilla_params: components,
+      });
+      setPlantilla(p => ({
+        ...p,
+        telefono: '',
+        params: { fecha: '', direccion: '' },
+        enviando: false,
+        resultado: 'ok',
+      }));
+      fetchConversaciones();
+    } catch (err) {
+      alert(err.response?.data?.error || 'Error al enviar plantilla');
+      setPlantilla(p => ({ ...p, enviando: false }));
+    }
+  };
+
   const filteredConvs = conversaciones.filter(c =>
     !search || c.nombre_contacto?.toLowerCase().includes(search.toLowerCase()) || c.telefono?.includes(search)
   );
@@ -169,6 +208,12 @@ export default function WhatsApp() {
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === 'nuevo' ? 'bg-green-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
           >
             Nuevo Mensaje
+          </button>
+          <button
+            onClick={() => setTab('plantilla')}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === 'plantilla' ? 'bg-green-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+          >
+            Enviar Plantilla
           </button>
           <button
             onClick={() => setTab('masivo')}
@@ -388,7 +433,7 @@ export default function WhatsApp() {
                   className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 resize-none"
                   required
                 />
-                <p className="text-[11px] text-slate-400 mt-1">Solo puedes enviar texto libre si el cliente te escribio en las ultimas 24h. De lo contrario usa una plantilla en Envio Masivo.</p>
+                <p className="text-[11px] text-slate-400 mt-1">Solo puedes enviar texto libre si el cliente te escribio en las ultimas 24h. De lo contrario usa Enviar Plantilla.</p>
               </div>
               <button
                 type="submit"
@@ -492,6 +537,112 @@ export default function WhatsApp() {
                       ))}
                     </div>
                   )}
+                </div>
+              )}
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Enviar Plantilla Individual */}
+      {tab === 'plantilla' && (
+        <div className="flex-1 flex items-start justify-center pt-8">
+          <form onSubmit={enviarPlantilla} className="w-full max-w-lg bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+            <h2 className="text-lg font-semibold text-slate-800 mb-1">Enviar Plantilla Individual</h2>
+            <p className="text-xs text-slate-500 mb-4">Envia un mensaje de plantilla con datos personalizados a un numero especifico.</p>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Numero de telefono</label>
+                <input
+                  type="text"
+                  value={plantilla.telefono}
+                  onChange={e => setPlantilla(p => ({ ...p, telefono: e.target.value }))}
+                  placeholder="3001234567"
+                  className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                  required
+                />
+                <p className="text-[11px] text-slate-400 mt-1">Sin espacios ni guiones. Se agrega +57 automaticamente.</p>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Nombre de plantilla</label>
+                <select
+                  value={plantilla.nombre}
+                  onChange={e => setPlantilla(p => ({ ...p, nombre: e.target.value }))}
+                  className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white"
+                >
+                  <option value="certificaciones_2026">certificaciones_2026</option>
+                  <option value="hello_world">hello_world</option>
+                </select>
+                <p className="text-[11px] text-slate-400 mt-1">Selecciona la plantilla aprobada en Meta Business.</p>
+              </div>
+
+              {plantilla.nombre === 'certificaciones_2026' && (
+                <>
+                  <div className="p-3 bg-green-50 rounded-lg border border-green-200">
+                    <p className="text-xs font-medium text-green-800 mb-2">Parametros de la plantilla:</p>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-xs font-medium text-slate-600 mb-1">Fecha (variable 1)</label>
+                        <input
+                          type="text"
+                          value={plantilla.params.fecha}
+                          onChange={e => setPlantilla(p => ({ ...p, params: { ...p.params, fecha: e.target.value } }))}
+                          placeholder="Ej: 15 de septiembre de 2026"
+                          className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-slate-600 mb-1">Direccion (variable 2)</label>
+                        <input
+                          type="text"
+                          value={plantilla.params.direccion}
+                          onChange={e => setPlantilla(p => ({ ...p, params: { ...p.params, direccion: e.target.value } }))}
+                          placeholder="Ej: Calle 49 #50-21"
+                          className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                          required
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
+                    <p className="text-xs font-medium text-slate-500 mb-1">Vista previa del mensaje:</p>
+                    <p className="text-sm text-slate-700">
+                      Buen dia, le informamos que la certificacion de su red de gas sera realizada el dia{' '}
+                      <strong className="text-green-700">{plantilla.params.fecha || '{{fecha}}'}</strong> en la direccion{' '}
+                      <strong className="text-green-700">{plantilla.params.direccion || '{{direccion}}'}</strong>.
+                      Por favor estar pendiente.
+                    </p>
+                  </div>
+                </>
+              )}
+
+              <button
+                type="submit"
+                disabled={plantilla.enviando}
+                className="w-full py-2.5 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+              >
+                {plantilla.enviando ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                    Enviando...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+                    </svg>
+                    Enviar Plantilla
+                  </>
+                )}
+              </button>
+
+              {plantilla.resultado === 'ok' && (
+                <div className="p-3 bg-green-50 rounded-lg border border-green-200 flex items-center gap-2">
+                  <svg className="w-5 h-5 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <p className="text-sm text-green-700 font-medium">Mensaje de plantilla enviado exitosamente</p>
                 </div>
               )}
             </div>
