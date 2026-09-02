@@ -275,4 +275,29 @@ router.put('/marcar-leido/:telefono', authMiddleware, async (req, res) => {
   }
 });
 
+// GET /api/whatsapp/plantillas — Listar plantillas de Meta
+router.get('/plantillas', authMiddleware, soloCoordinador, async (req, res) => {
+  const WABA_ID = process.env.WA_WABA_ID || '1045301044658851';
+  try {
+    const response = await fetch(
+      `https://graph.facebook.com/v21.0/${WABA_ID}/message_templates?limit=100`,
+      { headers: { Authorization: `Bearer ${WA_TOKEN}` } }
+    );
+    const data = await response.json();
+    if (!response.ok) {
+      return res.status(400).json({ error: data.error?.message, detalle: data });
+    }
+    const templates = (data.data || []).map(t => ({
+      name: t.name,
+      status: t.status,
+      language: t.language,
+      category: t.category,
+      components: t.components,
+    }));
+    res.json(templates);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
