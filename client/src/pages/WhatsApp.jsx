@@ -41,12 +41,14 @@ export default function WhatsApp() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [search, setSearch] = useState('');
-  const [masivo, setMasivo] = useState({ plantilla: '', idioma: 'es_CO', enviando: false, resultado: null, excelData: null, excelFileName: '' });
+  const [masivo, setMasivo] = useState({ plantilla: '', idioma: 'es_CO', headerType: 'none', headerUrl: '', enviando: false, resultado: null, excelData: null, excelFileName: '' });
   const [envioDirecto, setEnvioDirecto] = useState({ telefono: '', mensaje: '', enviando: false });
   const [plantilla, setPlantilla] = useState({
     telefono: '',
     nombre: '',
     idioma: 'es_CO',
+    headerType: 'none',
+    headerUrl: '',
     variables: [{ name: '', value: '' }],
     enviando: false,
     resultado: null,
@@ -121,6 +123,13 @@ export default function WhatsApp() {
     setPlantilla(p => ({ ...p, enviando: true, resultado: null }));
     try {
       const components = [];
+      if (plantilla.headerType !== 'none' && plantilla.headerUrl.trim()) {
+        const mediaType = plantilla.headerType;
+        components.push({
+          type: 'header',
+          parameters: [{ type: mediaType, [mediaType]: { link: plantilla.headerUrl.trim() } }],
+        });
+      }
       const filledVars = plantilla.variables.filter(v => v.value.trim());
       if (filledVars.length > 0) {
         components.push({
@@ -178,10 +187,16 @@ export default function WhatsApp() {
         telefono: String(row[telCol]).replace(/\D/g, ''),
         params: varCols.map(c => ({ name: c, value: String(row[c] ?? '') })),
       }));
+      const headerComp = [];
+      if (masivo.headerType !== 'none' && masivo.headerUrl.trim()) {
+        const mt = masivo.headerType;
+        headerComp.push({ type: 'header', parameters: [{ type: mt, [mt]: { link: masivo.headerUrl.trim() } }] });
+      }
       const { data } = await api.post('/whatsapp/enviar-masivo', {
         contactos,
         plantilla: masivo.plantilla,
         idioma: masivo.idioma,
+        headerComponents: headerComp,
       });
       setMasivo(m => ({ ...m, enviando: false, resultado: data }));
       fetchConversaciones();
@@ -525,6 +540,33 @@ export default function WhatsApp() {
                 </select>
               </div>
               <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Encabezado (header)</label>
+                <select
+                  value={masivo.headerType}
+                  onChange={e => setMasivo(m => ({ ...m, headerType: e.target.value }))}
+                  className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white"
+                >
+                  <option value="none">Sin encabezado</option>
+                  <option value="image">Imagen</option>
+                  <option value="video">Video</option>
+                  <option value="document">Documento</option>
+                </select>
+              </div>
+              {masivo.headerType !== 'none' && (
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">URL del {masivo.headerType === 'image' ? 'imagen' : masivo.headerType === 'video' ? 'video' : 'documento'}</label>
+                  <input
+                    type="url"
+                    value={masivo.headerUrl}
+                    onChange={e => setMasivo(m => ({ ...m, headerUrl: e.target.value }))}
+                    placeholder="https://ejemplo.com/imagen.jpg"
+                    className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                    required
+                  />
+                  <p className="text-[11px] text-slate-400 mt-1">URL publica del archivo. Debe ser accesible desde internet.</p>
+                </div>
+              )}
+              <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">Archivo Excel (.xlsx, .xls, .csv)</label>
                 <input
                   type="file"
@@ -664,6 +706,34 @@ export default function WhatsApp() {
                   <option value="en_US">English (US)</option>
                 </select>
               </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Encabezado (header)</label>
+                <select
+                  value={plantilla.headerType}
+                  onChange={e => setPlantilla(p => ({ ...p, headerType: e.target.value }))}
+                  className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white"
+                >
+                  <option value="none">Sin encabezado</option>
+                  <option value="image">Imagen</option>
+                  <option value="video">Video</option>
+                  <option value="document">Documento</option>
+                </select>
+              </div>
+              {plantilla.headerType !== 'none' && (
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">URL del {plantilla.headerType === 'image' ? 'imagen' : plantilla.headerType === 'video' ? 'video' : 'documento'}</label>
+                  <input
+                    type="url"
+                    value={plantilla.headerUrl}
+                    onChange={e => setPlantilla(p => ({ ...p, headerUrl: e.target.value }))}
+                    placeholder="https://ejemplo.com/imagen.jpg"
+                    className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                    required
+                  />
+                  <p className="text-[11px] text-slate-400 mt-1">URL publica del archivo. Debe ser accesible desde internet.</p>
+                </div>
+              )}
 
               <div className="p-3 bg-green-50 rounded-lg border border-green-200">
                 <div className="flex items-center justify-between mb-2">

@@ -127,7 +127,7 @@ router.post('/enviar', authMiddleware, soloCoordinador, async (req, res) => {
 
 // POST /api/whatsapp/enviar-masivo — Envío masivo con plantilla
 router.post('/enviar-masivo', authMiddleware, soloCoordinador, async (req, res) => {
-  const { contactos, telefonos, plantilla, plantilla_params, idioma } = req.body;
+  const { contactos, telefonos, plantilla, plantilla_params, idioma, headerComponents } = req.body;
 
   if (!WA_TOKEN || !WA_PHONE_ID) {
     return res.status(500).json({ error: 'WhatsApp no configurado' });
@@ -150,6 +150,9 @@ router.post('/enviar-masivo', authMiddleware, soloCoordinador, async (req, res) 
 
     try {
       const components = [];
+      if (headerComponents && headerComponents.length > 0) {
+        components.push(...headerComponents);
+      }
       const params = contacto.params || [];
       if (params.length > 0) {
         const filtered = params.filter(v => {
