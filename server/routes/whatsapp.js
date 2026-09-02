@@ -1,11 +1,29 @@
 const express = require('express');
 const router = express.Router();
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 const { authMiddleware, soloCoordinador } = require('../middleware/auth');
 const { pool } = require('../db');
 
 const VERIFY_TOKEN = process.env.WA_VERIFY_TOKEN || 'ingeteg_whatsapp_verify_2026';
 const WA_TOKEN = process.env.WA_TOKEN;
 const WA_PHONE_ID = process.env.WA_PHONE_ID;
+
+const uploadsDir = path.join(__dirname, '..', 'uploads', 'whatsapp');
+if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+
+const upload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => cb(null, uploadsDir),
+    filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname.replace(/\s+/g, '_')),
+  }),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const allowed = /\.(jpg|jpeg|png|webp|mp4|pdf)$/i;
+    cb(null, allowed.test(path.extname(file.originalname)));
+  },
+});
 
 // GET /api/whatsapp/webhook — Verificación de Meta
 router.get('/webhook', (req, res) => {
@@ -302,6 +320,15 @@ router.get('/plantillas', authMiddleware, soloCoordinador, async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+// POST /api/whatsapp/upload — Subir archivo para header de plantilla
+router.post('/upload', authMiddleware, soloCoordinador, upload.single('file'), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No se recibio archivo' });
+  const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+  const host = req.get('host');
+  const url = `${protocol}://${host}/uploads/whatsapp/${req.file.filename}`;
+  res.json({ ok: true, url, filename: req.file.filename });
 });
 
 module.exports = router;

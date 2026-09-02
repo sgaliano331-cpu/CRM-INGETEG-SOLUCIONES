@@ -726,15 +726,33 @@ export default function WhatsApp() {
               {plantilla.headerType !== 'none' && (
                 <div>
                   <label className="block text-xs font-medium text-slate-600 mb-1">URL del {plantilla.headerType === 'image' ? 'imagen' : plantilla.headerType === 'video' ? 'video' : 'documento'}</label>
-                  <input
-                    type="url"
-                    value={plantilla.headerUrl}
-                    onChange={e => setPlantilla(p => ({ ...p, headerUrl: e.target.value }))}
-                    placeholder="https://ejemplo.com/imagen.jpg"
-                    className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                    required
-                  />
-                  <p className="text-[11px] text-slate-400 mt-1">URL publica del archivo. Debe ser accesible desde internet.</p>
+                  <div className="flex gap-2">
+                    <input
+                      type="url"
+                      value={plantilla.headerUrl}
+                      onChange={e => setPlantilla(p => ({ ...p, headerUrl: e.target.value }))}
+                      placeholder="https://ejemplo.com/imagen.jpg"
+                      className="flex-1 px-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                      required
+                    />
+                    <label className="cursor-pointer bg-green-600 text-white px-3 py-2.5 rounded-lg text-xs font-medium hover:bg-green-700 flex items-center gap-1 whitespace-nowrap">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+                      Subir
+                      <input type="file" className="hidden" accept="image/*,video/*,.pdf" onChange={async (e) => {
+                        const file = e.target.files[0];
+                        if (!file) return;
+                        const fd = new FormData();
+                        fd.append('file', file);
+                        try {
+                          const { data } = await api.post('/whatsapp/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+                          setPlantilla(p => ({ ...p, headerUrl: data.url }));
+                        } catch (err) {
+                          alert('Error al subir: ' + (err.response?.data?.error || err.message));
+                        }
+                      }} />
+                    </label>
+                  </div>
+                  <p className="text-[11px] text-slate-400 mt-1">Pega una URL publica o sube un archivo desde tu computador.</p>
                 </div>
               )}
 
