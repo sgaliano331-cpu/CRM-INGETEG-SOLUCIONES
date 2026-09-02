@@ -44,7 +44,7 @@ export default function WhatsApp() {
   const [envioDirecto, setEnvioDirecto] = useState({ telefono: '', mensaje: '', enviando: false });
   const [plantilla, setPlantilla] = useState({
     telefono: '',
-    nombre: 'certificaciones_2026',
+    nombre: 'certificaciones2026',
     params: { fecha: '', direccion: '' },
     enviando: false,
     resultado: null,
@@ -570,13 +570,13 @@ export default function WhatsApp() {
                   onChange={e => setPlantilla(p => ({ ...p, nombre: e.target.value }))}
                   className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white"
                 >
-                  <option value="certificaciones_2026">certificaciones_2026</option>
+                  <option value="certificaciones2026">certificaciones2026</option>
                   <option value="hello_world">hello_world</option>
                 </select>
                 <p className="text-[11px] text-slate-400 mt-1">Selecciona la plantilla aprobada en Meta Business.</p>
               </div>
 
-              {plantilla.nombre === 'certificaciones_2026' && (
+              {plantilla.nombre === 'certificaciones2026' && (
                 <>
                   <div className="p-3 bg-green-50 rounded-lg border border-green-200">
                     <p className="text-xs font-medium text-green-800 mb-2">Parametros de la plantilla:</p>

@@ -81,7 +81,7 @@ router.post('/enviar', authMiddleware, soloCoordinador, async (req, res) => {
         type: 'template',
         template: {
           name: plantilla,
-          language: { code: 'es' },
+          language: { code: 'es_CO' },
           components: plantilla_params || [],
         },
       };
@@ -152,7 +152,7 @@ router.post('/enviar-masivo', authMiddleware, soloCoordinador, async (req, res) 
         type: 'template',
         template: {
           name: plantilla,
-          language: { code: 'es' },
+          language: { code: 'es_CO' },
           components: plantilla_params || [],
         },
       };
