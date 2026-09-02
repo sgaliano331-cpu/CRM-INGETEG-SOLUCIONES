@@ -166,8 +166,10 @@ router.post('/enviar-masivo', authMiddleware, soloCoordinador, async (req, res) 
           components.push({
             type: 'body',
             parameters: filtered.map(v => {
-              const val = typeof v === 'object' ? v.value : v;
-              return { type: 'text', text: String(val) };
+              if (typeof v === 'object' && v.name) {
+                return { type: 'text', parameter_name: v.name, text: String(v.value) };
+              }
+              return { type: 'text', text: String(v) };
             }),
           });
         }

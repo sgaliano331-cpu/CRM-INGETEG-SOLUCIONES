@@ -134,7 +134,11 @@ export default function WhatsApp() {
       if (filledVars.length > 0) {
         components.push({
           type: 'body',
-          parameters: filledVars.map(v => ({ type: 'text', text: v.value })),
+          parameters: filledVars.map(v => {
+            const param = { type: 'text', text: v.value };
+            if (v.name.trim()) param.parameter_name = v.name.trim();
+            return param;
+          }),
         });
       }
       await api.post('/whatsapp/enviar', {
