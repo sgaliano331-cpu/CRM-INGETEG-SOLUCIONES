@@ -94,6 +94,8 @@ router.post('/enviar', authMiddleware, soloCoordinador, async (req, res) => {
       };
     }
 
+    console.log('[WhatsApp] Enviando:', JSON.stringify(body, null, 2));
+
     const response = await fetch(
       `https://graph.facebook.com/v21.0/${WA_PHONE_ID}/messages`,
       {
@@ -107,6 +109,7 @@ router.post('/enviar', authMiddleware, soloCoordinador, async (req, res) => {
     );
 
     const data = await response.json();
+    console.log('[WhatsApp] Respuesta:', JSON.stringify(data));
 
     if (!response.ok) {
       return res.status(400).json({ error: data.error?.message || 'Error al enviar', detalle: data });
@@ -163,10 +166,8 @@ router.post('/enviar-masivo', authMiddleware, soloCoordinador, async (req, res) 
           components.push({
             type: 'body',
             parameters: filtered.map(v => {
-              if (typeof v === 'object' && v.name) {
-                return { type: 'text', parameter_name: v.name, text: String(v.value) };
-              }
-              return { type: 'text', text: String(v) };
+              const val = typeof v === 'object' ? v.value : v;
+              return { type: 'text', text: String(val) };
             }),
           });
         }
