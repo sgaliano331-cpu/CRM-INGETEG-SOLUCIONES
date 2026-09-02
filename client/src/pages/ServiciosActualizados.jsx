@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
+import * as XLSX from 'xlsx';
 
 const ESTADOS = ['Cumplido', 'Pendiente por repuesto', 'Cancelado por el cliente', 'Cotización vigente'];
 
@@ -22,6 +23,7 @@ export default function ServiciosActualizados() {
   const [busqueda, setBusqueda] = useState('');
   const [busquedaActiva, setBusquedaActiva] = useState('');
   const [filtroLiquidado, setFiltroLiquidado] = useState('');
+  const [filtroPago, setFiltroPago] = useState('');
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
   const [cambios, setCambios] = useState({});
@@ -101,15 +103,46 @@ export default function ServiciosActualizados() {
 
   const descartarCambios = () => setCambios({});
 
-  const serviciosFiltrados = filtroLiquidado === ''
-    ? servicios
-    : servicios.filter(s => {
-        const liq = estaLiquidado(s);
-        return filtroLiquidado === 'si' ? liq : !liq;
-      });
+  const serviciosFiltrados = servicios.filter(s => {
+    if (filtroLiquidado !== '') {
+      const liq = estaLiquidado(s);
+      if (filtroLiquidado === 'si' && !liq) return false;
+      if (filtroLiquidado === 'no' && liq) return false;
+    }
+    if (filtroPago !== '') {
+      if (filtroPago === 'pendiente' && s.metodo_pago !== 'Pendiente por cobro') return false;
+      if (filtroPago === 'efectivo' && s.metodo_pago !== 'Efectivo') return false;
+      if (filtroPago === 'transferencia' && s.metodo_pago !== 'Transferencia') return false;
+      if (filtroPago === 'sin_pago' && s.metodo_pago) return false;
+    }
+    return true;
+  });
 
   const totalLiquidados = servicios.filter(s => estaLiquidado(s)).length;
   const puedeMarcar = isGestor || isCoordinador;
+
+  const descargarExcel = () => {
+    const datos = serviciosFiltrados.map(s => ({
+      'Cliente': s.cliente_nombre,
+      'Telefono': s.telefono,
+      'Direccion': s.direccion || '',
+      'Ciudad': s.ciudad || '',
+      'Equipos': s.equipos || '',
+      'Tipo Servicio': s.tipo_servicio || '',
+      'Estado': s.estado_servicio,
+      'Tecnico': s.tecnico || '',
+      'Fecha Agendamiento': s.fecha_agendamiento || '',
+      'Fecha Atencion': s.fecha_atencion || '',
+      'Valor': s.costo_cop || 0,
+      'Metodo Pago': s.metodo_pago || '',
+      'Liquidado': estaLiquidado(s) ? 'Si' : 'No',
+      'Observaciones': s.observaciones_tecnica || '',
+    }));
+    const ws = XLSX.utils.json_to_sheet(datos);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Servicios');
+    XLSX.writeFile(wb, `Servicios_${new Date().toISOString().slice(0, 10)}.xlsx`);
+  };
 
   return (
     <div className="max-w-5xl mx-auto space-y-5 pb-12">
@@ -152,6 +185,17 @@ export default function ServiciosActualizados() {
             </div>
           )}
 
+          <div className="min-w-[180px]">
+            <label className="block text-xs font-medium text-slate-500 mb-1">Metodo de pago</label>
+            <select className="input-field" value={filtroPago} onChange={e => setFiltroPago(e.target.value)}>
+              <option value="">Todos</option>
+              <option value="pendiente">Pendiente por cobro</option>
+              <option value="efectivo">Efectivo</option>
+              <option value="transferencia">Transferencia</option>
+              <option value="sin_pago">Sin metodo</option>
+            </select>
+          </div>
+
           <div className="min-w-[150px]">
             <label className="block text-xs font-medium text-slate-500 mb-1">Desde</label>
             <input type="date" className="input-field" value={fechaDesde} onChange={e => setFechaDesde(e.target.value)} />
@@ -162,12 +206,19 @@ export default function ServiciosActualizados() {
             <input type="date" className="input-field" value={fechaHasta} onChange={e => setFechaHasta(e.target.value)} />
           </div>
 
-          <div className="ml-auto text-right">
-            <span className="text-xs text-slate-400">Registros</span>
-            <p className="text-lg font-bold text-slate-800">{serviciosFiltrados.length}</p>
-            {puedeMarcar && (
-              <p className="text-[10px] text-emerald-600 font-medium">{totalLiquidados} liquidados</p>
-            )}
+          <div className="ml-auto text-right flex items-center gap-3">
+            <button onClick={descargarExcel} title="Descargar informe Excel"
+              className="bg-emerald-600 text-white px-3 py-2 rounded-lg text-xs font-medium hover:bg-emerald-700 transition-all flex items-center gap-1.5">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+              Excel
+            </button>
+            <div>
+              <span className="text-xs text-slate-400">Registros</span>
+              <p className="text-lg font-bold text-slate-800">{serviciosFiltrados.length}</p>
+              {puedeMarcar && (
+                <p className="text-[10px] text-emerald-600 font-medium">{totalLiquidados} liquidados</p>
+              )}
+            </div>
           </div>
         </div>
       </div>
