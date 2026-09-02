@@ -744,7 +744,7 @@ export default function WhatsApp() {
                         const fd = new FormData();
                         fd.append('file', file);
                         try {
-                          const { data } = await api.post('/whatsapp/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+                          const { data } = await api.post('/whatsapp/upload', fd);
                           setPlantilla(p => ({ ...p, headerUrl: data.url }));
                         } catch (err) {
                           alert('Error al subir: ' + (err.response?.data?.error || err.message));
