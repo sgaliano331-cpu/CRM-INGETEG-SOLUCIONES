@@ -152,11 +152,19 @@ router.post('/enviar-masivo', authMiddleware, soloCoordinador, async (req, res) 
       const components = [];
       const params = contacto.params || [];
       if (params.length > 0) {
-        const filtered = params.filter(v => String(v).trim());
+        const filtered = params.filter(v => {
+          const val = typeof v === 'object' ? v.value : v;
+          return String(val).trim();
+        });
         if (filtered.length > 0) {
           components.push({
             type: 'body',
-            parameters: filtered.map(v => ({ type: 'text', text: String(v) })),
+            parameters: filtered.map(v => {
+              if (typeof v === 'object' && v.name) {
+                return { type: 'text', parameter_name: v.name, text: String(v.value) };
+              }
+              return { type: 'text', text: String(v) };
+            }),
           });
         }
       } else if (plantilla_params && plantilla_params.length > 0) {

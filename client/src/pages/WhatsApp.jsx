@@ -47,7 +47,7 @@ export default function WhatsApp() {
     telefono: '',
     nombre: '',
     idioma: 'es_CO',
-    variables: [''],
+    variables: [{ name: '', value: '' }],
     enviando: false,
     resultado: null,
   });
@@ -121,11 +121,15 @@ export default function WhatsApp() {
     setPlantilla(p => ({ ...p, enviando: true, resultado: null }));
     try {
       const components = [];
-      const paramValues = plantilla.variables.filter(v => v.trim());
-      if (paramValues.length > 0) {
+      const filledVars = plantilla.variables.filter(v => v.value.trim());
+      if (filledVars.length > 0) {
         components.push({
           type: 'body',
-          parameters: paramValues.map(v => ({ type: 'text', text: v })),
+          parameters: filledVars.map(v => {
+            const param = { type: 'text', text: v.value };
+            if (v.name.trim()) param.parameter_name = v.name.trim();
+            return param;
+          }),
         });
       }
       await api.post('/whatsapp/enviar', {
@@ -137,7 +141,7 @@ export default function WhatsApp() {
       setPlantilla(p => ({
         ...p,
         telefono: '',
-        variables: p.variables.map(() => ''),
+        variables: p.variables.map(v => ({ ...v, value: '' })),
         enviando: false,
         resultado: 'ok',
       }));
@@ -172,7 +176,7 @@ export default function WhatsApp() {
     try {
       const contactos = masivo.excelData.map(row => ({
         telefono: String(row[telCol]).replace(/\D/g, ''),
-        params: varCols.map(c => String(row[c] ?? '')),
+        params: varCols.map(c => ({ name: c, value: String(row[c] ?? '') })),
       }));
       const { data } = await api.post('/whatsapp/enviar-masivo', {
         contactos,
@@ -666,7 +670,7 @@ export default function WhatsApp() {
                   <p className="text-xs font-medium text-green-800">Variables de la plantilla</p>
                   <button
                     type="button"
-                    onClick={() => setPlantilla(p => ({ ...p, variables: [...p.variables, ''] }))}
+                    onClick={() => setPlantilla(p => ({ ...p, variables: [...p.variables, { name: '', value: '' }] }))}
                     className="text-xs text-green-700 hover:text-green-900 font-medium flex items-center gap-1"
                   >
                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
@@ -676,16 +680,27 @@ export default function WhatsApp() {
                 <div className="space-y-2">
                   {plantilla.variables.map((v, i) => (
                     <div key={i} className="flex gap-2 items-center">
-                      <span className="text-xs text-slate-500 w-6 text-right shrink-0">{`{{${i + 1}}}`}</span>
                       <input
                         type="text"
-                        value={v}
+                        value={v.name}
                         onChange={e => {
                           const vars = [...plantilla.variables];
-                          vars[i] = e.target.value;
+                          vars[i] = { ...vars[i], name: e.target.value };
                           setPlantilla(p => ({ ...p, variables: vars }));
                         }}
-                        placeholder={`Valor para variable ${i + 1}`}
+                        placeholder="nombre"
+                        className="w-28 px-2 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-green-50 font-mono"
+                      />
+                      <span className="text-slate-400">=</span>
+                      <input
+                        type="text"
+                        value={v.value}
+                        onChange={e => {
+                          const vars = [...plantilla.variables];
+                          vars[i] = { ...vars[i], value: e.target.value };
+                          setPlantilla(p => ({ ...p, variables: vars }));
+                        }}
+                        placeholder="Valor"
                         className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500"
                       />
                       {plantilla.variables.length > 1 && (
@@ -700,7 +715,7 @@ export default function WhatsApp() {
                     </div>
                   ))}
                 </div>
-                <p className="text-[11px] text-slate-400 mt-2">Agrega las variables en el orden que aparecen en tu plantilla.</p>
+                <p className="text-[11px] text-slate-400 mt-2">Usa el nombre exacto de la variable como aparece en Meta (ej: nombre, fecha, direccion).</p>
               </div>
 
               <button
