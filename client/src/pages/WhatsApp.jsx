@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import api from '../api/axios';
+import * as XLSX from 'xlsx';
 
 function formatPhone(phone) {
   if (!phone) return '';
@@ -40,12 +41,13 @@ export default function WhatsApp() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [search, setSearch] = useState('');
-  const [masivo, setMasivo] = useState({ plantilla: 'hello_world', telefonos: '', enviando: false, resultado: null });
+  const [masivo, setMasivo] = useState({ plantilla: '', idioma: 'es_CO', enviando: false, resultado: null, excelData: null, excelFileName: '' });
   const [envioDirecto, setEnvioDirecto] = useState({ telefono: '', mensaje: '', enviando: false });
   const [plantilla, setPlantilla] = useState({
     telefono: '',
-    nombre: 'certificaciones2026',
-    params: { fecha: '', direccion: '' },
+    nombre: '',
+    idioma: 'es_CO',
+    variables: [''],
     enviando: false,
     resultado: null,
   });
@@ -110,20 +112,7 @@ export default function WhatsApp() {
 
   const enviarMasivo = async (e) => {
     e.preventDefault();
-    const nums = masivo.telefonos.split(/[\n,;]+/).map(t => t.trim()).filter(Boolean);
-    if (nums.length === 0) return alert('Agrega al menos un numero');
-    setMasivo(m => ({ ...m, enviando: true, resultado: null }));
-    try {
-      const { data } = await api.post('/whatsapp/enviar-masivo', {
-        telefonos: nums,
-        plantilla: masivo.plantilla,
-      });
-      setMasivo(m => ({ ...m, enviando: false, resultado: data }));
-      fetchConversaciones();
-    } catch (err) {
-      alert(err.response?.data?.error || 'Error en envio masivo');
-      setMasivo(m => ({ ...m, enviando: false }));
-    }
+    enviarMasivoExcel(e);
   };
 
   const enviarPlantilla = async (e) => {
@@ -132,7 +121,7 @@ export default function WhatsApp() {
     setPlantilla(p => ({ ...p, enviando: true, resultado: null }));
     try {
       const components = [];
-      const paramValues = Object.values(plantilla.params).filter(v => v.trim());
+      const paramValues = plantilla.variables.filter(v => v.trim());
       if (paramValues.length > 0) {
         components.push({
           type: 'body',
@@ -143,11 +132,12 @@ export default function WhatsApp() {
         telefono: plantilla.telefono,
         plantilla: plantilla.nombre,
         plantilla_params: components,
+        idioma: plantilla.idioma,
       });
       setPlantilla(p => ({
         ...p,
         telefono: '',
-        params: { fecha: '', direccion: '' },
+        variables: p.variables.map(() => ''),
         enviando: false,
         resultado: 'ok',
       }));
@@ -155,6 +145,45 @@ export default function WhatsApp() {
     } catch (err) {
       alert(err.response?.data?.error || 'Error al enviar plantilla');
       setPlantilla(p => ({ ...p, enviando: false }));
+    }
+  };
+
+  const handleExcelUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const wb = XLSX.read(evt.target.result, { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const data = XLSX.utils.sheet_to_json(ws, { defval: '' });
+      if (data.length === 0) return alert('El archivo esta vacio');
+      setMasivo(m => ({ ...m, excelData: data, excelFileName: file.name }));
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
+  const enviarMasivoExcel = async (e) => {
+    e.preventDefault();
+    if (!masivo.excelData || !masivo.plantilla) return;
+    const cols = Object.keys(masivo.excelData[0]);
+    const telCol = cols.find(c => /tel[eé]fono|phone|celular|numero/i.test(c)) || cols[0];
+    const varCols = cols.filter(c => c !== telCol);
+    setMasivo(m => ({ ...m, enviando: true, resultado: null }));
+    try {
+      const contactos = masivo.excelData.map(row => ({
+        telefono: String(row[telCol]).replace(/\D/g, ''),
+        params: varCols.map(c => String(row[c] ?? '')),
+      }));
+      const { data } = await api.post('/whatsapp/enviar-masivo', {
+        contactos,
+        plantilla: masivo.plantilla,
+        idioma: masivo.idioma,
+      });
+      setMasivo(m => ({ ...m, enviando: false, resultado: data }));
+      fetchConversaciones();
+    } catch (err) {
+      alert(err.response?.data?.error || 'Error en envio masivo');
+      setMasivo(m => ({ ...m, enviando: false }));
     }
   };
 
@@ -464,7 +493,7 @@ export default function WhatsApp() {
         <div className="flex-1 flex items-start justify-center pt-8">
           <form onSubmit={enviarMasivo} className="w-full max-w-lg bg-white rounded-xl border border-slate-200 shadow-sm p-6">
             <h2 className="text-lg font-semibold text-slate-800 mb-1">Envio Masivo con Plantilla</h2>
-            <p className="text-xs text-slate-500 mb-4">Envia mensajes de plantilla aprobada a multiples numeros. Costo: ~$46 COP por conversacion de marketing.</p>
+            <p className="text-xs text-slate-500 mb-4">Sube un archivo Excel con los datos. La primera columna debe ser el telefono, las demas son las variables de la plantilla en orden.</p>
             <div className="space-y-4">
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">Nombre de plantilla</label>
@@ -472,47 +501,90 @@ export default function WhatsApp() {
                   type="text"
                   value={masivo.plantilla}
                   onChange={e => setMasivo(m => ({ ...m, plantilla: e.target.value }))}
-                  placeholder="hello_world"
+                  placeholder="Ej: certificaciones2026"
                   className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500"
                   required
                 />
-                <p className="text-[11px] text-slate-400 mt-1">Debe ser una plantilla aprobada en Meta Business.</p>
+                <p className="text-[11px] text-slate-400 mt-1">Nombre exacto de la plantilla aprobada en Meta Business.</p>
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">Numeros de telefono</label>
-                <textarea
-                  value={masivo.telefonos}
-                  onChange={e => setMasivo(m => ({ ...m, telefonos: e.target.value }))}
-                  placeholder={"3001234567\n3109876543\n3201112233"}
-                  rows={6}
-                  className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm font-mono focus:ring-2 focus:ring-green-500 focus:border-green-500 resize-none"
-                  required
-                />
-                <p className="text-[11px] text-slate-400 mt-1">
-                  Un numero por linea, o separados por coma.
-                  {masivo.telefonos && (
-                    <span className="text-green-600 font-medium ml-1">
-                      {masivo.telefonos.split(/[\n,;]+/).filter(t => t.trim()).length} numeros
-                    </span>
-                  )}
-                </p>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Idioma</label>
+                <select
+                  value={masivo.idioma}
+                  onChange={e => setMasivo(m => ({ ...m, idioma: e.target.value }))}
+                  className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white"
+                >
+                  <option value="es_CO">Espanol (Colombia)</option>
+                  <option value="es">Espanol</option>
+                  <option value="es_MX">Espanol (Mexico)</option>
+                  <option value="en_US">English (US)</option>
+                </select>
               </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Archivo Excel (.xlsx, .xls, .csv)</label>
+                <input
+                  type="file"
+                  accept=".xlsx,.xls,.csv"
+                  onChange={handleExcelUpload}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 file:mr-3 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-medium file:bg-green-50 file:text-green-700 hover:file:bg-green-100"
+                />
+                <p className="text-[11px] text-slate-400 mt-1">Columnas: telefono | variable1 | variable2 | ...</p>
+              </div>
+
+              {masivo.excelData && (
+                <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs font-medium text-blue-800">
+                      {masivo.excelFileName} — {masivo.excelData.length} contactos
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setMasivo(m => ({ ...m, excelData: null, excelFileName: '' }))}
+                      className="text-xs text-red-500 hover:text-red-700"
+                    >Quitar</button>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="border-b border-blue-200">
+                          {Object.keys(masivo.excelData[0]).map((col, i) => (
+                            <th key={i} className="py-1 px-2 text-left font-medium text-blue-700">{col}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {masivo.excelData.slice(0, 5).map((row, i) => (
+                          <tr key={i} className="border-b border-blue-100">
+                            {Object.values(row).map((val, j) => (
+                              <td key={j} className="py-1 px-2 text-slate-600">{String(val)}</td>
+                            ))}
+                          </tr>
+                        ))}
+                        {masivo.excelData.length > 5 && (
+                          <tr><td colSpan={Object.keys(masivo.excelData[0]).length} className="py-1 px-2 text-slate-400 text-center">... y {masivo.excelData.length - 5} mas</td></tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
               <button
                 type="submit"
-                disabled={masivo.enviando}
+                disabled={masivo.enviando || !masivo.excelData}
                 className="w-full py-2.5 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
               >
                 {masivo.enviando ? (
                   <>
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
-                    Enviando...
+                    Enviando a {masivo.excelData?.length} contactos...
                   </>
                 ) : (
                   <>
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z" />
                     </svg>
-                    Enviar a Todos
+                    Enviar a {masivo.excelData?.length || 0} Contactos
                   </>
                 )}
               </button>
@@ -565,57 +637,71 @@ export default function WhatsApp() {
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">Nombre de plantilla</label>
-                <select
+                <input
+                  type="text"
                   value={plantilla.nombre}
                   onChange={e => setPlantilla(p => ({ ...p, nombre: e.target.value }))}
+                  placeholder="Ej: certificaciones2026"
+                  className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                  required
+                />
+                <p className="text-[11px] text-slate-400 mt-1">Nombre exacto de la plantilla aprobada en Meta Business.</p>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Idioma</label>
+                <select
+                  value={plantilla.idioma}
+                  onChange={e => setPlantilla(p => ({ ...p, idioma: e.target.value }))}
                   className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white"
                 >
-                  <option value="certificaciones2026">certificaciones2026</option>
-                  <option value="hello_world">hello_world</option>
+                  <option value="es_CO">Espanol (Colombia)</option>
+                  <option value="es">Espanol</option>
+                  <option value="es_MX">Espanol (Mexico)</option>
+                  <option value="en_US">English (US)</option>
                 </select>
-                <p className="text-[11px] text-slate-400 mt-1">Selecciona la plantilla aprobada en Meta Business.</p>
               </div>
 
-              {plantilla.nombre === 'certificaciones2026' && (
-                <>
-                  <div className="p-3 bg-green-50 rounded-lg border border-green-200">
-                    <p className="text-xs font-medium text-green-800 mb-2">Parametros de la plantilla:</p>
-                    <div className="space-y-3">
-                      <div>
-                        <label className="block text-xs font-medium text-slate-600 mb-1">Fecha (variable 1)</label>
-                        <input
-                          type="text"
-                          value={plantilla.params.fecha}
-                          onChange={e => setPlantilla(p => ({ ...p, params: { ...p.params, fecha: e.target.value } }))}
-                          placeholder="Ej: 15 de septiembre de 2026"
-                          className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                          required
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-slate-600 mb-1">Direccion (variable 2)</label>
-                        <input
-                          type="text"
-                          value={plantilla.params.direccion}
-                          onChange={e => setPlantilla(p => ({ ...p, params: { ...p.params, direccion: e.target.value } }))}
-                          placeholder="Ej: Calle 49 #50-21"
-                          className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                          required
-                        />
-                      </div>
+              <div className="p-3 bg-green-50 rounded-lg border border-green-200">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs font-medium text-green-800">Variables de la plantilla</p>
+                  <button
+                    type="button"
+                    onClick={() => setPlantilla(p => ({ ...p, variables: [...p.variables, ''] }))}
+                    className="text-xs text-green-700 hover:text-green-900 font-medium flex items-center gap-1"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                    Agregar variable
+                  </button>
+                </div>
+                <div className="space-y-2">
+                  {plantilla.variables.map((v, i) => (
+                    <div key={i} className="flex gap-2 items-center">
+                      <span className="text-xs text-slate-500 w-6 text-right shrink-0">{`{{${i + 1}}}`}</span>
+                      <input
+                        type="text"
+                        value={v}
+                        onChange={e => {
+                          const vars = [...plantilla.variables];
+                          vars[i] = e.target.value;
+                          setPlantilla(p => ({ ...p, variables: vars }));
+                        }}
+                        placeholder={`Valor para variable ${i + 1}`}
+                        className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                      />
+                      {plantilla.variables.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => setPlantilla(p => ({ ...p, variables: p.variables.filter((_, j) => j !== i) }))}
+                          className="text-red-400 hover:text-red-600 shrink-0"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                      )}
                     </div>
-                  </div>
-                  <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
-                    <p className="text-xs font-medium text-slate-500 mb-1">Vista previa del mensaje:</p>
-                    <p className="text-sm text-slate-700">
-                      Buen dia, le informamos que la certificacion de su red de gas sera realizada el dia{' '}
-                      <strong className="text-green-700">{plantilla.params.fecha || '{{fecha}}'}</strong> en la direccion{' '}
-                      <strong className="text-green-700">{plantilla.params.direccion || '{{direccion}}'}</strong>.
-                      Por favor estar pendiente.
-                    </p>
-                  </div>
-                </>
-              )}
+                  ))}
+                </div>
+                <p className="text-[11px] text-slate-400 mt-2">Agrega las variables en el orden que aparecen en tu plantilla.</p>
+              </div>
 
               <button
                 type="submit"

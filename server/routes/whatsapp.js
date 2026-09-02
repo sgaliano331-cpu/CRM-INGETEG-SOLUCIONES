@@ -63,7 +63,7 @@ router.post('/webhook', async (req, res) => {
 
 // POST /api/whatsapp/enviar — Enviar mensaje individual
 router.post('/enviar', authMiddleware, soloCoordinador, async (req, res) => {
-  const { telefono, mensaje, plantilla, plantilla_params } = req.body;
+  const { telefono, mensaje, plantilla, plantilla_params, idioma } = req.body;
 
   if (!WA_TOKEN || !WA_PHONE_ID) {
     return res.status(500).json({ error: 'WhatsApp no configurado. Faltan WA_TOKEN o WA_PHONE_ID.' });
@@ -81,7 +81,7 @@ router.post('/enviar', authMiddleware, soloCoordinador, async (req, res) => {
         type: 'template',
         template: {
           name: plantilla,
-          language: { code: 'es_CO' },
+          language: { code: idioma || 'es_CO' },
           components: plantilla_params || [],
         },
       };
@@ -127,7 +127,7 @@ router.post('/enviar', authMiddleware, soloCoordinador, async (req, res) => {
 
 // POST /api/whatsapp/enviar-masivo — Envío masivo con plantilla
 router.post('/enviar-masivo', authMiddleware, soloCoordinador, async (req, res) => {
-  const { telefonos, plantilla, plantilla_params } = req.body;
+  const { contactos, telefonos, plantilla, plantilla_params, idioma } = req.body;
 
   if (!WA_TOKEN || !WA_PHONE_ID) {
     return res.status(500).json({ error: 'WhatsApp no configurado' });
@@ -135,25 +135,42 @@ router.post('/enviar-masivo', authMiddleware, soloCoordinador, async (req, res) 
   if (!plantilla) {
     return res.status(400).json({ error: 'Se requiere una plantilla para envío masivo' });
   }
-  if (!telefonos || telefonos.length === 0) {
-    return res.status(400).json({ error: 'No hay números para enviar' });
-  }
 
+  const langCode = idioma || 'es_CO';
   const resultados = { enviados: 0, fallidos: 0, errores: [] };
 
-  for (const tel of telefonos) {
-    const phone = tel.replace(/\D/g, '');
+  const lista = contactos || (telefonos || []).map(t => ({ telefono: t, params: [] }));
+  if (lista.length === 0) {
+    return res.status(400).json({ error: 'No hay contactos para enviar' });
+  }
+
+  for (const contacto of lista) {
+    const phone = String(contacto.telefono).replace(/\D/g, '');
     const fullPhone = phone.startsWith('57') ? phone : '57' + phone;
 
     try {
+      const components = [];
+      const params = contacto.params || [];
+      if (params.length > 0) {
+        const filtered = params.filter(v => String(v).trim());
+        if (filtered.length > 0) {
+          components.push({
+            type: 'body',
+            parameters: filtered.map(v => ({ type: 'text', text: String(v) })),
+          });
+        }
+      } else if (plantilla_params && plantilla_params.length > 0) {
+        components.push(...plantilla_params);
+      }
+
       const body = {
         messaging_product: 'whatsapp',
         to: fullPhone,
         type: 'template',
         template: {
           name: plantilla,
-          language: { code: 'es_CO' },
-          components: plantilla_params || [],
+          language: { code: langCode },
+          components,
         },
       };
 
@@ -184,7 +201,6 @@ router.post('/enviar-masivo', authMiddleware, soloCoordinador, async (req, res) 
         resultados.errores.push({ telefono: fullPhone, error: data.error?.message });
       }
 
-      // Esperar 100ms entre mensajes para no saturar
       await new Promise(r => setTimeout(r, 100));
     } catch (err) {
       resultados.fallidos++;
