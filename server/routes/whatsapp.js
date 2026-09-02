@@ -112,7 +112,9 @@ router.post('/enviar', authMiddleware, soloCoordinador, async (req, res) => {
     console.log('[WhatsApp] Respuesta:', JSON.stringify(data));
 
     if (!response.ok) {
-      return res.status(400).json({ error: data.error?.message || 'Error al enviar', detalle: data });
+      const errMsg = data.error?.message || 'Error al enviar';
+      const errDetail = data.error?.error_data?.details || '';
+      return res.status(400).json({ error: errDetail ? `${errMsg} — ${errDetail}` : errMsg, detalle: data });
     }
 
     const waId = data.messages?.[0]?.id;

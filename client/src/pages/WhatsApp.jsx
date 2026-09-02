@@ -156,7 +156,10 @@ export default function WhatsApp() {
       }));
       fetchConversaciones();
     } catch (err) {
-      alert(err.response?.data?.error || 'Error al enviar plantilla');
+      const errData = err.response?.data;
+      const msg = errData?.error || 'Error al enviar plantilla';
+      const detail = JSON.stringify(errData?.detalle?.error || {}, null, 2);
+      alert(`${msg}\n\nDetalle:\n${detail}`);
       setPlantilla(p => ({ ...p, enviando: false }));
     }
   };
