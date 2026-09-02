@@ -268,13 +268,14 @@ router.get('/mensajes', authMiddleware, soloCoordinador, async (req, res) => {
 router.get('/conversaciones', authMiddleware, soloCoordinador, async (req, res) => {
   try {
     const { rows } = await pool.query(`
-      SELECT telefono, nombre_contacto,
+      SELECT telefono,
+        MAX(CASE WHEN nombre_contacto != '' THEN nombre_contacto ELSE NULL END) as nombre_contacto,
         MAX(creado_en) as ultimo_mensaje,
         (SELECT mensaje FROM whatsapp_mensajes m2 WHERE m2.telefono = m1.telefono ORDER BY creado_en DESC LIMIT 1) as ultimo_texto,
         (SELECT direccion FROM whatsapp_mensajes m3 WHERE m3.telefono = m1.telefono ORDER BY creado_en DESC LIMIT 1) as ultima_direccion,
         COUNT(*) FILTER (WHERE estado = 'nuevo' AND direccion = 'entrante') as no_leidos
       FROM whatsapp_mensajes m1
-      GROUP BY telefono, nombre_contacto
+      GROUP BY telefono
       ORDER BY MAX(creado_en) DESC
       LIMIT 100
     `);

@@ -171,7 +171,7 @@ export default function WhatsApp() {
     reader.onload = (evt) => {
       const wb = XLSX.read(evt.target.result, { type: 'array' });
       const ws = wb.Sheets[wb.SheetNames[0]];
-      const data = XLSX.utils.sheet_to_json(ws, { defval: '' });
+      const data = XLSX.utils.sheet_to_json(ws, { defval: '', raw: false });
       if (data.length === 0) return alert('El archivo esta vacio');
       setMasivo(m => ({ ...m, excelData: data, excelFileName: file.name }));
     };
