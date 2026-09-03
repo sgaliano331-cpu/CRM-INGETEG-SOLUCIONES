@@ -113,6 +113,11 @@ router.post('/webhook', async (req, res) => {
             [waMessageId, from, name, text, msgType, mediaUrl]
           );
           console.log(`[WhatsApp] Mensaje de ${name} (${from}): ${text} ${mediaUrl ? '[media]' : ''}`);
+
+          await pool.query(
+            `UPDATE whatsapp_campana_contactos SET estado = 'respondio' WHERE telefono = $1 AND estado = 'enviado'`,
+            [from]
+          );
         }
       }
     }
@@ -192,7 +197,7 @@ router.post('/enviar', authMiddleware, soloCoordinador, async (req, res) => {
 
 // POST /api/whatsapp/enviar-masivo — Envío masivo con plantilla
 router.post('/enviar-masivo', authMiddleware, soloCoordinador, async (req, res) => {
-  const { contactos, telefonos, plantilla, plantilla_params, idioma, headerComponents } = req.body;
+  const { contactos, telefonos, plantilla, plantilla_params, idioma, headerComponents, campana } = req.body;
 
   if (!WA_TOKEN || !WA_PHONE_ID) {
     return res.status(500).json({ error: 'WhatsApp no configurado' });
@@ -272,6 +277,13 @@ router.post('/enviar-masivo', authMiddleware, soloCoordinador, async (req, res) 
            VALUES ($1, $2, '', $3, 'template', 'saliente', 'enviado')`,
           [waId, fullPhone, `[Masivo - Plantilla: ${plantilla}]`]
         );
+        const campName = campana || plantilla;
+        await pool.query(
+          `INSERT INTO whatsapp_campana_contactos (campana, plantilla, telefono, estado)
+           VALUES ($1, $2, $3, 'enviado')
+           ON CONFLICT (campana, telefono) DO NOTHING`,
+          [campName, plantilla, fullPhone]
+        );
       } else {
         resultados.fallidos++;
         resultados.errores.push({ telefono: fullPhone, error: data.error?.message });
@@ -306,21 +318,61 @@ router.get('/mensajes', authMiddleware, soloCoordinador, async (req, res) => {
   }
 });
 
-// GET /api/whatsapp/conversaciones — Lista de conversaciones (inbox)
-router.get('/conversaciones', authMiddleware, soloCoordinador, async (req, res) => {
+// GET /api/whatsapp/campanas — Lista de campañas con contadores
+router.get('/campanas', authMiddleware, soloCoordinador, async (req, res) => {
   try {
     const { rows } = await pool.query(`
-      SELECT telefono,
-        MAX(CASE WHEN nombre_contacto != '' THEN nombre_contacto ELSE NULL END) as nombre_contacto,
-        MAX(creado_en) as ultimo_mensaje,
-        (SELECT mensaje FROM whatsapp_mensajes m2 WHERE m2.telefono = m1.telefono ORDER BY creado_en DESC LIMIT 1) as ultimo_texto,
-        (SELECT direccion FROM whatsapp_mensajes m3 WHERE m3.telefono = m1.telefono ORDER BY creado_en DESC LIMIT 1) as ultima_direccion,
-        COUNT(*) FILTER (WHERE estado = 'nuevo' AND direccion = 'entrante') as no_leidos
-      FROM whatsapp_mensajes m1
-      GROUP BY telefono
+      SELECT campana, plantilla, COUNT(*) as total,
+        COUNT(*) FILTER (WHERE estado = 'enviado') as enviados,
+        COUNT(*) FILTER (WHERE estado = 'respondio') as respondieron,
+        MAX(creado_en) as ultima_actividad
+      FROM whatsapp_campana_contactos
+      GROUP BY campana, plantilla
       ORDER BY MAX(creado_en) DESC
-      LIMIT 100
     `);
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/whatsapp/conversaciones — Lista de conversaciones (inbox)
+router.get('/conversaciones', authMiddleware, soloCoordinador, async (req, res) => {
+  const { campana } = req.query;
+  try {
+    let query, params;
+    if (campana) {
+      query = `
+        SELECT m1.telefono,
+          MAX(CASE WHEN m1.nombre_contacto != '' THEN m1.nombre_contacto ELSE NULL END) as nombre_contacto,
+          MAX(m1.creado_en) as ultimo_mensaje,
+          (SELECT mensaje FROM whatsapp_mensajes m2 WHERE m2.telefono = m1.telefono ORDER BY creado_en DESC LIMIT 1) as ultimo_texto,
+          (SELECT direccion FROM whatsapp_mensajes m3 WHERE m3.telefono = m1.telefono ORDER BY creado_en DESC LIMIT 1) as ultima_direccion,
+          COUNT(*) FILTER (WHERE m1.estado = 'nuevo' AND m1.direccion = 'entrante') as no_leidos,
+          cc.estado as estado_campana
+        FROM whatsapp_mensajes m1
+        INNER JOIN whatsapp_campana_contactos cc ON cc.telefono = m1.telefono AND cc.campana = $1
+        GROUP BY m1.telefono, cc.estado
+        ORDER BY MAX(m1.creado_en) DESC
+        LIMIT 100
+      `;
+      params = [campana];
+    } else {
+      query = `
+        SELECT telefono,
+          MAX(CASE WHEN nombre_contacto != '' THEN nombre_contacto ELSE NULL END) as nombre_contacto,
+          MAX(creado_en) as ultimo_mensaje,
+          (SELECT mensaje FROM whatsapp_mensajes m2 WHERE m2.telefono = m1.telefono ORDER BY creado_en DESC LIMIT 1) as ultimo_texto,
+          (SELECT direccion FROM whatsapp_mensajes m3 WHERE m3.telefono = m1.telefono ORDER BY creado_en DESC LIMIT 1) as ultima_direccion,
+          COUNT(*) FILTER (WHERE estado = 'nuevo' AND direccion = 'entrante') as no_leidos
+        FROM whatsapp_mensajes m1
+        GROUP BY telefono
+        ORDER BY MAX(creado_en) DESC
+        LIMIT 100
+      `;
+      params = [];
+    }
+    const { rows } = await pool.query(query, params);
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });

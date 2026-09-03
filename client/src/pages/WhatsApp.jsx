@@ -41,7 +41,9 @@ export default function WhatsApp() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [search, setSearch] = useState('');
-  const [masivo, setMasivo] = useState({ plantilla: '', idioma: 'es_CO', headerType: 'none', headerUrl: '', enviando: false, resultado: null, excelData: null, excelFileName: '' });
+  const [campanas, setCampanas] = useState([]);
+  const [campanaActiva, setCampanaActiva] = useState(null);
+  const [masivo, setMasivo] = useState({ plantilla: '', idioma: 'es_CO', headerType: 'none', headerUrl: '', enviando: false, resultado: null, excelData: null, excelFileName: '', campana: '' });
   const [envioDirecto, setEnvioDirecto] = useState({ telefono: '', mensaje: '', enviando: false });
   const [plantilla, setPlantilla] = useState({
     telefono: '',
@@ -56,17 +58,23 @@ export default function WhatsApp() {
   const chatRef = useRef(null);
   const pollRef = useRef(null);
 
+  const fetchCampanas = useCallback(() => {
+    api.get('/whatsapp/campanas').then(({ data }) => setCampanas(data)).catch(() => {});
+  }, []);
+
   const fetchConversaciones = useCallback(() => {
-    api.get('/whatsapp/conversaciones')
+    const params = campanaActiva ? `?campana=${encodeURIComponent(campanaActiva)}` : '';
+    api.get(`/whatsapp/conversaciones${params}`)
       .then(({ data }) => { setConversaciones(data); setLoading(false); })
       .catch(() => setLoading(false));
-  }, []);
+  }, [campanaActiva]);
 
   useEffect(() => {
     fetchConversaciones();
-    pollRef.current = setInterval(fetchConversaciones, 15000);
+    fetchCampanas();
+    pollRef.current = setInterval(() => { fetchConversaciones(); fetchCampanas(); }, 15000);
     return () => clearInterval(pollRef.current);
-  }, [fetchConversaciones]);
+  }, [fetchConversaciones, fetchCampanas]);
 
   const selectConversacion = async (conv) => {
     setSelected(conv);
@@ -200,6 +208,7 @@ export default function WhatsApp() {
         plantilla: masivo.plantilla,
         idioma: masivo.idioma,
         headerComponents: headerComp,
+        campana: masivo.campana || masivo.plantilla,
       });
       setMasivo(m => ({ ...m, enviando: false, resultado: data }));
       fetchConversaciones();
@@ -280,6 +289,35 @@ export default function WhatsApp() {
         <div className="flex-1 flex bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden min-h-0">
           {/* Lista de conversaciones */}
           <div className="w-[340px] border-r border-slate-200 flex flex-col">
+            {campanas.length > 0 && (
+              <div className="p-2 border-b border-slate-100 flex gap-1.5 overflow-x-auto">
+                <button
+                  onClick={() => { setCampanaActiva(null); setSelected(null); }}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors flex items-center gap-1.5 ${
+                    !campanaActiva ? 'bg-green-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  Todas
+                  <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${!campanaActiva ? 'bg-green-700 text-white' : 'bg-slate-200 text-slate-500'}`}>
+                    {conversaciones.length}
+                  </span>
+                </button>
+                {campanas.map(c => (
+                  <button
+                    key={c.campana}
+                    onClick={() => { setCampanaActiva(c.campana); setSelected(null); }}
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors flex items-center gap-1.5 ${
+                      campanaActiva === c.campana ? 'bg-green-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    {c.campana}
+                    <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${campanaActiva === c.campana ? 'bg-green-700 text-white' : 'bg-slate-200 text-slate-500'}`}>
+                      {c.total}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
             <div className="p-3 border-b border-slate-100">
               <div className="relative">
                 <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -342,6 +380,13 @@ export default function WhatsApp() {
                             </span>
                           )}
                         </div>
+                        {campanaActiva && c.estado_campana && (
+                          <span className={`inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-medium ${
+                            c.estado_campana === 'respondio' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
+                          }`}>
+                            {c.estado_campana === 'respondio' ? 'Respondio' : 'Enviado'}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </button>
@@ -532,6 +577,17 @@ export default function WhatsApp() {
             <h2 className="text-lg font-semibold text-slate-800 mb-1">Envio Masivo con Plantilla</h2>
             <p className="text-xs text-slate-500 mb-4">Sube un archivo Excel con los datos. La primera columna debe ser el telefono, las demas son las variables de la plantilla en orden.</p>
             <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Nombre de campana</label>
+                <input
+                  type="text"
+                  value={masivo.campana}
+                  onChange={e => setMasivo(m => ({ ...m, campana: e.target.value }))}
+                  placeholder="Ej: Certificaciones Sep 2026"
+                  className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                />
+                <p className="text-[11px] text-slate-400 mt-1">Nombre para identificar esta campana. Si lo dejas vacio se usa el nombre de la plantilla.</p>
+              </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">Nombre de plantilla</label>
                 <input
