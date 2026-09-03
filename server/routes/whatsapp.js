@@ -60,17 +60,59 @@ router.post('/webhook', async (req, res) => {
           const contact = contacts[i] || {};
           const from = msg.from;
           const name = contact.profile?.name || from;
-          const text = msg.text?.body || msg.type || '';
           const msgType = msg.type || 'text';
           const waMessageId = msg.id;
 
+          let text = msg.text?.body || '';
+          let mediaUrl = null;
+
+          // Handle media messages
+          const mediaTypes = ['audio', 'image', 'video', 'document', 'sticker'];
+          if (mediaTypes.includes(msgType) && msg[msgType]?.id) {
+            const mediaId = msg[msgType].id;
+            text = msg[msgType]?.caption || msgType;
+            try {
+              // Get media URL from WhatsApp
+              const mediaResp = await fetch(`https://graph.facebook.com/v21.0/${mediaId}`, {
+                headers: { Authorization: `Bearer ${WA_TOKEN}` },
+              });
+              const mediaData = await mediaResp.json();
+              if (mediaData.url) {
+                // Download the media file
+                const fileResp = await fetch(mediaData.url, {
+                  headers: { Authorization: `Bearer ${WA_TOKEN}` },
+                });
+                if (fileResp.ok) {
+                  const buffer = Buffer.from(await fileResp.arrayBuffer());
+                  const ext = { audio: 'ogg', image: 'jpg', video: 'mp4', document: 'pdf', sticker: 'webp' }[msgType] || 'bin';
+                  const mimeType = mediaData.mime_type || '';
+                  const realExt = mimeType.includes('mp4') ? 'mp4' : mimeType.includes('ogg') ? 'ogg' : mimeType.includes('webp') ? 'webp' : mimeType.includes('png') ? 'png' : mimeType.includes('jpeg') || mimeType.includes('jpg') ? 'jpg' : mimeType.includes('pdf') ? 'pdf' : ext;
+                  const filename = `${Date.now()}-${waMessageId}.${realExt}`;
+                  const mediaDir = path.join(__dirname, '..', 'uploads', 'whatsapp');
+                  if (!fs.existsSync(mediaDir)) fs.mkdirSync(mediaDir, { recursive: true });
+                  fs.writeFileSync(path.join(mediaDir, filename), buffer);
+                  mediaUrl = `/uploads/whatsapp/${filename}`;
+                  console.log(`[WhatsApp] Media guardado: ${filename} (${mimeType})`);
+                }
+              }
+            } catch (mediaErr) {
+              console.error('[WhatsApp] Error descargando media:', mediaErr.message);
+            }
+          } else if (msgType === 'button') {
+            text = msg.button?.text || 'button';
+          } else if (msgType === 'interactive') {
+            text = msg.interactive?.button_reply?.title || msg.interactive?.list_reply?.title || 'interactive';
+          } else if (!text) {
+            text = msgType;
+          }
+
           await pool.query(
-            `INSERT INTO whatsapp_mensajes (wa_message_id, telefono, nombre_contacto, mensaje, tipo_mensaje, direccion, estado)
-             VALUES ($1, $2, $3, $4, $5, 'entrante', 'nuevo')
+            `INSERT INTO whatsapp_mensajes (wa_message_id, telefono, nombre_contacto, mensaje, tipo_mensaje, direccion, estado, media_url)
+             VALUES ($1, $2, $3, $4, $5, 'entrante', 'nuevo', $6)
              ON CONFLICT (wa_message_id) DO NOTHING`,
-            [waMessageId, from, name, text, msgType]
+            [waMessageId, from, name, text, msgType, mediaUrl]
           );
-          console.log(`[WhatsApp] Mensaje de ${name} (${from}): ${text}`);
+          console.log(`[WhatsApp] Mensaje de ${name} (${from}): ${text} ${mediaUrl ? '[media]' : ''}`);
         }
       }
     }

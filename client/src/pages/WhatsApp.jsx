@@ -394,6 +394,21 @@ export default function WhatsApp() {
                               : 'bg-white text-slate-800'
                           }`}
                         >
+                          {item.media_url && ['image', 'sticker'].includes(item.tipo_mensaje) && (
+                            <img src={item.media_url} alt="imagen" className="max-w-full rounded mb-1 cursor-pointer" onClick={() => window.open(item.media_url, '_blank')} />
+                          )}
+                          {item.media_url && item.tipo_mensaje === 'video' && (
+                            <video src={item.media_url} controls className="max-w-full rounded mb-1" />
+                          )}
+                          {item.media_url && item.tipo_mensaje === 'audio' && (
+                            <audio src={item.media_url} controls className="w-full mb-1" />
+                          )}
+                          {item.media_url && item.tipo_mensaje === 'document' && (
+                            <a href={item.media_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 bg-slate-100 rounded px-2 py-1.5 mb-1 text-xs text-blue-600 hover:underline">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+                              Ver documento
+                            </a>
+                          )}
                           <p className="whitespace-pre-wrap break-words">{item.mensaje}</p>
                           <p className={`text-[10px] mt-1 text-right ${item.direccion === 'saliente' ? 'text-green-700/60' : 'text-slate-400'}`}>
                             {formatTime(item.creado_en)}
