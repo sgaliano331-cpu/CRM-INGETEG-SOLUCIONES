@@ -55,8 +55,10 @@ export default function WhatsApp() {
     enviando: false,
     resultado: null,
   });
+  const [adjunto, setAdjunto] = useState(null);
   const chatRef = useRef(null);
   const pollRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   const fetchCampanas = useCallback(() => {
     api.get('/whatsapp/campanas').then(({ data }) => setCampanas(data)).catch(() => {});
@@ -88,13 +90,44 @@ export default function WhatsApp() {
     } catch {}
   };
 
+  const getMediaType = (filename) => {
+    const ext = filename.split('.').pop().toLowerCase();
+    if (['jpg', 'jpeg', 'png', 'webp'].includes(ext)) return 'image';
+    if (['mp4'].includes(ext)) return 'video';
+    if (['mp3', 'ogg', 'm4a', 'aac', 'amr', 'opus'].includes(ext)) return 'audio';
+    return 'document';
+  };
+
+  const handleAdjunto = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const mediaType = getMediaType(file.name);
+    const preview = mediaType === 'image' ? URL.createObjectURL(file) : null;
+    setAdjunto({ file, mediaType, preview, name: file.name });
+  };
+
   const enviarMensaje = async (e) => {
     e.preventDefault();
-    if (!texto.trim() || !selected) return;
+    if ((!texto.trim() && !adjunto) || !selected) return;
     setSending(true);
     try {
-      await api.post('/whatsapp/enviar', { telefono: selected.telefono, mensaje: texto });
+      if (adjunto) {
+        const fd = new FormData();
+        fd.append('file', adjunto.file);
+        const { data: uploadData } = await api.post('/whatsapp/upload', fd);
+        await api.post('/whatsapp/enviar', {
+          telefono: selected.telefono,
+          mediaType: adjunto.mediaType,
+          mediaUrl: uploadData.url,
+          caption: texto.trim() || undefined,
+        });
+        if (adjunto.preview) URL.revokeObjectURL(adjunto.preview);
+        setAdjunto(null);
+      } else {
+        await api.post('/whatsapp/enviar', { telefono: selected.telefono, mensaje: texto });
+      }
       setTexto('');
+      if (fileInputRef.current) fileInputRef.current.value = '';
       const { data } = await api.get(`/whatsapp/mensajes?telefono=${selected.telefono}&limit=100`);
       setMensajes(data.reverse());
       setTimeout(() => chatRef.current?.scrollTo(0, chatRef.current.scrollHeight), 100);
@@ -475,27 +508,59 @@ export default function WhatsApp() {
                 </div>
 
                 {/* Input */}
-                <form onSubmit={enviarMensaje} className="px-4 py-3 border-t border-slate-200 bg-slate-50 flex items-center gap-3">
-                  <input
-                    type="text"
-                    value={texto}
-                    onChange={e => setTexto(e.target.value)}
-                    placeholder="Escribe un mensaje..."
-                    className="flex-1 px-4 py-2.5 bg-white border border-slate-200 rounded-full text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                  />
-                  <button
-                    type="submit"
-                    disabled={sending || !texto.trim()}
-                    className="w-10 h-10 rounded-full bg-green-600 text-white flex items-center justify-center hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    {sending ? (
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
-                    ) : (
-                      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+                <form onSubmit={enviarMensaje} className="border-t border-slate-200 bg-slate-50">
+                  {adjunto && (
+                    <div className="px-4 pt-3 flex items-center gap-2">
+                      <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-600">
+                        {adjunto.preview ? (
+                          <img src={adjunto.preview} alt="preview" className="w-12 h-12 object-cover rounded" />
+                        ) : (
+                          <div className={`w-10 h-10 rounded flex items-center justify-center text-white text-[10px] font-bold ${
+                            adjunto.mediaType === 'audio' ? 'bg-purple-500' : adjunto.mediaType === 'video' ? 'bg-blue-500' : 'bg-orange-500'
+                          }`}>
+                            {adjunto.mediaType === 'audio' ? 'MP3' : adjunto.mediaType === 'video' ? 'MP4' : 'DOC'}
+                          </div>
+                        )}
+                        <span className="truncate max-w-[200px]">{adjunto.name}</span>
+                        <button type="button" onClick={() => { if (adjunto.preview) URL.revokeObjectURL(adjunto.preview); setAdjunto(null); if (fileInputRef.current) fileInputRef.current.value = ''; }} className="text-red-400 hover:text-red-600 ml-1">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  <div className="px-4 py-3 flex items-center gap-3">
+                    <input type="file" ref={fileInputRef} className="hidden" accept="image/*,video/mp4,audio/*,.pdf,.doc,.docx,.xls,.xlsx" onChange={handleAdjunto} />
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="w-10 h-10 rounded-full text-slate-500 hover:bg-slate-200 flex items-center justify-center transition-colors flex-shrink-0"
+                      title="Adjuntar archivo"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
                       </svg>
-                    )}
-                  </button>
+                    </button>
+                    <input
+                      type="text"
+                      value={texto}
+                      onChange={e => setTexto(e.target.value)}
+                      placeholder={adjunto ? "Agrega un comentario..." : "Escribe un mensaje..."}
+                      className="flex-1 px-4 py-2.5 bg-white border border-slate-200 rounded-full text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                    />
+                    <button
+                      type="submit"
+                      disabled={sending || (!texto.trim() && !adjunto)}
+                      className="w-10 h-10 rounded-full bg-green-600 text-white flex items-center justify-center hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex-shrink-0"
+                    >
+                      {sending ? (
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                      ) : (
+                        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+                        </svg>
+                      )}
+                    </button>
+                  </div>
                 </form>
               </>
             ) : (

@@ -18,9 +18,9 @@ const upload = multer({
     destination: (req, file, cb) => cb(null, uploadsDir),
     filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname.replace(/\s+/g, '_')),
   }),
-  limits: { fileSize: 5 * 1024 * 1024 },
+  limits: { fileSize: 16 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    const allowed = /\.(jpg|jpeg|png|webp|mp4|pdf)$/i;
+    const allowed = /\.(jpg|jpeg|png|webp|mp4|mp3|ogg|m4a|aac|amr|opus|pdf|doc|docx|xls|xlsx)$/i;
     cb(null, allowed.test(path.extname(file.originalname)));
   },
 });
@@ -126,9 +126,9 @@ router.post('/webhook', async (req, res) => {
   }
 });
 
-// POST /api/whatsapp/enviar — Enviar mensaje individual
+// POST /api/whatsapp/enviar — Enviar mensaje individual (texto, plantilla o media)
 router.post('/enviar', authMiddleware, soloCoordinador, async (req, res) => {
-  const { telefono, mensaje, plantilla, plantilla_params, idioma } = req.body;
+  const { telefono, mensaje, plantilla, plantilla_params, idioma, mediaType, mediaUrl, caption } = req.body;
 
   if (!WA_TOKEN || !WA_PHONE_ID) {
     return res.status(500).json({ error: 'WhatsApp no configurado. Faltan WA_TOKEN o WA_PHONE_ID.' });
@@ -149,6 +149,15 @@ router.post('/enviar', authMiddleware, soloCoordinador, async (req, res) => {
           language: { code: idioma || 'es_CO' },
           components: plantilla_params || [],
         },
+      };
+    } else if (mediaType && mediaUrl) {
+      const mediaObj = { link: mediaUrl };
+      if (caption && mediaType !== 'audio') mediaObj.caption = caption;
+      body = {
+        messaging_product: 'whatsapp',
+        to: fullPhone,
+        type: mediaType,
+        [mediaType]: mediaObj,
       };
     } else {
       body = {
@@ -183,10 +192,13 @@ router.post('/enviar', authMiddleware, soloCoordinador, async (req, res) => {
     }
 
     const waId = data.messages?.[0]?.id;
+    const msgText = plantilla ? `[Plantilla: ${plantilla}]` : mediaType ? (caption || mediaType) : mensaje;
+    const msgTipo = mediaType || 'text';
+    const localMedia = mediaType ? mediaUrl : null;
     await pool.query(
-      `INSERT INTO whatsapp_mensajes (wa_message_id, telefono, nombre_contacto, mensaje, tipo_mensaje, direccion, estado)
-       VALUES ($1, $2, '', $3, 'text', 'saliente', 'enviado')`,
-      [waId, fullPhone, plantilla ? `[Plantilla: ${plantilla}]` : mensaje]
+      `INSERT INTO whatsapp_mensajes (wa_message_id, telefono, nombre_contacto, mensaje, tipo_mensaje, direccion, estado, media_url)
+       VALUES ($1, $2, '', $3, $4, 'saliente', 'enviado', $5)`,
+      [waId, fullPhone, msgText, msgTipo, localMedia]
     );
 
     res.json({ ok: true, message_id: waId });
