@@ -696,21 +696,49 @@ export default function WhatsApp() {
               <div className="flex-1 overflow-y-auto">
                 {panelTab === 'info' && (
                   <div className="p-4 space-y-4">
-                    {/* Direccion */}
+                    {/* Direccion del cliente */}
                     <div>
                       <div className="flex items-center gap-2 mb-1.5">
                         <svg className="w-3.5 h-3.5 text-red-500" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
                         <span className="text-xs font-medium text-slate-600">Direccion</span>
                       </div>
-                      <input
-                        type="text"
-                        value={contactoInfo.direccion || ''}
-                        onChange={e => setContactoInfo(c => ({ ...c, direccion: e.target.value }))}
-                        onBlur={e => updateContacto('direccion', e.target.value)}
-                        placeholder="Agregar direccion..."
-                        className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs text-slate-700 focus:ring-1 focus:ring-green-500 focus:border-green-500"
-                      />
+                      {contactoInfo.cliente?.direccion ? (
+                        <p className="text-xs text-slate-700 px-2.5 py-1.5 bg-slate-50 rounded-lg">{contactoInfo.cliente.direccion}</p>
+                      ) : (
+                        <input
+                          type="text"
+                          value={contactoInfo.direccion || ''}
+                          onChange={e => setContactoInfo(c => ({ ...c, direccion: e.target.value }))}
+                          onBlur={e => updateContacto('direccion', e.target.value)}
+                          placeholder="Agregar direccion..."
+                          className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs text-slate-700 focus:ring-1 focus:ring-green-500 focus:border-green-500"
+                        />
+                      )}
                     </div>
+
+                    {/* Barrio y municipio del cliente */}
+                    {contactoInfo.cliente && (contactoInfo.cliente.barrio || contactoInfo.cliente.ciudad) && (
+                      <div className="flex gap-3">
+                        {contactoInfo.cliente.barrio && (
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1.5">
+                              <svg className="w-3.5 h-3.5 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+                              <span className="text-xs font-medium text-slate-600">Barrio</span>
+                            </div>
+                            <p className="text-xs text-slate-700 px-2.5 py-1.5 bg-slate-50 rounded-lg">{contactoInfo.cliente.barrio}</p>
+                          </div>
+                        )}
+                        {contactoInfo.cliente.ciudad && (
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1.5">
+                              <svg className="w-3.5 h-3.5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064" /></svg>
+                              <span className="text-xs font-medium text-slate-600">Municipio</span>
+                            </div>
+                            <p className="text-xs text-slate-700 px-2.5 py-1.5 bg-slate-50 rounded-lg">{contactoInfo.cliente.ciudad}</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                     {/* Campaña de origen - desplegable */}
                     {contactoInfo.campana_origen && (

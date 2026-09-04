@@ -296,6 +296,31 @@ router.post('/enviar-masivo', authMiddleware, soloCoordinador, async (req, res) 
            ON CONFLICT (campana, telefono) DO NOTHING`,
           [campName, plantilla, fullPhone]
         );
+
+        // Auto-crear cliente si no existe
+        const p = params;
+        const getParam = (names) => {
+          for (const n of names) {
+            const found = p.find(v => v.name && v.name.toLowerCase().replace(/[^a-z]/g, '') === n);
+            if (found && String(found.value).trim()) return String(found.value).trim();
+          }
+          return null;
+        };
+        const cNombre = getParam(['nombre']) || 'Sin nombre';
+        const cDireccion = getParam(['direccion', 'dirección']);
+        const cBarrio = getParam(['barrio']);
+        const cCiudad = getParam(['municipio', 'ciudad']) || 'Medellín';
+        const localPhone = phone.startsWith('57') ? phone.slice(2) : phone;
+
+        const existe = await pool.query('SELECT id FROM clientes WHERE telefono = $1 OR telefono = $2', [localPhone, fullPhone]);
+        if (existe.rows.length === 0) {
+          const coord = await pool.query("SELECT id FROM usuarios WHERE rol = 'COORDINADOR' AND activo = 1 LIMIT 1");
+          const coordId = coord.rows[0]?.id || req.user.id;
+          await pool.query(
+            'INSERT INTO clientes (nombre, telefono, direccion, barrio, ciudad, asignado_a) VALUES ($1, $2, $3, $4, $5, $6)',
+            [cNombre, localPhone, cDireccion, cBarrio, cCiudad, coordId]
+          );
+        }
       } else {
         resultados.fallidos++;
         resultados.errores.push({ telefono: fullPhone, error: data.error?.message });
@@ -460,11 +485,20 @@ router.get('/contacto/:telefono', authMiddleware, async (req, res) => {
       'SELECT * FROM whatsapp_notas WHERE contacto_telefono = $1 ORDER BY creado_en DESC LIMIT 50',
       [tel]
     );
-    const asesor = contacto.asesor_id
-      ? (await pool.query('SELECT id, nombre FROM usuarios WHERE id = $1', [contacto.asesor_id])).rows[0]
-      : null;
 
-    res.json({ ...contacto, asesor, etiquetas: etiquetas.rows, notas: notas.rows });
+    // Buscar datos del cliente en tabla clientes (sin 57 o con 57)
+    const localPhone = tel.startsWith('57') ? tel.slice(2) : tel;
+    const cliente = await pool.query(
+      'SELECT id, nombre, direccion, barrio, ciudad FROM clientes WHERE telefono = $1 OR telefono = $2 LIMIT 1',
+      [localPhone, tel]
+    );
+
+    res.json({
+      ...contacto,
+      cliente: cliente.rows[0] || null,
+      etiquetas: etiquetas.rows,
+      notas: notas.rows,
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
