@@ -429,6 +429,164 @@ router.get('/plantillas', authMiddleware, soloCoordinador, async (req, res) => {
   }
 });
 
+// GET /api/whatsapp/contacto/:telefono — Info del contacto
+router.get('/contacto/:telefono', authMiddleware, async (req, res) => {
+  const tel = req.params.telefono;
+  try {
+    let { rows } = await pool.query('SELECT * FROM whatsapp_contactos WHERE telefono = $1', [tel]);
+    let contacto = rows[0];
+    if (!contacto) {
+      const nombre = await pool.query(
+        "SELECT nombre_contacto FROM whatsapp_mensajes WHERE telefono = $1 AND nombre_contacto != '' ORDER BY creado_en DESC LIMIT 1",
+        [tel]
+      );
+      const campana = await pool.query(
+        'SELECT campana FROM whatsapp_campana_contactos WHERE telefono = $1 ORDER BY creado_en DESC LIMIT 1',
+        [tel]
+      );
+      await pool.query(
+        'INSERT INTO whatsapp_contactos (telefono, nombre, campana_origen) VALUES ($1, $2, $3) ON CONFLICT (telefono) DO NOTHING',
+        [tel, nombre.rows[0]?.nombre_contacto || null, campana.rows[0]?.campana || null]
+      );
+      const r2 = await pool.query('SELECT * FROM whatsapp_contactos WHERE telefono = $1', [tel]);
+      contacto = r2.rows[0];
+    }
+
+    const etiquetas = await pool.query(
+      'SELECT e.id, e.nombre, e.color FROM whatsapp_contacto_etiquetas ce JOIN whatsapp_etiquetas e ON e.id = ce.etiqueta_id WHERE ce.contacto_telefono = $1',
+      [tel]
+    );
+    const notas = await pool.query(
+      'SELECT * FROM whatsapp_notas WHERE contacto_telefono = $1 ORDER BY creado_en DESC LIMIT 50',
+      [tel]
+    );
+    const asesor = contacto.asesor_id
+      ? (await pool.query('SELECT id, nombre FROM usuarios WHERE id = $1', [contacto.asesor_id])).rows[0]
+      : null;
+
+    res.json({ ...contacto, asesor, etiquetas: etiquetas.rows, notas: notas.rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT /api/whatsapp/contacto/:telefono — Actualizar info del contacto
+router.put('/contacto/:telefono', authMiddleware, async (req, res) => {
+  const tel = req.params.telefono;
+  const { direccion, estado, asesor_id } = req.body;
+  try {
+    await pool.query(
+      'INSERT INTO whatsapp_contactos (telefono) VALUES ($1) ON CONFLICT (telefono) DO NOTHING',
+      [tel]
+    );
+    const sets = [];
+    const params = [];
+    let idx = 1;
+    if (direccion !== undefined) { sets.push(`direccion = $${idx++}`); params.push(direccion); }
+    if (estado !== undefined) { sets.push(`estado = $${idx++}`); params.push(estado); }
+    if (asesor_id !== undefined) { sets.push(`asesor_id = $${idx++}`); params.push(asesor_id || null); }
+    if (sets.length === 0) return res.status(400).json({ error: 'Nada que actualizar' });
+    sets.push(`actualizado_en = NOW()`);
+    params.push(tel);
+    const { rows } = await pool.query(
+      `UPDATE whatsapp_contactos SET ${sets.join(', ')} WHERE telefono = $${idx} RETURNING *`,
+      params
+    );
+    res.json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/whatsapp/etiquetas — Todas las etiquetas disponibles
+router.get('/etiquetas', authMiddleware, async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM whatsapp_etiquetas ORDER BY nombre');
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/whatsapp/etiquetas — Crear nueva etiqueta
+router.post('/etiquetas', authMiddleware, async (req, res) => {
+  const { nombre, color } = req.body;
+  if (!nombre?.trim()) return res.status(400).json({ error: 'Nombre requerido' });
+  try {
+    const { rows } = await pool.query(
+      'INSERT INTO whatsapp_etiquetas (nombre, color) VALUES ($1, $2) ON CONFLICT (nombre) DO UPDATE SET nombre = EXCLUDED.nombre RETURNING *',
+      [nombre.trim(), color || '#6b7280']
+    );
+    res.json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/whatsapp/contacto/:telefono/etiqueta — Agregar etiqueta a contacto
+router.post('/contacto/:telefono/etiqueta', authMiddleware, async (req, res) => {
+  const tel = req.params.telefono;
+  const { etiqueta_id } = req.body;
+  try {
+    await pool.query(
+      'INSERT INTO whatsapp_contacto_etiquetas (contacto_telefono, etiqueta_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+      [tel, etiqueta_id]
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /api/whatsapp/contacto/:telefono/etiqueta/:etiquetaId — Quitar etiqueta
+router.delete('/contacto/:telefono/etiqueta/:etiquetaId', authMiddleware, async (req, res) => {
+  try {
+    await pool.query(
+      'DELETE FROM whatsapp_contacto_etiquetas WHERE contacto_telefono = $1 AND etiqueta_id = $2',
+      [req.params.telefono, parseInt(req.params.etiquetaId)]
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/whatsapp/contacto/:telefono/nota — Agregar nota
+router.post('/contacto/:telefono/nota', authMiddleware, async (req, res) => {
+  const tel = req.params.telefono;
+  const { texto } = req.body;
+  if (!texto?.trim()) return res.status(400).json({ error: 'Texto requerido' });
+  try {
+    const { rows } = await pool.query(
+      'INSERT INTO whatsapp_notas (contacto_telefono, texto, usuario_id, usuario_nombre) VALUES ($1, $2, $3, $4) RETURNING *',
+      [tel, texto.trim(), req.user.id, req.user.nombre]
+    );
+    res.json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /api/whatsapp/contacto/:telefono/nota/:notaId — Eliminar nota
+router.delete('/contacto/:telefono/nota/:notaId', authMiddleware, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM whatsapp_notas WHERE id = $1 AND contacto_telefono = $2', [parseInt(req.params.notaId), req.params.telefono]);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/whatsapp/asesores — Lista de usuarios para asignar
+router.get('/asesores', authMiddleware, async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT id, nombre, rol FROM usuarios WHERE activo = 1 ORDER BY nombre');
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // POST /api/whatsapp/upload — Subir archivo para header de plantilla
 router.post('/upload', authMiddleware, soloCoordinador, upload.single('file'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No se recibio archivo' });

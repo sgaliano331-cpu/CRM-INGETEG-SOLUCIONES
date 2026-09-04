@@ -102,6 +102,50 @@ CREATE TABLE IF NOT EXISTS llamadas_reprogramadas (
   creado_en TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- =============================================================================
+-- WhatsApp: Panel de contacto (info, etiquetas, notas)
+-- =============================================================================
+
+CREATE TABLE IF NOT EXISTS whatsapp_contactos (
+  id SERIAL PRIMARY KEY,
+  telefono TEXT NOT NULL UNIQUE,
+  nombre TEXT,
+  direccion TEXT,
+  campana_origen TEXT,
+  estado TEXT NOT NULL DEFAULT 'Nuevo' CHECK(estado IN ('Nuevo','En gestión','Agendado','Cerrado','No interesado')),
+  asesor_id INTEGER REFERENCES usuarios(id),
+  creado_en TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  actualizado_en TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS whatsapp_etiquetas (
+  id SERIAL PRIMARY KEY,
+  nombre TEXT NOT NULL UNIQUE,
+  color TEXT DEFAULT '#6b7280',
+  creado_en TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS whatsapp_contacto_etiquetas (
+  id SERIAL PRIMARY KEY,
+  contacto_telefono TEXT NOT NULL,
+  etiqueta_id INTEGER NOT NULL REFERENCES whatsapp_etiquetas(id) ON DELETE CASCADE,
+  creado_en TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE(contacto_telefono, etiqueta_id)
+);
+
+CREATE TABLE IF NOT EXISTS whatsapp_notas (
+  id SERIAL PRIMARY KEY,
+  contacto_telefono TEXT NOT NULL,
+  texto TEXT NOT NULL,
+  usuario_id INTEGER NOT NULL REFERENCES usuarios(id),
+  usuario_nombre TEXT NOT NULL,
+  creado_en TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_wa_contactos_telefono ON whatsapp_contactos(telefono);
+CREATE INDEX IF NOT EXISTS idx_wa_notas_telefono ON whatsapp_notas(contacto_telefono);
+CREATE INDEX IF NOT EXISTS idx_wa_contacto_etiquetas_tel ON whatsapp_contacto_etiquetas(contacto_telefono);
+
 -- Índices para performance
 CREATE INDEX IF NOT EXISTS idx_clientes_asignado ON clientes(asignado_a);
 CREATE INDEX IF NOT EXISTS idx_clientes_llamado ON clientes(llamado);

@@ -56,6 +56,12 @@ export default function WhatsApp() {
     resultado: null,
   });
   const [adjunto, setAdjunto] = useState(null);
+  const [panelTab, setPanelTab] = useState('info');
+  const [contactoInfo, setContactoInfo] = useState(null);
+  const [asesores, setAsesores] = useState([]);
+  const [etiquetasDisponibles, setEtiquetasDisponibles] = useState([]);
+  const [nuevaEtiqueta, setNuevaEtiqueta] = useState('');
+  const [nuevaNota, setNuevaNota] = useState('');
   const chatRef = useRef(null);
   const pollRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -71,22 +77,93 @@ export default function WhatsApp() {
       .catch(() => setLoading(false));
   }, [campanaActiva]);
 
+  const fetchContactoInfo = useCallback(async (telefono) => {
+    try {
+      const { data } = await api.get(`/whatsapp/contacto/${telefono}`);
+      setContactoInfo(data);
+    } catch {}
+  }, []);
+
+  const fetchAsesores = useCallback(() => {
+    api.get('/whatsapp/asesores').then(({ data }) => setAsesores(data)).catch(() => {});
+  }, []);
+
+  const fetchEtiquetas = useCallback(() => {
+    api.get('/whatsapp/etiquetas').then(({ data }) => setEtiquetasDisponibles(data)).catch(() => {});
+  }, []);
+
   useEffect(() => {
     fetchConversaciones();
     fetchCampanas();
+    fetchAsesores();
+    fetchEtiquetas();
     pollRef.current = setInterval(() => { fetchConversaciones(); fetchCampanas(); }, 15000);
     return () => clearInterval(pollRef.current);
-  }, [fetchConversaciones, fetchCampanas]);
+  }, [fetchConversaciones, fetchCampanas, fetchAsesores, fetchEtiquetas]);
 
   const selectConversacion = async (conv) => {
     setSelected(conv);
     setTab('inbox');
+    setPanelTab('info');
     try {
       const { data } = await api.get(`/whatsapp/mensajes?telefono=${conv.telefono}&limit=100`);
       setMensajes(data.reverse());
       await api.put(`/whatsapp/marcar-leido/${conv.telefono}`);
       fetchConversaciones();
+      fetchContactoInfo(conv.telefono);
       setTimeout(() => chatRef.current?.scrollTo(0, chatRef.current.scrollHeight), 100);
+    } catch {}
+  };
+
+  const updateContacto = async (field, value) => {
+    if (!selected) return;
+    try {
+      await api.put(`/whatsapp/contacto/${selected.telefono}`, { [field]: value });
+      fetchContactoInfo(selected.telefono);
+    } catch {}
+  };
+
+  const agregarEtiqueta = async (etiquetaId) => {
+    if (!selected) return;
+    try {
+      await api.post(`/whatsapp/contacto/${selected.telefono}/etiqueta`, { etiqueta_id: etiquetaId });
+      fetchContactoInfo(selected.telefono);
+    } catch {}
+  };
+
+  const crearYAgregarEtiqueta = async () => {
+    if (!selected || !nuevaEtiqueta.trim()) return;
+    try {
+      const { data } = await api.post('/whatsapp/etiquetas', { nombre: nuevaEtiqueta.trim() });
+      await api.post(`/whatsapp/contacto/${selected.telefono}/etiqueta`, { etiqueta_id: data.id });
+      setNuevaEtiqueta('');
+      fetchEtiquetas();
+      fetchContactoInfo(selected.telefono);
+    } catch {}
+  };
+
+  const quitarEtiqueta = async (etiquetaId) => {
+    if (!selected) return;
+    try {
+      await api.delete(`/whatsapp/contacto/${selected.telefono}/etiqueta/${etiquetaId}`);
+      fetchContactoInfo(selected.telefono);
+    } catch {}
+  };
+
+  const agregarNota = async () => {
+    if (!selected || !nuevaNota.trim()) return;
+    try {
+      await api.post(`/whatsapp/contacto/${selected.telefono}/nota`, { texto: nuevaNota.trim() });
+      setNuevaNota('');
+      fetchContactoInfo(selected.telefono);
+    } catch {}
+  };
+
+  const eliminarNota = async (notaId) => {
+    if (!selected) return;
+    try {
+      await api.delete(`/whatsapp/contacto/${selected.telefono}/nota/${notaId}`);
+      fetchContactoInfo(selected.telefono);
     } catch {}
   };
 
@@ -325,7 +402,7 @@ export default function WhatsApp() {
             {campanas.length > 0 && (
               <div className="p-2 border-b border-slate-100 flex gap-1.5 overflow-x-auto">
                 <button
-                  onClick={() => { setCampanaActiva(null); setSelected(null); }}
+                  onClick={() => { setCampanaActiva(null); setSelected(null); setContactoInfo(null); }}
                   className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors flex items-center gap-1.5 ${
                     !campanaActiva ? 'bg-green-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                   }`}
@@ -338,7 +415,7 @@ export default function WhatsApp() {
                 {campanas.map(c => (
                   <button
                     key={c.campana}
-                    onClick={() => { setCampanaActiva(c.campana); setSelected(null); }}
+                    onClick={() => { setCampanaActiva(c.campana); setSelected(null); setContactoInfo(null); }}
                     className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors flex items-center gap-1.5 ${
                       campanaActiva === c.campana ? 'bg-green-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                     }`}
@@ -578,6 +655,212 @@ export default function WhatsApp() {
               </div>
             )}
           </div>
+
+          {/* Panel lateral derecho */}
+          {selected && contactoInfo && (
+            <div className="w-[320px] border-l border-slate-200 flex flex-col bg-white overflow-hidden">
+              {/* Header del panel */}
+              <div className="px-4 py-4 border-b border-slate-200 text-center">
+                <div className="w-14 h-14 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-2">
+                  <span className="text-xl font-bold text-green-700">
+                    {(selected.nombre_contacto || selected.telefono || '?')[0].toUpperCase()}
+                  </span>
+                </div>
+                <p className="text-sm font-semibold text-slate-800">
+                  {selected.nombre_contacto || formatPhone(selected.telefono)}
+                </p>
+                <p className="text-xs text-slate-500">{formatPhone(selected.telefono)}</p>
+              </div>
+
+              {/* Tabs */}
+              <div className="flex border-b border-slate-200">
+                {[
+                  { key: 'info', label: 'Informacion' },
+                  { key: 'notas', label: 'Notas' },
+                ].map(t => (
+                  <button
+                    key={t.key}
+                    onClick={() => setPanelTab(t.key)}
+                    className={`flex-1 py-2.5 text-xs font-medium transition-colors ${
+                      panelTab === t.key
+                        ? 'text-green-700 border-b-2 border-green-600'
+                        : 'text-slate-500 hover:text-slate-700'
+                    }`}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Panel content */}
+              <div className="flex-1 overflow-y-auto">
+                {panelTab === 'info' && (
+                  <div className="p-4 space-y-4">
+                    {/* Direccion */}
+                    <div>
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <svg className="w-3.5 h-3.5 text-red-500" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+                        <span className="text-xs font-medium text-slate-600">Direccion</span>
+                      </div>
+                      <input
+                        type="text"
+                        value={contactoInfo.direccion || ''}
+                        onChange={e => setContactoInfo(c => ({ ...c, direccion: e.target.value }))}
+                        onBlur={e => updateContacto('direccion', e.target.value)}
+                        placeholder="Agregar direccion..."
+                        className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs text-slate-700 focus:ring-1 focus:ring-green-500 focus:border-green-500"
+                      />
+                    </div>
+
+                    {/* Campana de origen */}
+                    {contactoInfo.campana_origen && (
+                      <div>
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <svg className="w-3.5 h-3.5 text-orange-500" fill="currentColor" viewBox="0 0 24 24"><path d="M17.6 11.48l1.44-3.6c.11-.29.03-.61-.2-.82a.73.73 0 00-.85-.07L14.4 9.6l-3.2-2.14a.73.73 0 00-.82.03.74.74 0 00-.28.79l1.12 3.78L8 14.4a.74.74 0 00-.19.82c.12.29.4.48.71.48h3.8l1.15 3.78c.09.29.36.5.67.52a.73.73 0 00.7-.45l1.44-3.6 3.6-1.44c.29-.11.48-.4.48-.71a.74.74 0 00-.48-.71l-2.28-.91z"/></svg>
+                          <span className="text-xs font-medium text-slate-600">Campana de origen</span>
+                        </div>
+                        <p className="text-xs text-slate-700 px-2.5 py-1.5 bg-orange-50 rounded-lg font-medium">{contactoInfo.campana_origen}</p>
+                      </div>
+                    )}
+
+                    {/* Estado */}
+                    <div>
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <svg className="w-3.5 h-3.5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        <span className="text-xs font-medium text-slate-600">Estado</span>
+                      </div>
+                      <select
+                        value={contactoInfo.estado || 'Nuevo'}
+                        onChange={e => { setContactoInfo(c => ({ ...c, estado: e.target.value })); updateContacto('estado', e.target.value); }}
+                        className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs text-slate-700 focus:ring-1 focus:ring-green-500 focus:border-green-500 bg-white"
+                      >
+                        <option value="Nuevo">Nuevo</option>
+                        <option value="En gestión">En gestion</option>
+                        <option value="Agendado">Agendado</option>
+                        <option value="Cerrado">Cerrado</option>
+                        <option value="No interesado">No interesado</option>
+                      </select>
+                    </div>
+
+                    {/* Asesor asignado */}
+                    <div>
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <svg className="w-3.5 h-3.5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                        <span className="text-xs font-medium text-slate-600">Asesor asignado</span>
+                      </div>
+                      <select
+                        value={contactoInfo.asesor_id || ''}
+                        onChange={e => { const v = e.target.value ? parseInt(e.target.value) : null; setContactoInfo(c => ({ ...c, asesor_id: v })); updateContacto('asesor_id', v); }}
+                        className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs text-slate-700 focus:ring-1 focus:ring-green-500 focus:border-green-500 bg-white"
+                      >
+                        <option value="">Sin asignar</option>
+                        {asesores.map(a => (
+                          <option key={a.id} value={a.id}>{a.nombre}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Etiquetas */}
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-xs font-medium text-slate-600">Etiquetas</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5 mb-2">
+                        {(contactoInfo.etiquetas || []).map(et => (
+                          <span key={et.id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-green-100 text-green-700">
+                            {et.nombre}
+                            <button onClick={() => quitarEtiqueta(et.id)} className="hover:text-red-600 ml-0.5">
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                      {/* Agregar etiqueta existente o nueva */}
+                      <div className="flex gap-1.5">
+                        {etiquetasDisponibles.filter(e => !(contactoInfo.etiquetas || []).find(ce => ce.id === e.id)).length > 0 && (
+                          <select
+                            onChange={e => { if (e.target.value) { agregarEtiqueta(parseInt(e.target.value)); e.target.value = ''; } }}
+                            className="flex-1 px-2 py-1 border border-slate-200 rounded-lg text-[11px] text-slate-600 bg-white"
+                            defaultValue=""
+                          >
+                            <option value="" disabled>Agregar...</option>
+                            {etiquetasDisponibles
+                              .filter(e => !(contactoInfo.etiquetas || []).find(ce => ce.id === e.id))
+                              .map(e => <option key={e.id} value={e.id}>{e.nombre}</option>)
+                            }
+                          </select>
+                        )}
+                      </div>
+                      <div className="flex gap-1.5 mt-1.5">
+                        <input
+                          type="text"
+                          value={nuevaEtiqueta}
+                          onChange={e => setNuevaEtiqueta(e.target.value)}
+                          onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), crearYAgregarEtiqueta())}
+                          placeholder="Nueva etiqueta..."
+                          className="flex-1 px-2 py-1 border border-slate-200 rounded-lg text-[11px] text-slate-600 focus:ring-1 focus:ring-green-500"
+                        />
+                        <button
+                          onClick={crearYAgregarEtiqueta}
+                          disabled={!nuevaEtiqueta.trim()}
+                          className="px-2 py-1 text-[11px] font-medium text-green-700 hover:bg-green-50 rounded-lg disabled:opacity-40"
+                        >
+                          + Crear
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {panelTab === 'notas' && (
+                  <div className="p-4">
+                    {/* Agregar nota */}
+                    <div className="mb-4">
+                      <textarea
+                        value={nuevaNota}
+                        onChange={e => setNuevaNota(e.target.value)}
+                        placeholder="Agregar una nota..."
+                        rows={3}
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs text-slate-700 focus:ring-1 focus:ring-green-500 focus:border-green-500 resize-none"
+                      />
+                      <button
+                        onClick={agregarNota}
+                        disabled={!nuevaNota.trim()}
+                        className="mt-1.5 px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-medium hover:bg-green-700 disabled:opacity-50 transition-colors"
+                      >
+                        + Agregar nota
+                      </button>
+                    </div>
+
+                    {/* Lista de notas */}
+                    <div className="space-y-3">
+                      {(contactoInfo.notas || []).map(nota => (
+                        <div key={nota.id} className="p-3 bg-amber-50 border border-amber-100 rounded-lg relative group">
+                          <p className="text-xs text-slate-700 whitespace-pre-wrap">{nota.texto}</p>
+                          <div className="flex items-center justify-between mt-2">
+                            <p className="text-[10px] text-slate-400">
+                              {new Date(nota.creado_en).toLocaleString('es-CO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: true })}
+                              {' — '}{nota.usuario_nombre}
+                            </p>
+                            <button
+                              onClick={() => eliminarNota(nota.id)}
+                              className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 transition-opacity"
+                              title="Eliminar nota"
+                            >
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                      {(contactoInfo.notas || []).length === 0 && (
+                        <p className="text-center text-xs text-slate-400 py-6">No hay notas para este contacto</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
