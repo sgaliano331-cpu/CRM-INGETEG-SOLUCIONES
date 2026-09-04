@@ -394,7 +394,7 @@ router.get('/conversaciones', authMiddleware, soloCoordinador, async (req, res) 
         FROM whatsapp_mensajes m1
         INNER JOIN whatsapp_campana_contactos cc ON cc.telefono = m1.telefono AND cc.campana = $1
         GROUP BY m1.telefono, cc.estado
-        ORDER BY MAX(m1.creado_en) DESC
+        ORDER BY (COUNT(*) FILTER (WHERE m1.estado = 'nuevo' AND m1.direccion = 'entrante') > 0) DESC, MAX(m1.creado_en) DESC
         LIMIT 100
       `;
       params = [campana];
@@ -408,7 +408,7 @@ router.get('/conversaciones', authMiddleware, soloCoordinador, async (req, res) 
           COUNT(*) FILTER (WHERE estado = 'nuevo' AND direccion = 'entrante') as no_leidos
         FROM whatsapp_mensajes m1
         GROUP BY telefono
-        ORDER BY MAX(creado_en) DESC
+        ORDER BY (COUNT(*) FILTER (WHERE estado = 'nuevo' AND direccion = 'entrante') > 0) DESC, MAX(creado_en) DESC
         LIMIT 100
       `;
       params = [];
