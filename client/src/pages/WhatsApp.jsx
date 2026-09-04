@@ -696,6 +696,26 @@ export default function WhatsApp() {
               <div className="flex-1 overflow-y-auto">
                 {panelTab === 'info' && (
                   <div className="p-4 space-y-4">
+                    {/* Nombre del cliente */}
+                    {contactoInfo.cliente?.nombre && (
+                      <div>
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <svg className="w-3.5 h-3.5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                          <span className="text-xs font-medium text-slate-600">Nombre</span>
+                        </div>
+                        <p className="text-xs text-slate-700 px-2.5 py-1.5 bg-slate-50 rounded-lg">{contactoInfo.cliente.nombre}</p>
+                      </div>
+                    )}
+                    {/* Municipio del cliente */}
+                    {contactoInfo.cliente?.ciudad && (
+                      <div>
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <svg className="w-3.5 h-3.5 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+                          <span className="text-xs font-medium text-slate-600">Municipio</span>
+                        </div>
+                        <p className="text-xs text-slate-700 px-2.5 py-1.5 bg-slate-50 rounded-lg">{contactoInfo.cliente.ciudad}</p>
+                      </div>
+                    )}
                     {/* Direccion del cliente */}
                     <div>
                       <div className="flex items-center gap-2 mb-1.5">
@@ -716,27 +736,14 @@ export default function WhatsApp() {
                       )}
                     </div>
 
-                    {/* Barrio y municipio del cliente */}
-                    {contactoInfo.cliente && (contactoInfo.cliente.barrio || contactoInfo.cliente.ciudad) && (
-                      <div className="flex gap-3">
-                        {contactoInfo.cliente.barrio && (
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1.5">
-                              <svg className="w-3.5 h-3.5 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
-                              <span className="text-xs font-medium text-slate-600">Barrio</span>
-                            </div>
-                            <p className="text-xs text-slate-700 px-2.5 py-1.5 bg-slate-50 rounded-lg">{contactoInfo.cliente.barrio}</p>
-                          </div>
-                        )}
-                        {contactoInfo.cliente.ciudad && (
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1.5">
-                              <svg className="w-3.5 h-3.5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064" /></svg>
-                              <span className="text-xs font-medium text-slate-600">Municipio</span>
-                            </div>
-                            <p className="text-xs text-slate-700 px-2.5 py-1.5 bg-slate-50 rounded-lg">{contactoInfo.cliente.ciudad}</p>
-                          </div>
-                        )}
+                    {/* Barrio del cliente */}
+                    {contactoInfo.cliente?.barrio && (
+                      <div>
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <svg className="w-3.5 h-3.5 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+                          <span className="text-xs font-medium text-slate-600">Barrio</span>
+                        </div>
+                        <p className="text-xs text-slate-700 px-2.5 py-1.5 bg-slate-50 rounded-lg">{contactoInfo.cliente.barrio}</p>
                       </div>
                     )}
 
