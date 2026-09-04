@@ -319,7 +319,7 @@ export default function WhatsApp() {
         idioma: masivo.idioma,
         headerComponents: headerComp,
         campana: masivo.campana || masivo.plantilla,
-      });
+      }, { timeout: 300000 });
       setMasivo(m => ({ ...m, enviando: false, resultado: data }));
       fetchConversaciones();
     } catch (err) {
