@@ -712,15 +712,16 @@ export default function WhatsApp() {
                       />
                     </div>
 
-                    {/* Campana de origen */}
+                    {/* Campaña de origen - desplegable */}
                     {contactoInfo.campana_origen && (
-                      <div>
-                        <div className="flex items-center gap-2 mb-1.5">
+                      <details className="group">
+                        <summary className="flex items-center gap-2 cursor-pointer list-none">
                           <svg className="w-3.5 h-3.5 text-orange-500" fill="currentColor" viewBox="0 0 24 24"><path d="M17.6 11.48l1.44-3.6c.11-.29.03-.61-.2-.82a.73.73 0 00-.85-.07L14.4 9.6l-3.2-2.14a.73.73 0 00-.82.03.74.74 0 00-.28.79l1.12 3.78L8 14.4a.74.74 0 00-.19.82c.12.29.4.48.71.48h3.8l1.15 3.78c.09.29.36.5.67.52a.73.73 0 00.7-.45l1.44-3.6 3.6-1.44c.29-.11.48-.4.48-.71a.74.74 0 00-.48-.71l-2.28-.91z"/></svg>
-                          <span className="text-xs font-medium text-slate-600">Campana de origen</span>
-                        </div>
-                        <p className="text-xs text-slate-700 px-2.5 py-1.5 bg-orange-50 rounded-lg font-medium">{contactoInfo.campana_origen}</p>
-                      </div>
+                          <span className="text-xs font-medium text-slate-600 flex-1">Campaña de origen</span>
+                          <svg className="w-3.5 h-3.5 text-slate-400 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                        </summary>
+                        <p className="text-xs text-slate-700 px-2.5 py-1.5 bg-orange-50 rounded-lg font-medium mt-1.5">{contactoInfo.campana_origen}</p>
+                      </details>
                     )}
 
                     {/* Estado */}
@@ -739,24 +740,6 @@ export default function WhatsApp() {
                         <option value="Agendado">Agendado</option>
                         <option value="Cerrado">Cerrado</option>
                         <option value="No interesado">No interesado</option>
-                      </select>
-                    </div>
-
-                    {/* Asesor asignado */}
-                    <div>
-                      <div className="flex items-center gap-2 mb-1.5">
-                        <svg className="w-3.5 h-3.5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
-                        <span className="text-xs font-medium text-slate-600">Asesor asignado</span>
-                      </div>
-                      <select
-                        value={contactoInfo.asesor_id || ''}
-                        onChange={e => { const v = e.target.value ? parseInt(e.target.value) : null; setContactoInfo(c => ({ ...c, asesor_id: v })); updateContacto('asesor_id', v); }}
-                        className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs text-slate-700 focus:ring-1 focus:ring-green-500 focus:border-green-500 bg-white"
-                      >
-                        <option value="">Sin asignar</option>
-                        {asesores.map(a => (
-                          <option key={a.id} value={a.id}>{a.nombre}</option>
-                        ))}
                       </select>
                     </div>
 
