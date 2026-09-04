@@ -511,7 +511,7 @@ router.get('/contacto/:telefono', authMiddleware, async (req, res) => {
 // PUT /api/whatsapp/contacto/:telefono — Actualizar info del contacto
 router.put('/contacto/:telefono', authMiddleware, async (req, res) => {
   const tel = req.params.telefono;
-  const { direccion, estado, asesor_id } = req.body;
+  const { direccion, estado, asesor_id, ciudad } = req.body;
   try {
     await pool.query(
       'INSERT INTO whatsapp_contactos (telefono) VALUES ($1) ON CONFLICT (telefono) DO NOTHING',
@@ -523,13 +523,20 @@ router.put('/contacto/:telefono', authMiddleware, async (req, res) => {
     if (direccion !== undefined) { sets.push(`direccion = $${idx++}`); params.push(direccion); }
     if (estado !== undefined) { sets.push(`estado = $${idx++}`); params.push(estado); }
     if (asesor_id !== undefined) { sets.push(`asesor_id = $${idx++}`); params.push(asesor_id || null); }
-    if (sets.length === 0) return res.status(400).json({ error: 'Nada que actualizar' });
-    sets.push(`actualizado_en = NOW()`);
-    params.push(tel);
-    const { rows } = await pool.query(
-      `UPDATE whatsapp_contactos SET ${sets.join(', ')} WHERE telefono = $${idx} RETURNING *`,
-      params
-    );
+    if (sets.length === 0 && ciudad === undefined) return res.status(400).json({ error: 'Nada que actualizar' });
+    if (sets.length > 0) {
+      sets.push(`actualizado_en = NOW()`);
+      params.push(tel);
+      await pool.query(
+        `UPDATE whatsapp_contactos SET ${sets.join(', ')} WHERE telefono = $${idx} RETURNING *`,
+        params
+      );
+    }
+    if (ciudad !== undefined) {
+      const localPhone = tel.startsWith('57') ? tel.slice(2) : tel;
+      await pool.query('UPDATE clientes SET ciudad = $1, actualizado_en = NOW() WHERE telefono = $2 OR telefono = $3', [ciudad, localPhone, tel]);
+    }
+    const { rows } = await pool.query('SELECT * FROM whatsapp_contactos WHERE telefono = $1', [tel]);
     res.json(rows[0]);
   } catch (err) {
     res.status(500).json({ error: err.message });
