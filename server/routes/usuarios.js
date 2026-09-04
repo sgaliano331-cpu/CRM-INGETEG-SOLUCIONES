@@ -91,11 +91,21 @@ router.put('/:id', authMiddleware, soloCoordinador, async (req, res) => {
     return res.status(400).json({ error: 'Rol no valido' });
   }
 
+  const { username } = req.body;
+
   try {
+    if (username) {
+      const existe = await pool.query('SELECT id FROM usuarios WHERE username = $1 AND id != $2', [username.toLowerCase(), id]);
+      if (existe.rows.length > 0) {
+        return res.status(400).json({ error: 'El nombre de usuario ya existe' });
+      }
+    }
+
     const sets = [];
     const params = [];
     let idx = 1;
 
+    if (username) { sets.push(`username = $${idx++}`); params.push(username.toLowerCase()); }
     if (nombre) { sets.push(`nombre = $${idx++}`); params.push(nombre); }
     if (rol) { sets.push(`rol = $${idx++}`); params.push(rol); }
 

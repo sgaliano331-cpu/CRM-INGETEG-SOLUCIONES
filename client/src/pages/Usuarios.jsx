@@ -16,6 +16,8 @@ export default function Usuarios() {
   const [showPassword, setShowPassword] = useState(null);
   const [newPass, setNewPass] = useState('');
   const [form, setForm] = useState({ username: '', nombre: '', password: '', rol: 'ASESORA' });
+  const [editUser, setEditUser] = useState(null);
+  const [editForm, setEditForm] = useState({ username: '', nombre: '', rol: '' });
   const [msg, setMsg] = useState('');
   const [error, setError] = useState('');
 
@@ -55,6 +57,24 @@ export default function Usuarios() {
       setNewPass('');
     } catch (err) {
       flash(err.response?.data?.error || 'Error', true);
+    }
+  };
+
+  const openEdit = (u) => {
+    setEditUser(u);
+    setEditForm({ username: u.username, nombre: u.nombre, rol: u.rol });
+  };
+
+  const guardarEdicion = async (e) => {
+    e.preventDefault();
+    if (!editUser) return;
+    try {
+      await api.put(`/usuarios/${editUser.id}`, editForm);
+      flash(`Usuario "${editForm.username}" actualizado`);
+      setEditUser(null);
+      fetchUsuarios();
+    } catch (err) {
+      flash(err.response?.data?.error || 'Error al actualizar', true);
     }
   };
 
@@ -174,6 +194,15 @@ export default function Usuarios() {
                 <td className="py-3 px-4 text-center">
                   <div className="flex items-center justify-center gap-2">
                     <button
+                      onClick={() => openEdit(u)}
+                      className="p-1.5 rounded-lg hover:bg-amber-50 text-amber-600 transition-colors"
+                      title="Editar usuario"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                    </button>
+                    <button
                       onClick={() => { setShowPassword(showPassword === u.id ? null : u.id); setNewPass(''); }}
                       className="p-1.5 rounded-lg hover:bg-blue-50 text-blue-600 transition-colors"
                       title="Cambiar contrasena"
@@ -219,6 +248,54 @@ export default function Usuarios() {
           </tbody>
         </table>
       </div>
+
+      {editUser && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={() => setEditUser(null)}>
+          <form onSubmit={guardarEdicion} onClick={e => e.stopPropagation()} className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
+            <h2 className="text-lg font-semibold text-slate-700 mb-4">Editar Usuario</h2>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Usuario (login)</label>
+                <input
+                  type="text"
+                  value={editForm.username}
+                  onChange={e => setEditForm(f => ({ ...f, username: e.target.value }))}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Nombre completo</label>
+                <input
+                  type="text"
+                  value={editForm.nombre}
+                  onChange={e => setEditForm(f => ({ ...f, nombre: e.target.value }))}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Rol</label>
+                <select
+                  value={editForm.rol}
+                  onChange={e => setEditForm(f => ({ ...f, rol: e.target.value }))}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                >
+                  {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+                </select>
+              </div>
+            </div>
+            <div className="flex gap-3 mt-5">
+              <button type="submit" className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700">
+                Guardar
+              </button>
+              <button type="button" onClick={() => setEditUser(null)} className="px-4 py-2 bg-slate-100 text-slate-600 rounded-lg text-sm font-medium hover:bg-slate-200">
+                Cancelar
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   );
 }
