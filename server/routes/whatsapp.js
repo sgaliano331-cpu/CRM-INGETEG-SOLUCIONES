@@ -298,28 +298,32 @@ router.post('/enviar-masivo', authMiddleware, soloCoordinador, async (req, res) 
         );
 
         // Auto-crear cliente si no existe
-        const p = params;
-        const getParam = (names) => {
-          for (const n of names) {
-            const found = p.find(v => v.name && v.name.toLowerCase().replace(/[^a-z]/g, '') === n);
-            if (found && String(found.value).trim()) return String(found.value).trim();
-          }
-          return null;
-        };
-        const cNombre = getParam(['nombre']) || 'Sin nombre';
-        const cDireccion = getParam(['direccion', 'dirección']);
-        const cBarrio = getParam(['barrio']);
-        const cCiudad = getParam(['municipio', 'ciudad']) || 'Medellín';
-        const localPhone = phone.startsWith('57') ? phone.slice(2) : phone;
+        try {
+          const normalize = (s) => (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z]/g, '');
+          const getParam = (names) => {
+            for (const n of names) {
+              const found = params.find(v => v.name && normalize(v.name) === n);
+              if (found && String(found.value).trim()) return String(found.value).trim();
+            }
+            return null;
+          };
+          const cNombre = getParam(['nombre']) || 'Sin nombre';
+          const cDireccion = getParam(['direccion']);
+          const cBarrio = getParam(['barrio']);
+          const cCiudad = getParam(['municipio', 'ciudad']) || null;
+          const localPhone = phone.startsWith('57') ? phone.slice(2) : phone;
 
-        const existe = await pool.query('SELECT id FROM clientes WHERE telefono = $1 OR telefono = $2', [localPhone, fullPhone]);
-        if (existe.rows.length === 0) {
-          const coord = await pool.query("SELECT id FROM usuarios WHERE rol = 'COORDINADOR' AND activo = 1 LIMIT 1");
-          const coordId = coord.rows[0]?.id || req.user.id;
-          await pool.query(
-            'INSERT INTO clientes (nombre, telefono, direccion, barrio, ciudad, asignado_a) VALUES ($1, $2, $3, $4, $5, $6)',
-            [cNombre, localPhone, cDireccion, cBarrio, cCiudad, coordId]
-          );
+          const existe = await pool.query('SELECT id FROM clientes WHERE telefono = $1 OR telefono = $2', [localPhone, fullPhone]);
+          if (existe.rows.length === 0) {
+            const coord = await pool.query("SELECT id FROM usuarios WHERE rol = 'COORDINADOR' AND activo = 1 LIMIT 1");
+            const coordId = coord.rows[0]?.id || req.user.id;
+            await pool.query(
+              'INSERT INTO clientes (nombre, telefono, direccion, barrio, ciudad, asignado_a) VALUES ($1, $2, $3, $4, $5, $6)',
+              [cNombre, localPhone, cDireccion, cBarrio, cCiudad, coordId]
+            );
+          }
+        } catch (clienteErr) {
+          console.error('[WhatsApp] Error creando cliente:', clienteErr.message);
         }
       } else {
         resultados.fallidos++;
