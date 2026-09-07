@@ -379,10 +379,13 @@ router.get('/campanas', authMiddleware, soloCoordinador, async (req, res) => {
 
 // GET /api/whatsapp/conversaciones — Lista de conversaciones (inbox)
 router.get('/conversaciones', authMiddleware, soloCoordinador, async (req, res) => {
-  const { campana } = req.query;
+  const { campana, etiqueta } = req.query;
   try {
     let query, params;
+    const etiquetaJoin = etiqueta ? `INNER JOIN whatsapp_contacto_etiquetas wce ON wce.contacto_telefono = m1.telefono
+        INNER JOIN whatsapp_etiquetas we ON we.id = wce.etiqueta_id AND we.nombre = ` : '';
     if (campana) {
+      const pIdx = etiqueta ? 2 : 1;
       query = `
         SELECT m1.telefono,
           MAX(CASE WHEN m1.nombre_contacto != '' THEN m1.nombre_contacto ELSE NULL END) as nombre_contacto,
@@ -393,25 +396,29 @@ router.get('/conversaciones', authMiddleware, soloCoordinador, async (req, res) 
           cc.estado as estado_campana
         FROM whatsapp_mensajes m1
         INNER JOIN whatsapp_campana_contactos cc ON cc.telefono = m1.telefono AND cc.campana = $1
+        ${etiqueta ? `INNER JOIN whatsapp_contacto_etiquetas wce ON wce.contacto_telefono = m1.telefono
+        INNER JOIN whatsapp_etiquetas we ON we.id = wce.etiqueta_id AND we.nombre = $2` : ''}
         GROUP BY m1.telefono, cc.estado
         ORDER BY (COUNT(*) FILTER (WHERE m1.estado = 'nuevo' AND m1.direccion = 'entrante') > 0) DESC, MAX(m1.creado_en) DESC
         LIMIT 100
       `;
-      params = [campana];
+      params = etiqueta ? [campana, etiqueta] : [campana];
     } else {
       query = `
-        SELECT telefono,
-          MAX(CASE WHEN nombre_contacto != '' THEN nombre_contacto ELSE NULL END) as nombre_contacto,
-          MAX(creado_en) as ultimo_mensaje,
+        SELECT m1.telefono,
+          MAX(CASE WHEN m1.nombre_contacto != '' THEN m1.nombre_contacto ELSE NULL END) as nombre_contacto,
+          MAX(m1.creado_en) as ultimo_mensaje,
           (SELECT mensaje FROM whatsapp_mensajes m2 WHERE m2.telefono = m1.telefono ORDER BY creado_en DESC LIMIT 1) as ultimo_texto,
           (SELECT direccion FROM whatsapp_mensajes m3 WHERE m3.telefono = m1.telefono ORDER BY creado_en DESC LIMIT 1) as ultima_direccion,
-          COUNT(*) FILTER (WHERE estado = 'nuevo' AND direccion = 'entrante') as no_leidos
+          COUNT(*) FILTER (WHERE m1.estado = 'nuevo' AND m1.direccion = 'entrante') as no_leidos
         FROM whatsapp_mensajes m1
-        GROUP BY telefono
-        ORDER BY (COUNT(*) FILTER (WHERE estado = 'nuevo' AND direccion = 'entrante') > 0) DESC, MAX(creado_en) DESC
+        ${etiqueta ? `INNER JOIN whatsapp_contacto_etiquetas wce ON wce.contacto_telefono = m1.telefono
+        INNER JOIN whatsapp_etiquetas we ON we.id = wce.etiqueta_id AND we.nombre = $1` : ''}
+        GROUP BY m1.telefono
+        ORDER BY (COUNT(*) FILTER (WHERE m1.estado = 'nuevo' AND m1.direccion = 'entrante') > 0) DESC, MAX(m1.creado_en) DESC
         LIMIT 100
       `;
-      params = [];
+      params = etiqueta ? [etiqueta] : [];
     }
     const { rows } = await pool.query(query, params);
     res.json(rows);

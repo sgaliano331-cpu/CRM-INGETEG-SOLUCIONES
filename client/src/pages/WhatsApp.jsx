@@ -62,6 +62,7 @@ export default function WhatsApp() {
   const [etiquetasDisponibles, setEtiquetasDisponibles] = useState([]);
   const [nuevaEtiqueta, setNuevaEtiqueta] = useState('');
   const [nuevaNota, setNuevaNota] = useState('');
+  const [filtroEtiqueta, setFiltroEtiqueta] = useState('');
   const chatRef = useRef(null);
   const pollRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -71,11 +72,14 @@ export default function WhatsApp() {
   }, []);
 
   const fetchConversaciones = useCallback(() => {
-    const params = campanaActiva ? `?campana=${encodeURIComponent(campanaActiva)}` : '';
-    api.get(`/whatsapp/conversaciones${params}`)
+    const qp = new URLSearchParams();
+    if (campanaActiva) qp.set('campana', campanaActiva);
+    if (filtroEtiqueta) qp.set('etiqueta', filtroEtiqueta);
+    const qs = qp.toString();
+    api.get(`/whatsapp/conversaciones${qs ? '?' + qs : ''}`)
       .then(({ data }) => { setConversaciones(data); setLoading(false); })
       .catch(() => setLoading(false));
-  }, [campanaActiva]);
+  }, [campanaActiva, filtroEtiqueta]);
 
   const fetchContactoInfo = useCallback(async (telefono) => {
     try {
@@ -438,6 +442,23 @@ export default function WhatsApp() {
                   className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500"
                 />
               </div>
+              {etiquetasDisponibles.length > 0 && (
+                <div className="flex items-center gap-2 mt-2">
+                  <select
+                    value={filtroEtiqueta}
+                    onChange={e => { setFiltroEtiqueta(e.target.value); setSelected(null); setContactoInfo(null); }}
+                    className="flex-1 px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs text-slate-600 bg-white focus:ring-1 focus:ring-green-500"
+                  >
+                    <option value="">Todas las etiquetas</option>
+                    {etiquetasDisponibles.map(e => <option key={e.id} value={e.nombre}>{e.nombre}</option>)}
+                  </select>
+                  {filtroEtiqueta && (
+                    <button onClick={() => { setFiltroEtiqueta(''); setSelected(null); setContactoInfo(null); }} className="text-xs text-red-500 hover:text-red-700 whitespace-nowrap">
+                      Limpiar
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
             <div className="flex-1 overflow-y-auto">
               {loading ? (
