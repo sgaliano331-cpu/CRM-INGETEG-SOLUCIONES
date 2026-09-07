@@ -20,6 +20,8 @@ router.post('/generar', async (req, res) => {
     const fontBold = await doc.embedFont(StandardFonts.HelveticaBold);
 
     const PW = 612, PH = 792, M = 72, CW = PW - M * 2;
+    const FOOTER_H = 90;
+    const MIN_Y = FOOTER_H + 20;
     let page = doc.addPage([PW, PH]);
     let y = PH - M;
 
@@ -33,6 +35,57 @@ router.post('/generar', async (req, res) => {
     const WHITE = rgb(1, 1, 1);
 
     const fmt = (n) => '$ ' + Number(n).toLocaleString('es-CO');
+
+    const col1 = M;
+    const col2 = M + 115;
+    const col3 = PW - M - 145;
+    const col4 = PW - M - 75;
+    const col5 = PW - M;
+
+    const drawFooter = (pg) => {
+      const footY = 60;
+      pg.drawRectangle({ x: 0, y: 0, width: PW, height: footY + 15, color: SURFACE });
+      pg.drawLine({ start: { x: 0, y: footY + 15 }, end: { x: PW, y: footY + 15 }, thickness: 0.5, color: BORDER });
+      pg.drawText('INGETEG SOLUCIONES', { x: M, y: footY, size: 8, font: fontBold, color: TEXT_COLOR });
+      pg.drawText('Medellin, Colombia', { x: M, y: footY - 12, size: 7.5, font, color: TEXT_SEC });
+      pg.drawText('NIT: 901.641.504', { x: M, y: footY - 24, size: 7.5, font, color: TEXT_SEC });
+      const contactoW2 = fontBold.widthOfTextAtSize('Contacto', 8);
+      pg.drawText('Contacto', { x: PW - M - contactoW2, y: footY, size: 8, font: fontBold, color: TEXT_COLOR });
+      const emailW2 = font.widthOfTextAtSize('administrativo@ingeteg.com', 7.5);
+      pg.drawText('administrativo@ingeteg.com', { x: PW - M - emailW2, y: footY - 12, size: 7.5, font, color: TEXT_SEC });
+      const webW2 = font.widthOfTextAtSize('ingeteg.com', 7.5);
+      pg.drawText('ingeteg.com', { x: PW - M - webW2, y: footY - 24, size: 7.5, font, color: TEXT_SEC });
+      const watermark = 'Documento generado por INGETEG CRM';
+      const wmW = font.widthOfTextAtSize(watermark, 6);
+      pg.drawText(watermark, { x: (PW - wmW) / 2, y: 20, size: 6, font, color: rgb(0.69, 0.71, 0.68) });
+    };
+
+    const drawTableHeader = () => {
+      page.drawText('CONCEPTO', { x: col1, y, size: 7.5, font: fontBold, color: TEXT_SEC });
+      page.drawText('DESCRIPCION', { x: col2, y, size: 7.5, font: fontBold, color: TEXT_SEC });
+      const cantW = fontBold.widthOfTextAtSize('CANT.', 7.5);
+      page.drawText('CANT.', { x: col3 + 28 - cantW, y, size: 7.5, font: fontBold, color: TEXT_SEC });
+      const vuW = fontBold.widthOfTextAtSize('V. UNIT.', 7.5);
+      page.drawText('V. UNIT.', { x: col4 + 28 - vuW, y, size: 7.5, font: fontBold, color: TEXT_SEC });
+      const valW2 = fontBold.widthOfTextAtSize('TOTAL', 7.5);
+      page.drawText('TOTAL', { x: col5 - valW2, y, size: 7.5, font: fontBold, color: TEXT_SEC });
+      y -= 8;
+      page.drawLine({ start: { x: M, y }, end: { x: PW - M, y }, thickness: 1.2, color: BORDER });
+    };
+
+    const newPage = () => {
+      drawFooter(page);
+      page = doc.addPage([PW, PH]);
+      y = PH - M;
+    };
+
+    const checkSpace = (needed) => {
+      if (y - needed < MIN_Y) {
+        newPage();
+        return true;
+      }
+      return false;
+    };
 
     const embedImg = async (src) => {
       try {
@@ -52,7 +105,6 @@ router.post('/generar', async (req, res) => {
       page.drawImage(logoImg, { x: M, y: y - lh + 5, width: lw, height: lh });
     }
 
-    // Right side
     page.drawText('Cotizacion', { x: PW - M - fontBold.widthOfTextAtSize('Cotizacion', 11), y: y - 5, size: 11, font, color: TEXT_COLOR });
 
     const numText = `No. ${id_instalacion || '—'}`;
@@ -61,17 +113,14 @@ router.post('/generar', async (req, res) => {
     const fechaText = fecha || new Date().toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' });
     page.drawText(fechaText, { x: PW - M - font.widthOfTextAtSize(fechaText, 9), y: y - 40, size: 9, font, color: TEXT_SEC });
 
-    // Green bar
     y -= 55;
     page.drawLine({ start: { x: M, y }, end: { x: PW - M, y }, thickness: 2.5, color: GREEN });
 
-    // NIT
     y -= 15;
     page.drawText('NIT: 901.641.504  |  Mantenimiento y reparacion de electrodomesticos  |  Medellin, Colombia', {
       x: M, y, size: 7, font, color: TEXT_SEC,
     });
 
-    // Separator
     y -= 12;
     page.drawLine({ start: { x: M, y }, end: { x: PW - M, y }, thickness: 0.5, color: BORDER });
 
@@ -92,7 +141,6 @@ router.post('/generar', async (req, res) => {
       y -= 15;
     }
 
-    // Separator
     y -= 8;
     page.drawLine({ start: { x: M, y }, end: { x: PW - M, y }, thickness: 0.5, color: BORDER });
 
@@ -100,25 +148,8 @@ router.post('/generar', async (req, res) => {
     y -= 18;
     page.drawText('DETALLE DE LA COTIZACION', { x: M, y, size: 8, font: fontBold, color: GREEN });
 
-    // Table header
     y -= 22;
-    const col1 = M;
-    const col2 = M + 115;
-    const col3 = PW - M - 145;
-    const col4 = PW - M - 75;
-    const col5 = PW - M;
-
-    page.drawText('CONCEPTO', { x: col1, y, size: 7.5, font: fontBold, color: TEXT_SEC });
-    page.drawText('DESCRIPCION', { x: col2, y, size: 7.5, font: fontBold, color: TEXT_SEC });
-    const cantW = fontBold.widthOfTextAtSize('CANT.', 7.5);
-    page.drawText('CANT.', { x: col3 + 28 - cantW, y, size: 7.5, font: fontBold, color: TEXT_SEC });
-    const vuW = fontBold.widthOfTextAtSize('V. UNIT.', 7.5);
-    page.drawText('V. UNIT.', { x: col4 + 28 - vuW, y, size: 7.5, font: fontBold, color: TEXT_SEC });
-    const valW = fontBold.widthOfTextAtSize('TOTAL', 7.5);
-    page.drawText('TOTAL', { x: col5 - valW, y, size: 7.5, font: fontBold, color: TEXT_SEC });
-
-    y -= 8;
-    page.drawLine({ start: { x: M, y }, end: { x: PW - M, y }, thickness: 1.2, color: BORDER });
+    drawTableHeader();
 
     // Rows
     let totalGeneral = 0;
@@ -128,13 +159,20 @@ router.post('/generar', async (req, res) => {
       const valorTotal = valorUnit * cantidad;
       totalGeneral += valorTotal;
 
+      const descLines = wrapText(item.descripcion || '', col3 - col2 - 20, 9, font);
+      const rowHeight = Math.max(28, descLines.length * 12 + 10) + 18;
+
+      if (checkSpace(rowHeight)) {
+        y -= 22;
+        drawTableHeader();
+      }
+
       y -= 18;
       page.drawText(item.concepto || '', { x: col1, y, size: 9, font: fontBold, color: TEXT_COLOR });
       if (item.subtitulo) {
         page.drawText(item.subtitulo, { x: col1, y: y - 12, size: 8, font, color: TEXT_SEC });
       }
 
-      const descLines = wrapText(item.descripcion || '', col3 - col2 - 20, 9, font);
       descLines.forEach((line, i) => {
         page.drawText(line, { x: col2, y: y - i * 12, size: 9, font, color: TEXT_COLOR });
       });
@@ -156,6 +194,9 @@ router.post('/generar', async (req, res) => {
     }
 
     // --- TOTALS ---
+    const totalsHeight = items.length * 15 + 80;
+    checkSpace(totalsHeight);
+
     y -= 22;
     const totLeft = PW - M - 200;
     const totRight = PW - M;
@@ -179,6 +220,7 @@ router.post('/generar', async (req, res) => {
     page.drawText(totalText, { x: totRight - fontBold.widthOfTextAtSize(totalText, 13), y, size: 13, font: fontBold, color: GREEN });
 
     // --- VALIDITY NOTE ---
+    checkSpace(50);
     y -= 35;
     const boxH = 30;
     page.drawRectangle({ x: M, y: y - 3, width: CW, height: boxH, color: HIGHLIGHT_BG });
@@ -190,25 +232,8 @@ router.post('/generar', async (req, res) => {
       x: M + 12, y: y + 1, size: 8, font, color: TEXT_SEC,
     });
 
-    // --- FOOTER ---
-    const footY = 60;
-    page.drawRectangle({ x: 0, y: 0, width: PW, height: footY + 15, color: SURFACE });
-    page.drawLine({ start: { x: 0, y: footY + 15 }, end: { x: PW, y: footY + 15 }, thickness: 0.5, color: BORDER });
-
-    page.drawText('INGETEG SOLUCIONES', { x: M, y: footY, size: 8, font: fontBold, color: TEXT_COLOR });
-    page.drawText('Medellin, Colombia', { x: M, y: footY - 12, size: 7.5, font, color: TEXT_SEC });
-    page.drawText('NIT: 901.641.504', { x: M, y: footY - 24, size: 7.5, font, color: TEXT_SEC });
-
-    const contactoW = fontBold.widthOfTextAtSize('Contacto', 8);
-    page.drawText('Contacto', { x: PW - M - contactoW, y: footY, size: 8, font: fontBold, color: TEXT_COLOR });
-    const emailW = font.widthOfTextAtSize('administrativo@ingeteg.com', 7.5);
-    page.drawText('administrativo@ingeteg.com', { x: PW - M - emailW, y: footY - 12, size: 7.5, font, color: TEXT_SEC });
-    const webW = font.widthOfTextAtSize('ingeteg.com', 7.5);
-    page.drawText('ingeteg.com', { x: PW - M - webW, y: footY - 24, size: 7.5, font, color: TEXT_SEC });
-
-    const watermark = 'Documento generado por INGETEG CRM';
-    const wmW = font.widthOfTextAtSize(watermark, 6);
-    page.drawText(watermark, { x: (PW - wmW) / 2, y: 20, size: 6, font, color: rgb(0.69, 0.71, 0.68) });
+    // --- FOOTER (last page) ---
+    drawFooter(page);
 
     const pdfBytes = await doc.save();
     res.setHeader('Content-Type', 'application/pdf');
