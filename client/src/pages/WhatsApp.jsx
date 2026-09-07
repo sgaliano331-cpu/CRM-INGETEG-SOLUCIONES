@@ -653,12 +653,20 @@ export default function WhatsApp() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
                       </svg>
                     </button>
-                    <input
-                      type="text"
+                    <textarea
                       value={texto}
                       onChange={e => setTexto(e.target.value)}
-                      placeholder={adjunto ? "Agrega un comentario..." : "Escribe un mensaje..."}
-                      className="flex-1 px-4 py-2.5 bg-white border border-slate-200 rounded-full text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                      onKeyDown={e => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          if (texto.trim() || adjunto) enviarMensaje(e);
+                        }
+                      }}
+                      placeholder={adjunto ? "Agrega un comentario..." : "Escribe un mensaje... (Shift+Enter para salto de línea)"}
+                      rows={1}
+                      className="flex-1 px-4 py-2.5 bg-white border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 resize-none overflow-hidden"
+                      style={{ maxHeight: '120px', overflowY: texto.split('\n').length > 4 ? 'auto' : 'hidden' }}
+                      onInput={e => { e.target.style.height = 'auto'; e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px'; }}
                     />
                     <button
                       type="submit"
