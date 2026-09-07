@@ -6,13 +6,14 @@ import interactionPlugin from '@fullcalendar/interaction';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 
-const TECNICOS = ['HERNAN', 'FREDY', 'OMAR', 'SANCHEZ'];
+const TECNICOS = ['HERNAN', 'FREDY', 'OMAR', 'SANCHEZ', 'MABE'];
 
 const COLORES_TECNICO = {
   'HERNAN': { bg: '#3b82f6', border: '#2563eb' },
   'FREDY': { bg: '#10b981', border: '#059669' },
   'OMAR': { bg: '#f59e0b', border: '#d97706' },
   'SANCHEZ': { bg: '#8b5cf6', border: '#7c3aed' },
+  'MABE': { bg: '#ec4899', border: '#db2777' },
 };
 
 const COLORES_ESTADO = {
