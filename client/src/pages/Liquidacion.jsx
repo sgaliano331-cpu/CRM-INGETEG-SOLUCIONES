@@ -504,6 +504,7 @@ export default function Liquidacion() {
                       <th className="py-2.5 px-3 text-left text-xs font-semibold text-slate-500">Cliente</th>
                       <th className="py-2.5 px-3 text-left text-xs font-semibold text-slate-500">Equipos</th>
                       <th className="py-2.5 px-3 text-left text-xs font-semibold text-slate-500">Tipo</th>
+                      <th className="py-2.5 px-3 text-left text-xs font-semibold text-slate-500">Estado</th>
                       <th className="py-2.5 px-3 text-left text-xs font-semibold text-slate-500">Tecnico</th>
                       <th className="py-2.5 px-3 text-left text-xs font-semibold text-slate-500">Pago</th>
                       <th className="py-2.5 px-3 text-right text-xs font-semibold text-indigo-600">Valor Servicio</th>
@@ -523,6 +524,14 @@ export default function Liquidacion() {
                             {s.tipo_servicio || 'Mant.'}
                           </span>
                         </td>
+                        <td className="py-2.5 px-3">
+                          <span className={`text-xs px-1.5 py-0.5 rounded-full ${
+                            s.estado_servicio === 'Cumplido' ? 'bg-green-100 text-green-700' :
+                            s.estado_servicio === 'Pendiente por repuesto' ? 'bg-amber-100 text-amber-700' :
+                            'bg-slate-100 text-slate-600'}`}>
+                            {s.estado_servicio}
+                          </span>
+                        </td>
                         <td className="py-2.5 px-3 text-slate-600 text-xs">{s.tecnico}</td>
                         <td className="py-2.5 px-3 text-slate-600 text-xs">{s.metodo_pago || '—'}</td>
                         <td className="py-2.5 px-3 text-right font-semibold text-slate-800">{fmt(s.costo_cop || 0)}</td>
@@ -531,7 +540,7 @@ export default function Liquidacion() {
                   </tbody>
                   <tfoot>
                     <tr className="bg-slate-50 border-t-2 border-slate-300">
-                      <td colSpan={6} className="py-3 px-3 text-right text-sm font-bold text-slate-600">TOTAL VENTAS</td>
+                      <td colSpan={7} className="py-3 px-3 text-right text-sm font-bold text-slate-600">TOTAL VENTAS</td>
                       <td className="py-3 px-3 text-right font-bold text-indigo-800 text-lg">{fmt(comTotal)}</td>
                     </tr>
                   </tfoot>

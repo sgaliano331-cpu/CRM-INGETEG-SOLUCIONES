@@ -268,17 +268,16 @@ router.put('/marcar-liquidado', async (req, res) => {
   }
 });
 
-// GET /api/liquidacion/asesoras — Lista usuarios que han agendado servicios cumplidos
+// GET /api/liquidacion/asesoras — Lista usuarios que han agendado servicios ejecutados
 router.get('/asesoras', async (req, res) => {
   try {
     const { rows } = await pool.query(`
-      SELECT u.id, u.nombre,
-        COUNT(*) FILTER (WHERE a.estado_servicio = 'Cumplido') as servicios
+      SELECT u.id, u.nombre, COUNT(*) as servicios
       FROM agendamientos a
       JOIN usuarios u ON u.id = a.usuario_id
-      WHERE a.estado_servicio = 'Cumplido'
+      WHERE a.estado_servicio NOT IN ('Agendado', 'Visita Fallida', 'Cancelado por el cliente')
       GROUP BY u.id, u.nombre
-      HAVING COUNT(*) FILTER (WHERE a.estado_servicio = 'Cumplido') > 0
+      HAVING COUNT(*) > 0
       ORDER BY u.nombre
     `);
     res.json(rows.map(r => ({ ...r, servicios: Number(r.servicios) })));
@@ -302,7 +301,7 @@ router.get('/comisiones', async (req, res) => {
         COALESCE(SUM(a.costo_cop), 0) as ventas_total
       FROM agendamientos a
       JOIN usuarios u ON u.id = a.usuario_id
-      WHERE a.estado_servicio = 'Cumplido'${dateFilter}
+      WHERE a.estado_servicio NOT IN ('Agendado', 'Visita Fallida', 'Cancelado por el cliente')${dateFilter}
       GROUP BY u.id, u.nombre
       ORDER BY ventas_total DESC
     `, params);
@@ -329,10 +328,10 @@ router.get('/comisiones/detalle', async (req, res) => {
 
     const { rows } = await pool.query(`
       SELECT a.id, a.fecha_agendamiento as fecha, c.nombre as cliente, a.equipos,
-        a.tipo_servicio, a.costo_cop, a.metodo_pago, a.tecnico
+        a.tipo_servicio, a.costo_cop, a.metodo_pago, a.tecnico, a.estado_servicio
       FROM agendamientos a
       LEFT JOIN clientes c ON c.id = a.cliente_id
-      WHERE a.usuario_id = $1 AND a.estado_servicio = 'Cumplido'${dateFilter}
+      WHERE a.usuario_id = $1 AND a.estado_servicio NOT IN ('Agendado', 'Visita Fallida', 'Cancelado por el cliente')${dateFilter}
       ORDER BY a.fecha_agendamiento DESC
     `, params);
 
