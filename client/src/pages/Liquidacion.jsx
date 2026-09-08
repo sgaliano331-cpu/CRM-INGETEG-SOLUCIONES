@@ -19,12 +19,12 @@ export default function Liquidacion() {
   const [editVal, setEditVal] = useState('');
   const [msg, setMsg] = useState('');
   const [selected, setSelected] = useState(new Set());
-  const [comisionesData, setComisionesData] = useState([]);
+  const [asesoras, setAsesoras] = useState([]);
+  const [asesoraSel, setAsesoraSel] = useState('');
   const [comDesde, setComDesde] = useState('');
   const [comHasta, setComHasta] = useState('');
   const [comLoading, setComLoading] = useState(false);
-  const [comDetalle, setComDetalle] = useState(null);
-  const [comDetalleNombre, setComDetalleNombre] = useState('');
+  const [comInforme, setComInforme] = useState(null);
   const META_INDIVIDUAL = 12000000;
   const PLAN_INCENTIVOS = [
     { pct: 120, label: 'Mayor al 120%', comision: 2.0 },
@@ -36,6 +36,7 @@ export default function Liquidacion() {
   useEffect(() => {
     api.get('/liquidacion/tecnicos').then(({ data }) => setTecnicos(data)).catch(() => {});
     api.get('/liquidacion/items').then(({ data }) => setItems(data)).catch(() => {});
+    api.get('/liquidacion/asesoras').then(({ data }) => setAsesoras(data)).catch(() => {});
     fetchTarifas();
   }, []);
 
@@ -123,34 +124,21 @@ export default function Liquidacion() {
     return { tier: null, comisionPct: 0, monto: 0, cumplimiento };
   };
 
-  const generarComisiones = async () => {
+  const generarComisiones = useCallback(async () => {
+    if (!asesoraSel) return;
     setComLoading(true);
     try {
-      const params = new URLSearchParams();
+      const params = new URLSearchParams({ usuario_id: asesoraSel });
       if (comDesde) params.append('desde', comDesde);
       if (comHasta) params.append('hasta', comHasta);
-      const { data } = await api.get(`/liquidacion/comisiones?${params}`);
-      setComisionesData(data);
-      setComDetalle(null);
+      const { data } = await api.get(`/liquidacion/comisiones/detalle?${params}`);
+      setComInforme(data);
     } catch (err) {
       alert(err.response?.data?.error || 'Error');
     } finally {
       setComLoading(false);
     }
-  };
-
-  const verDetalle = async (userId, nombre) => {
-    try {
-      const params = new URLSearchParams({ usuario_id: userId });
-      if (comDesde) params.append('desde', comDesde);
-      if (comHasta) params.append('hasta', comHasta);
-      const { data } = await api.get(`/liquidacion/comisiones/detalle?${params}`);
-      setComDetalle(data);
-      setComDetalleNombre(nombre);
-    } catch (err) {
-      alert(err.response?.data?.error || 'Error');
-    }
-  };
+  }, [asesoraSel, comDesde, comHasta]);
 
   const toggleAll = () => {
     if (!informe) return;
@@ -427,11 +415,25 @@ export default function Liquidacion() {
         </div>
       )}
 
-      {tab === 'comisiones' && (
+      {tab === 'comisiones' && (() => {
+        const comTotal = comInforme?.reduce((s, x) => s + (x.costo_cop || 0), 0) || 0;
+        const comResult = calcComision(comTotal);
+        const asesoraNombre = asesoras.find(a => String(a.id) === asesoraSel)?.nombre || '';
+        return (
         <div>
           {/* Filtros */}
           <div className="mb-6 p-5 bg-white rounded-xl border border-slate-200 shadow-sm">
-            <div className="grid grid-cols-3 gap-4 items-end">
+            <div className="grid grid-cols-4 gap-4 items-end">
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Asesora</label>
+                <select value={asesoraSel} onChange={e => setAsesoraSel(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500">
+                  <option value="">Seleccionar...</option>
+                  {asesoras.map(a => (
+                    <option key={a.id} value={a.id}>{a.nombre} ({a.servicios} cumplidos)</option>
+                  ))}
+                </select>
+              </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">Desde</label>
                 <input type="date" value={comDesde} onChange={e => setComDesde(e.target.value)}
@@ -442,9 +444,9 @@ export default function Liquidacion() {
                 <input type="date" value={comHasta} onChange={e => setComHasta(e.target.value)}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500" />
               </div>
-              <button onClick={generarComisiones} disabled={comLoading}
+              <button onClick={generarComisiones} disabled={!asesoraSel || comLoading}
                 className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50">
-                {comLoading ? 'Cargando...' : 'Generar Informe'}
+                {comLoading ? 'Cargando...' : 'Generar'}
               </button>
             </div>
           </div>
@@ -454,7 +456,7 @@ export default function Liquidacion() {
             <h3 className="text-sm font-semibold text-indigo-800 mb-3">Plan de Incentivos — Meta Individual: {fmt(META_INDIVIDUAL)}</h3>
             <div className="grid grid-cols-4 gap-3">
               {PLAN_INCENTIVOS.slice().reverse().map(tier => (
-                <div key={tier.pct} className="bg-white rounded-lg p-3 border border-indigo-100 text-center">
+                <div key={tier.pct} className={`bg-white rounded-lg p-3 border text-center ${comInforme && comResult.tier?.pct === tier.pct ? 'border-indigo-400 ring-2 ring-indigo-200' : 'border-indigo-100'}`}>
                   <p className="text-xs text-indigo-600 font-medium">{tier.label}</p>
                   <p className="text-xs text-slate-500 mt-1">Ventas &ge; {fmt(META_INDIVIDUAL * tier.pct / 100)}</p>
                   <p className="text-lg font-bold text-indigo-700 mt-1">{tier.comision}%</p>
@@ -463,119 +465,95 @@ export default function Liquidacion() {
             </div>
           </div>
 
-          {/* Tabla de comisiones */}
-          {comisionesData.length > 0 && (
-            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden mb-6">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-slate-50 border-b border-slate-200">
-                    <th className="py-2.5 px-4 text-left text-xs font-semibold text-slate-500">Asesora</th>
-                    <th className="py-2.5 px-4 text-right text-xs font-semibold text-slate-500">Servicios</th>
-                    <th className="py-2.5 px-4 text-right text-xs font-semibold text-slate-500">Ventas Totales</th>
-                    <th className="py-2.5 px-4 text-right text-xs font-semibold text-slate-500">Cumplimiento</th>
-                    <th className="py-2.5 px-4 text-right text-xs font-semibold text-slate-500">% Comision</th>
-                    <th className="py-2.5 px-4 text-right text-xs font-semibold text-indigo-600">$ Comision</th>
-                    <th className="py-2.5 px-4 w-20"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {comisionesData.map(a => {
-                    const c = calcComision(a.ventas_total);
-                    return (
-                      <tr key={a.id} className="border-b border-slate-100 hover:bg-slate-50">
-                        <td className="py-3 px-4 font-medium text-slate-800">{a.nombre}</td>
-                        <td className="py-3 px-4 text-right text-slate-600">{a.servicios_cumplidos}</td>
-                        <td className="py-3 px-4 text-right font-semibold text-slate-800">{fmt(a.ventas_total)}</td>
-                        <td className="py-3 px-4 text-right">
-                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                            c.cumplimiento >= 120 ? 'bg-green-100 text-green-700' :
-                            c.cumplimiento >= 100 ? 'bg-blue-100 text-blue-700' :
-                            c.cumplimiento >= 91 ? 'bg-yellow-100 text-yellow-700' :
-                            'bg-red-100 text-red-700'
-                          }`}>
-                            {c.cumplimiento.toFixed(1)}%
+          {comInforme && comInforme.length > 0 && (
+            <>
+              {/* Resumen */}
+              <div className="grid grid-cols-4 gap-4 mb-6">
+                <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+                  <p className="text-xs text-slate-500">Servicios Cumplidos</p>
+                  <p className="text-2xl font-bold text-slate-800">{comInforme.length}</p>
+                </div>
+                <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+                  <p className="text-xs text-slate-500">Ventas Totales</p>
+                  <p className="text-2xl font-bold text-slate-800">{fmt(comTotal)}</p>
+                </div>
+                <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+                  <p className="text-xs text-slate-500">Cumplimiento Meta</p>
+                  <p className={`text-2xl font-bold ${comResult.cumplimiento >= 100 ? 'text-green-700' : comResult.cumplimiento >= 91 ? 'text-yellow-700' : 'text-red-700'}`}>
+                    {comResult.cumplimiento.toFixed(1)}%
+                  </p>
+                </div>
+                <div className="bg-indigo-50 rounded-xl border border-indigo-200 shadow-sm p-4">
+                  <p className="text-xs text-indigo-600">Comision ({comResult.comisionPct}%)</p>
+                  <p className="text-2xl font-bold text-indigo-800">{comResult.monto > 0 ? fmt(comResult.monto) : '$0'}</p>
+                </div>
+              </div>
+
+              <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 mb-6">
+                <p className="text-sm text-indigo-700">COMISION DE <strong>{asesoraNombre}</strong></p>
+                <p className="text-3xl font-bold text-indigo-800">{comResult.monto > 0 ? fmt(comResult.monto) : '$0'}</p>
+                <p className="text-xs text-indigo-600 mt-1">Ventas: {fmt(comTotal)} — Meta: {fmt(META_INDIVIDUAL)} — Cumplimiento: {comResult.cumplimiento.toFixed(1)}% — Tasa: {comResult.comisionPct}%</p>
+              </div>
+
+              {/* Tabla detallada */}
+              <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-slate-200">
+                      <th className="py-2.5 px-3 text-left text-xs font-semibold text-slate-500">Fecha</th>
+                      <th className="py-2.5 px-3 text-left text-xs font-semibold text-slate-500">Cliente</th>
+                      <th className="py-2.5 px-3 text-left text-xs font-semibold text-slate-500">Equipos</th>
+                      <th className="py-2.5 px-3 text-left text-xs font-semibold text-slate-500">Tipo</th>
+                      <th className="py-2.5 px-3 text-left text-xs font-semibold text-slate-500">Tecnico</th>
+                      <th className="py-2.5 px-3 text-left text-xs font-semibold text-slate-500">Pago</th>
+                      <th className="py-2.5 px-3 text-right text-xs font-semibold text-indigo-600">Valor Servicio</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {comInforme.map(s => (
+                      <tr key={s.id} className="border-b border-slate-100 hover:bg-slate-50">
+                        <td className="py-2.5 px-3 text-slate-600 whitespace-nowrap">{s.fecha}</td>
+                        <td className="py-2.5 px-3 text-slate-800 font-medium">{s.cliente}</td>
+                        <td className="py-2.5 px-3 text-slate-600 text-xs">{s.equipos}</td>
+                        <td className="py-2.5 px-3">
+                          <span className={`text-xs px-1.5 py-0.5 rounded-full ${
+                            s.tipo_servicio === 'Reparación' ? 'bg-orange-100 text-orange-700' :
+                            s.tipo_servicio === 'Garantía' ? 'bg-purple-100 text-purple-700' :
+                            'bg-blue-100 text-blue-700'}`}>
+                            {s.tipo_servicio || 'Mant.'}
                           </span>
                         </td>
-                        <td className="py-3 px-4 text-right text-slate-700">{c.comisionPct > 0 ? `${c.comisionPct}%` : '—'}</td>
-                        <td className="py-3 px-4 text-right font-bold text-indigo-700">{c.monto > 0 ? fmt(c.monto) : '—'}</td>
-                        <td className="py-3 px-4 text-center">
-                          <button onClick={() => verDetalle(a.id, a.nombre)}
-                            className="text-indigo-600 hover:text-indigo-800 text-xs font-medium">Ver</button>
-                        </td>
+                        <td className="py-2.5 px-3 text-slate-600 text-xs">{s.tecnico}</td>
+                        <td className="py-2.5 px-3 text-slate-600 text-xs">{s.metodo_pago || '—'}</td>
+                        <td className="py-2.5 px-3 text-right font-semibold text-slate-800">{fmt(s.costo_cop || 0)}</td>
                       </tr>
-                    );
-                  })}
-                </tbody>
-                <tfoot>
-                  <tr className="bg-slate-50 border-t-2 border-slate-300">
-                    <td className="py-3 px-4 font-bold text-slate-600">TOTALES</td>
-                    <td className="py-3 px-4 text-right font-bold text-slate-800">{comisionesData.reduce((s, a) => s + a.servicios_cumplidos, 0)}</td>
-                    <td className="py-3 px-4 text-right font-bold text-slate-800">{fmt(comisionesData.reduce((s, a) => s + a.ventas_total, 0))}</td>
-                    <td colSpan={2}></td>
-                    <td className="py-3 px-4 text-right font-bold text-indigo-800">{fmt(comisionesData.reduce((s, a) => s + calcComision(a.ventas_total).monto, 0))}</td>
-                    <td></td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
-          )}
-
-          {/* Detalle por asesora */}
-          {comDetalle && (
-            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-              <div className="px-4 py-3 bg-indigo-50 border-b border-indigo-100 flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-indigo-800">Detalle de Servicios — {comDetalleNombre}</h3>
-                <button onClick={() => setComDetalle(null)} className="text-xs text-indigo-600 hover:text-indigo-800">Cerrar</button>
-              </div>
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-slate-50 border-b border-slate-200">
-                    <th className="py-2 px-3 text-left text-xs font-semibold text-slate-500">Fecha</th>
-                    <th className="py-2 px-3 text-left text-xs font-semibold text-slate-500">Cliente</th>
-                    <th className="py-2 px-3 text-left text-xs font-semibold text-slate-500">Equipos</th>
-                    <th className="py-2 px-3 text-left text-xs font-semibold text-slate-500">Tipo</th>
-                    <th className="py-2 px-3 text-left text-xs font-semibold text-slate-500">Tecnico</th>
-                    <th className="py-2 px-3 text-left text-xs font-semibold text-slate-500">Pago</th>
-                    <th className="py-2 px-3 text-right text-xs font-semibold text-slate-500">Valor</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {comDetalle.map(s => (
-                    <tr key={s.id} className="border-b border-slate-100 hover:bg-slate-50">
-                      <td className="py-2 px-3 text-slate-600 whitespace-nowrap">{s.fecha}</td>
-                      <td className="py-2 px-3 text-slate-800 font-medium">{s.cliente}</td>
-                      <td className="py-2 px-3 text-slate-600 text-xs">{s.equipos}</td>
-                      <td className="py-2 px-3">
-                        <span className={`text-xs px-1.5 py-0.5 rounded-full ${
-                          s.tipo_servicio === 'Reparación' ? 'bg-orange-100 text-orange-700' :
-                          s.tipo_servicio === 'Garantía' ? 'bg-purple-100 text-purple-700' :
-                          'bg-blue-100 text-blue-700'}`}>
-                          {s.tipo_servicio || 'Mant.'}
-                        </span>
-                      </td>
-                      <td className="py-2 px-3 text-slate-600 text-xs">{s.tecnico}</td>
-                      <td className="py-2 px-3 text-slate-600 text-xs">{s.metodo_pago || '—'}</td>
-                      <td className="py-2 px-3 text-right font-semibold text-slate-800">{fmt(s.costo_cop || 0)}</td>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="bg-slate-50 border-t-2 border-slate-300">
+                      <td colSpan={6} className="py-3 px-3 text-right text-sm font-bold text-slate-600">TOTAL VENTAS</td>
+                      <td className="py-3 px-3 text-right font-bold text-indigo-800 text-lg">{fmt(comTotal)}</td>
                     </tr>
-                  ))}
-                </tbody>
-                <tfoot>
-                  <tr className="bg-slate-50 border-t-2 border-slate-300">
-                    <td colSpan={6} className="py-3 px-3 text-right font-bold text-slate-600">TOTAL VENTAS</td>
-                    <td className="py-3 px-3 text-right font-bold text-indigo-800 text-lg">{fmt(comDetalle.reduce((s, x) => s + (x.costo_cop || 0), 0))}</td>
-                  </tr>
-                </tfoot>
-              </table>
+                  </tfoot>
+                </table>
+              </div>
+            </>
+          )}
+
+          {comInforme && comInforme.length === 0 && (
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-12 text-center">
+              <p className="text-slate-400">No hay servicios cumplidos para esta asesora en el periodo seleccionado</p>
             </div>
           )}
 
-          {comisionesData.length === 0 && !comLoading && (
+          {!comInforme && !comLoading && (
             <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-12 text-center">
-              <p className="text-slate-400">Selecciona un rango de fechas y presiona "Generar Informe"</p>
+              <p className="text-slate-400">Selecciona una asesora y rango de fechas para generar el informe</p>
             </div>
           )}
         </div>
-      )}
+        );
+      })()}
 
       {tab === 'informe' && (
         <div>

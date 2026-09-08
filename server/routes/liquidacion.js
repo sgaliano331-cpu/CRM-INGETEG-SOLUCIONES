@@ -268,6 +268,25 @@ router.put('/marcar-liquidado', async (req, res) => {
   }
 });
 
+// GET /api/liquidacion/asesoras — Lista usuarios que han agendado servicios cumplidos
+router.get('/asesoras', async (req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT u.id, u.nombre,
+        COUNT(*) FILTER (WHERE a.estado_servicio = 'Cumplido') as servicios
+      FROM agendamientos a
+      JOIN usuarios u ON u.id = a.usuario_id
+      WHERE a.estado_servicio = 'Cumplido'
+      GROUP BY u.id, u.nombre
+      HAVING COUNT(*) FILTER (WHERE a.estado_servicio = 'Cumplido') > 0
+      ORDER BY u.nombre
+    `);
+    res.json(rows.map(r => ({ ...r, servicios: Number(r.servicios) })));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /api/liquidacion/comisiones — Ventas por asesora con plan de incentivos
 router.get('/comisiones', async (req, res) => {
   const { desde, hasta } = req.query;
