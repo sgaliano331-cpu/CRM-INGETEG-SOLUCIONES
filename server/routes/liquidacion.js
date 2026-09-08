@@ -268,4 +268,59 @@ router.put('/marcar-liquidado', async (req, res) => {
   }
 });
 
+// GET /api/liquidacion/comisiones — Ventas por asesora con plan de incentivos
+router.get('/comisiones', async (req, res) => {
+  const { desde, hasta } = req.query;
+  try {
+    let dateFilter = '';
+    const params = [];
+    if (desde) { params.push(desde); dateFilter += ` AND a.fecha_agendamiento >= $${params.length}`; }
+    if (hasta) { params.push(hasta); dateFilter += ` AND a.fecha_agendamiento <= $${params.length}`; }
+
+    const { rows } = await pool.query(`
+      SELECT u.id, u.nombre,
+        COUNT(*) as servicios_cumplidos,
+        COALESCE(SUM(a.costo_cop), 0) as ventas_total
+      FROM agendamientos a
+      JOIN usuarios u ON u.id = a.usuario_id
+      WHERE a.estado_servicio = 'Cumplido'${dateFilter}
+      GROUP BY u.id, u.nombre
+      ORDER BY ventas_total DESC
+    `, params);
+
+    res.json(rows.map(r => ({
+      ...r,
+      servicios_cumplidos: Number(r.servicios_cumplidos),
+      ventas_total: Number(r.ventas_total),
+    })));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/liquidacion/comisiones/detalle — Detalle de servicios por asesora
+router.get('/comisiones/detalle', async (req, res) => {
+  const { usuario_id, desde, hasta } = req.query;
+  if (!usuario_id) return res.status(400).json({ error: 'usuario_id requerido' });
+  try {
+    let dateFilter = '';
+    const params = [usuario_id];
+    if (desde) { params.push(desde); dateFilter += ` AND a.fecha_agendamiento >= $${params.length}`; }
+    if (hasta) { params.push(hasta); dateFilter += ` AND a.fecha_agendamiento <= $${params.length}`; }
+
+    const { rows } = await pool.query(`
+      SELECT a.id, a.fecha_agendamiento as fecha, c.nombre as cliente, a.equipos,
+        a.tipo_servicio, a.costo_cop, a.metodo_pago, a.tecnico
+      FROM agendamientos a
+      LEFT JOIN clientes c ON c.id = a.cliente_id
+      WHERE a.usuario_id = $1 AND a.estado_servicio = 'Cumplido'${dateFilter}
+      ORDER BY a.fecha_agendamiento DESC
+    `, params);
+
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

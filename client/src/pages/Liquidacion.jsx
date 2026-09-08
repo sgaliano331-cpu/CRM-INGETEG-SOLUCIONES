@@ -19,6 +19,19 @@ export default function Liquidacion() {
   const [editVal, setEditVal] = useState('');
   const [msg, setMsg] = useState('');
   const [selected, setSelected] = useState(new Set());
+  const [comisionesData, setComisionesData] = useState([]);
+  const [comDesde, setComDesde] = useState('');
+  const [comHasta, setComHasta] = useState('');
+  const [comLoading, setComLoading] = useState(false);
+  const [comDetalle, setComDetalle] = useState(null);
+  const [comDetalleNombre, setComDetalleNombre] = useState('');
+  const META_INDIVIDUAL = 12000000;
+  const PLAN_INCENTIVOS = [
+    { pct: 120, label: 'Mayor al 120%', comision: 2.0 },
+    { pct: 110, label: 'Mayor al 110%', comision: 1.5 },
+    { pct: 100, label: 'Mayor al 100%', comision: 1.0 },
+    { pct: 91, label: 'Mayor al 91%', comision: 0.5 },
+  ];
 
   useEffect(() => {
     api.get('/liquidacion/tecnicos').then(({ data }) => setTecnicos(data)).catch(() => {});
@@ -102,6 +115,43 @@ export default function Liquidacion() {
     setTimeout(() => setMsg(''), 3000);
   };
 
+  const calcComision = (ventas) => {
+    const cumplimiento = (ventas / META_INDIVIDUAL) * 100;
+    for (const tier of PLAN_INCENTIVOS) {
+      if (cumplimiento >= tier.pct) return { tier, comisionPct: tier.comision, monto: ventas * (tier.comision / 100), cumplimiento };
+    }
+    return { tier: null, comisionPct: 0, monto: 0, cumplimiento };
+  };
+
+  const generarComisiones = async () => {
+    setComLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (comDesde) params.append('desde', comDesde);
+      if (comHasta) params.append('hasta', comHasta);
+      const { data } = await api.get(`/liquidacion/comisiones?${params}`);
+      setComisionesData(data);
+      setComDetalle(null);
+    } catch (err) {
+      alert(err.response?.data?.error || 'Error');
+    } finally {
+      setComLoading(false);
+    }
+  };
+
+  const verDetalle = async (userId, nombre) => {
+    try {
+      const params = new URLSearchParams({ usuario_id: userId });
+      if (comDesde) params.append('desde', comDesde);
+      if (comHasta) params.append('hasta', comHasta);
+      const { data } = await api.get(`/liquidacion/comisiones/detalle?${params}`);
+      setComDetalle(data);
+      setComDetalleNombre(nombre);
+    } catch (err) {
+      alert(err.response?.data?.error || 'Error');
+    }
+  };
+
   const toggleAll = () => {
     if (!informe) return;
     const pending = informe.servicios.filter(s => !s.liquidado).map(s => s.id);
@@ -153,11 +203,15 @@ export default function Liquidacion() {
   return (
     <div className="max-w-6xl mx-auto">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-slate-800">Liquidacion de Tecnicos</h1>
+        <h1 className="text-2xl font-bold text-slate-800">Liquidacion</h1>
         <div className="flex gap-2">
           <button onClick={() => setTab('informe')}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === 'informe' ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
-            Informe
+            Tecnicos
+          </button>
+          <button onClick={() => setTab('comisiones')}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === 'comisiones' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+            Comisiones
           </button>
           <button onClick={() => setTab('tarifas')}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === 'tarifas' ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
@@ -368,6 +422,156 @@ export default function Liquidacion() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {tab === 'comisiones' && (
+        <div>
+          {/* Filtros */}
+          <div className="mb-6 p-5 bg-white rounded-xl border border-slate-200 shadow-sm">
+            <div className="grid grid-cols-3 gap-4 items-end">
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Desde</label>
+                <input type="date" value={comDesde} onChange={e => setComDesde(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Hasta</label>
+                <input type="date" value={comHasta} onChange={e => setComHasta(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500" />
+              </div>
+              <button onClick={generarComisiones} disabled={comLoading}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50">
+                {comLoading ? 'Cargando...' : 'Generar Informe'}
+              </button>
+            </div>
+          </div>
+
+          {/* Plan de incentivos */}
+          <div className="mb-6 p-5 bg-indigo-50 rounded-xl border border-indigo-200">
+            <h3 className="text-sm font-semibold text-indigo-800 mb-3">Plan de Incentivos — Meta Individual: {fmt(META_INDIVIDUAL)}</h3>
+            <div className="grid grid-cols-4 gap-3">
+              {PLAN_INCENTIVOS.slice().reverse().map(tier => (
+                <div key={tier.pct} className="bg-white rounded-lg p-3 border border-indigo-100 text-center">
+                  <p className="text-xs text-indigo-600 font-medium">{tier.label}</p>
+                  <p className="text-xs text-slate-500 mt-1">Ventas &ge; {fmt(META_INDIVIDUAL * tier.pct / 100)}</p>
+                  <p className="text-lg font-bold text-indigo-700 mt-1">{tier.comision}%</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Tabla de comisiones */}
+          {comisionesData.length > 0 && (
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden mb-6">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-200">
+                    <th className="py-2.5 px-4 text-left text-xs font-semibold text-slate-500">Asesora</th>
+                    <th className="py-2.5 px-4 text-right text-xs font-semibold text-slate-500">Servicios</th>
+                    <th className="py-2.5 px-4 text-right text-xs font-semibold text-slate-500">Ventas Totales</th>
+                    <th className="py-2.5 px-4 text-right text-xs font-semibold text-slate-500">Cumplimiento</th>
+                    <th className="py-2.5 px-4 text-right text-xs font-semibold text-slate-500">% Comision</th>
+                    <th className="py-2.5 px-4 text-right text-xs font-semibold text-indigo-600">$ Comision</th>
+                    <th className="py-2.5 px-4 w-20"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {comisionesData.map(a => {
+                    const c = calcComision(a.ventas_total);
+                    return (
+                      <tr key={a.id} className="border-b border-slate-100 hover:bg-slate-50">
+                        <td className="py-3 px-4 font-medium text-slate-800">{a.nombre}</td>
+                        <td className="py-3 px-4 text-right text-slate-600">{a.servicios_cumplidos}</td>
+                        <td className="py-3 px-4 text-right font-semibold text-slate-800">{fmt(a.ventas_total)}</td>
+                        <td className="py-3 px-4 text-right">
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                            c.cumplimiento >= 120 ? 'bg-green-100 text-green-700' :
+                            c.cumplimiento >= 100 ? 'bg-blue-100 text-blue-700' :
+                            c.cumplimiento >= 91 ? 'bg-yellow-100 text-yellow-700' :
+                            'bg-red-100 text-red-700'
+                          }`}>
+                            {c.cumplimiento.toFixed(1)}%
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-right text-slate-700">{c.comisionPct > 0 ? `${c.comisionPct}%` : '—'}</td>
+                        <td className="py-3 px-4 text-right font-bold text-indigo-700">{c.monto > 0 ? fmt(c.monto) : '—'}</td>
+                        <td className="py-3 px-4 text-center">
+                          <button onClick={() => verDetalle(a.id, a.nombre)}
+                            className="text-indigo-600 hover:text-indigo-800 text-xs font-medium">Ver</button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot>
+                  <tr className="bg-slate-50 border-t-2 border-slate-300">
+                    <td className="py-3 px-4 font-bold text-slate-600">TOTALES</td>
+                    <td className="py-3 px-4 text-right font-bold text-slate-800">{comisionesData.reduce((s, a) => s + a.servicios_cumplidos, 0)}</td>
+                    <td className="py-3 px-4 text-right font-bold text-slate-800">{fmt(comisionesData.reduce((s, a) => s + a.ventas_total, 0))}</td>
+                    <td colSpan={2}></td>
+                    <td className="py-3 px-4 text-right font-bold text-indigo-800">{fmt(comisionesData.reduce((s, a) => s + calcComision(a.ventas_total).monto, 0))}</td>
+                    <td></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          )}
+
+          {/* Detalle por asesora */}
+          {comDetalle && (
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+              <div className="px-4 py-3 bg-indigo-50 border-b border-indigo-100 flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-indigo-800">Detalle de Servicios — {comDetalleNombre}</h3>
+                <button onClick={() => setComDetalle(null)} className="text-xs text-indigo-600 hover:text-indigo-800">Cerrar</button>
+              </div>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-200">
+                    <th className="py-2 px-3 text-left text-xs font-semibold text-slate-500">Fecha</th>
+                    <th className="py-2 px-3 text-left text-xs font-semibold text-slate-500">Cliente</th>
+                    <th className="py-2 px-3 text-left text-xs font-semibold text-slate-500">Equipos</th>
+                    <th className="py-2 px-3 text-left text-xs font-semibold text-slate-500">Tipo</th>
+                    <th className="py-2 px-3 text-left text-xs font-semibold text-slate-500">Tecnico</th>
+                    <th className="py-2 px-3 text-left text-xs font-semibold text-slate-500">Pago</th>
+                    <th className="py-2 px-3 text-right text-xs font-semibold text-slate-500">Valor</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {comDetalle.map(s => (
+                    <tr key={s.id} className="border-b border-slate-100 hover:bg-slate-50">
+                      <td className="py-2 px-3 text-slate-600 whitespace-nowrap">{s.fecha}</td>
+                      <td className="py-2 px-3 text-slate-800 font-medium">{s.cliente}</td>
+                      <td className="py-2 px-3 text-slate-600 text-xs">{s.equipos}</td>
+                      <td className="py-2 px-3">
+                        <span className={`text-xs px-1.5 py-0.5 rounded-full ${
+                          s.tipo_servicio === 'Reparación' ? 'bg-orange-100 text-orange-700' :
+                          s.tipo_servicio === 'Garantía' ? 'bg-purple-100 text-purple-700' :
+                          'bg-blue-100 text-blue-700'}`}>
+                          {s.tipo_servicio || 'Mant.'}
+                        </span>
+                      </td>
+                      <td className="py-2 px-3 text-slate-600 text-xs">{s.tecnico}</td>
+                      <td className="py-2 px-3 text-slate-600 text-xs">{s.metodo_pago || '—'}</td>
+                      <td className="py-2 px-3 text-right font-semibold text-slate-800">{fmt(s.costo_cop || 0)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="bg-slate-50 border-t-2 border-slate-300">
+                    <td colSpan={6} className="py-3 px-3 text-right font-bold text-slate-600">TOTAL VENTAS</td>
+                    <td className="py-3 px-3 text-right font-bold text-indigo-800 text-lg">{fmt(comDetalle.reduce((s, x) => s + (x.costo_cop || 0), 0))}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          )}
+
+          {comisionesData.length === 0 && !comLoading && (
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-12 text-center">
+              <p className="text-slate-400">Selecciona un rango de fechas y presiona "Generar Informe"</p>
             </div>
           )}
         </div>
