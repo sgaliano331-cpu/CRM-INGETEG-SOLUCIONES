@@ -663,18 +663,21 @@ router.post('/agendar', authMiddleware, async (req, res) => {
     );
     let cliente_id;
     let clienteData;
+    const waContacto = await pool.query('SELECT nombre, direccion FROM whatsapp_contactos WHERE telefono = $1', [telefono]);
     if (clRes.rows.length > 0) {
       cliente_id = clRes.rows[0].id;
       clienteData = clRes.rows[0];
     } else {
-      const contacto = await pool.query('SELECT nombre FROM whatsapp_contactos WHERE telefono = $1', [telefono]);
-      const nombre = contacto.rows[0]?.nombre || 'Cliente WhatsApp';
+      const nombre = waContacto.rows[0]?.nombre || 'Cliente WhatsApp';
       const ins = await pool.query(
         'INSERT INTO clientes (nombre, telefono, direccion, ciudad, llamado, creado_en, actualizado_en) VALUES ($1, $2, $3, $4, 1, NOW(), NOW()) RETURNING id, nombre, direccion, barrio, ciudad, telefono',
         [nombre, localPhone, '', '']
       );
       cliente_id = ins.rows[0].id;
       clienteData = ins.rows[0];
+    }
+    if (!clienteData.direccion && waContacto.rows[0]?.direccion) {
+      clienteData.direccion = waContacto.rows[0].direccion;
     }
 
     client = await pool.connect();
