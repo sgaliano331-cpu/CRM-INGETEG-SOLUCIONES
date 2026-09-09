@@ -13,7 +13,7 @@ const CALENDARIOS_TECNICOS = {
   'TECNICO PRUEBA': '7ffcaa68698de240623c58ab68befdf60608ad2334454ce8ccc261e0f84ba14e@group.calendar.google.com',
   'DIEGO MONTOYA': 'c03a317619439c4359073552d60aaea0f4fe7af05105631145ba9b472b19b289@group.calendar.google.com',
   'DIEGO': 'c03a317619439c4359073552d60aaea0f4fe7af05105631145ba9b472b19b289@group.calendar.google.com',
-  'MABE': '87b6e4c65343954a3b6cdb6440a33e05ccceb836c95484e72733a792283a2478@group.calendar.google.com',
+  'MABE': '947b65977ca7c033a9c2c0117a0701bb619c6f712e67ff10711b9b3bbea31d36@group.calendar.google.com',
   'CIG': '87b6e4c65343954a3b6cdb6440a33e05ccceb836c95484e72733a792283a2478@group.calendar.google.com',
 };
 
