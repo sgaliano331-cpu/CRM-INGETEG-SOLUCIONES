@@ -124,7 +124,7 @@ export default function WhatsApp() {
     } catch {}
   };
 
-  const EQUIPOS_LIST = ['Cubierta', 'Estufas', 'Calentador', 'Horno', 'Campana Extractora', 'Lavadora', 'Nevera', 'Aire Acondicionado', 'Redes de Gas (Reparacion)', 'Redes de Gas (Mantenimiento)'];
+  const EQUIPOS_LIST = ['Cubierta', 'Estufas', 'Calentador', 'Horno', 'Campana Extractora', 'Lavadora', 'Nevera', 'Aire Acondicionado', 'Redes de Gas (Reparacion)', 'Redes de Gas (Mantenimiento)', 'Certificacion de Gas'];
 
   const handleAgendar = async () => {
     if (!selected || agForm.equipos.length === 0 || !agForm.fecha) return;
