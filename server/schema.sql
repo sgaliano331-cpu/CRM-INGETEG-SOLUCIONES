@@ -46,7 +46,7 @@ CREATE TABLE IF NOT EXISTS agendamientos (
   cliente_id INTEGER NOT NULL REFERENCES clientes(id),
   usuario_id INTEGER NOT NULL REFERENCES usuarios(id),
   equipos TEXT NOT NULL,
-  tipo_servicio TEXT NOT NULL CHECK(tipo_servicio IN ('Mantenimiento','Reparación','Garantía')),
+  tipo_servicio TEXT NOT NULL CHECK(tipo_servicio IN ('Mantenimiento','Reparación','Garantía','Certificacion')),
   fecha_agendamiento TEXT NOT NULL,
   hora_inicio TEXT,
   hora_fin TEXT,

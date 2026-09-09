@@ -214,6 +214,12 @@ app.listen(PORT, async () => {
       console.log('Columna honorario_override agregada.');
     } catch (e) {}
 
+    try {
+      await client.query("ALTER TABLE agendamientos DROP CONSTRAINT IF EXISTS agendamientos_tipo_servicio_check");
+      await client.query("ALTER TABLE agendamientos ADD CONSTRAINT agendamientos_tipo_servicio_check CHECK(tipo_servicio IN ('Mantenimiento','Reparación','Garantía','Certificacion'))");
+      console.log('Constraint tipo_servicio actualizado con Certificacion.');
+    } catch (e) {}
+
     // Índices para acelerar consultas de gestion-servicios
     const indices = [
       'CREATE INDEX IF NOT EXISTS idx_agendamientos_tecnico ON agendamientos(tecnico)',
