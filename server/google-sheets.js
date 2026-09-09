@@ -1,7 +1,7 @@
 const { google } = require('googleapis');
 
 const SPREADSHEET_ID = '1CuQ2M94dt3nPLlY8Sqc_gqVt4etJ5-AFSruGq0d582c';
-const SHEET_NAME = 'Hoja 1';
+const SHEET_NAME = 'AGENDAS';
 
 let sheetsClient = null;
 
