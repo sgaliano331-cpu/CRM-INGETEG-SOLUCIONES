@@ -60,7 +60,7 @@ export default function WhatsApp() {
   const [contactoInfo, setContactoInfo] = useState(null);
   const [showAgendar, setShowAgendar] = useState(false);
   const [tecnicos, setTecnicos] = useState([]);
-  const [agForm, setAgForm] = useState({ equipos: [], tipo_servicio: 'Mantenimiento', fecha: '', costo: '', hora_inicio: '', hora_fin: '', tecnico: '', observaciones: '' });
+  const [agForm, setAgForm] = useState({ equipos: [], tipo_servicio: 'Mantenimiento', fecha: '', costo: '', hora_inicio: '', hora_fin: '', tecnico: '', observaciones: '', franja: 'AM' });
   const [agSending, setAgSending] = useState(false);
   const [asesores, setAsesores] = useState([]);
   const [etiquetasDisponibles, setEtiquetasDisponibles] = useState([]);
@@ -130,19 +130,23 @@ export default function WhatsApp() {
     if (!selected || agForm.equipos.length === 0 || !agForm.fecha) return;
     setAgSending(true);
     try {
+      const certGas = agForm.equipos.length === 1 && agForm.equipos[0] === 'Certificacion de Gas';
+      const horaI = certGas ? (agForm.franja === 'AM' ? '08:00' : '14:00') : (agForm.hora_inicio || null);
+      const horaF = certGas ? (agForm.franja === 'AM' ? '12:00' : '18:00') : (agForm.hora_fin || null);
+      const obs = certGas ? `Franja: ${agForm.franja}${agForm.observaciones ? ' - ' + agForm.observaciones : ''}` : (agForm.observaciones || null);
       await api.post('/whatsapp/agendar', {
         telefono: selected.telefono,
         equipos: agForm.equipos.join(', '),
-        tipo_servicio: agForm.tipo_servicio,
+        tipo_servicio: certGas ? 'Certificacion' : agForm.tipo_servicio,
         fecha_agendamiento: agForm.fecha,
-        hora_inicio: agForm.hora_inicio || null,
-        hora_fin: agForm.hora_fin || null,
+        hora_inicio: horaI,
+        hora_fin: horaF,
         costo_cop: parseFloat(agForm.costo) || 0,
-        tecnico: agForm.tecnico || null,
-        observaciones: agForm.observaciones || null,
+        tecnico: certGas ? 'CIG' : (agForm.tecnico || null),
+        observaciones: obs,
       });
       setShowAgendar(false);
-      setAgForm({ equipos: [], tipo_servicio: 'Mantenimiento', fecha: '', costo: '', hora_inicio: '', hora_fin: '', tecnico: '', observaciones: '' });
+      setAgForm({ equipos: [], tipo_servicio: 'Mantenimiento', fecha: '', costo: '', hora_inicio: '', hora_fin: '', tecnico: '', observaciones: '', franja: 'AM' });
       alert('Servicio agendado exitosamente');
     } catch (err) {
       alert('Error al agendar: ' + (err.response?.data?.error || err.message));
@@ -151,11 +155,22 @@ export default function WhatsApp() {
     }
   };
 
+  const isCertGas = agForm.equipos.includes('Certificacion de Gas') && agForm.equipos.length === 1;
+
   const toggleEquipo = (eq) => {
-    setAgForm(f => ({
-      ...f,
-      equipos: f.equipos.includes(eq) ? f.equipos.filter(e => e !== eq) : [...f.equipos, eq],
-    }));
+    setAgForm(f => {
+      const newEquipos = f.equipos.includes(eq) ? f.equipos.filter(e => e !== eq) : [...f.equipos, eq];
+      const cert = newEquipos.length === 1 && newEquipos[0] === 'Certificacion de Gas';
+      return {
+        ...f,
+        equipos: newEquipos,
+        tecnico: cert ? 'CIG' : (eq === 'Certificacion de Gas' && !newEquipos.includes('Certificacion de Gas') ? '' : f.tecnico),
+        tipo_servicio: cert ? 'Certificacion' : (f.tipo_servicio === 'Certificacion' ? 'Mantenimiento' : f.tipo_servicio),
+        hora_inicio: cert ? '' : f.hora_inicio,
+        hora_fin: cert ? '' : f.hora_fin,
+        franja: cert ? 'AM' : f.franja,
+      };
+    });
   };
 
   const updateContacto = async (field, value) => {
@@ -997,15 +1012,17 @@ export default function WhatsApp() {
                                 ))}
                               </div>
                             </div>
-                            <div className="grid grid-cols-3 gap-3">
-                              <div>
-                                <label className="block text-xs font-medium text-slate-600 mb-1">Tipo de Servicio</label>
-                                <select value={agForm.tipo_servicio} onChange={e => setAgForm(f => ({ ...f, tipo_servicio: e.target.value }))} className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs bg-white focus:ring-1 focus:ring-green-500">
-                                  <option>Mantenimiento</option>
-                                  <option>Reparacion</option>
-                                  <option>Garantia</option>
-                                </select>
-                              </div>
+                            <div className={`grid ${isCertGas ? 'grid-cols-2' : 'grid-cols-3'} gap-3`}>
+                              {!isCertGas && (
+                                <div>
+                                  <label className="block text-xs font-medium text-slate-600 mb-1">Tipo de Servicio</label>
+                                  <select value={agForm.tipo_servicio} onChange={e => setAgForm(f => ({ ...f, tipo_servicio: e.target.value }))} className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs bg-white focus:ring-1 focus:ring-green-500">
+                                    <option>Mantenimiento</option>
+                                    <option>Reparacion</option>
+                                    <option>Garantia</option>
+                                  </select>
+                                </div>
+                              )}
                               <div>
                                 <label className="block text-xs font-medium text-slate-600 mb-1">Fecha *</label>
                                 <input type="date" value={agForm.fecha} onChange={e => setAgForm(f => ({ ...f, fecha: e.target.value }))} className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:ring-1 focus:ring-green-500" />
@@ -1015,21 +1032,37 @@ export default function WhatsApp() {
                                 <input type="number" value={agForm.costo} onChange={e => setAgForm(f => ({ ...f, costo: e.target.value }))} placeholder="0" className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:ring-1 focus:ring-green-500" />
                               </div>
                             </div>
-                            <div className="grid grid-cols-3 gap-3">
-                              <div>
-                                <label className="block text-xs font-medium text-slate-600 mb-1">Hora Inicio</label>
-                                <input type="time" value={agForm.hora_inicio} onChange={e => setAgForm(f => ({ ...f, hora_inicio: e.target.value }))} className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:ring-1 focus:ring-green-500" />
-                              </div>
-                              <div>
-                                <label className="block text-xs font-medium text-slate-600 mb-1">Hora Fin</label>
-                                <input type="time" value={agForm.hora_fin} onChange={e => setAgForm(f => ({ ...f, hora_fin: e.target.value }))} className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:ring-1 focus:ring-green-500" />
-                              </div>
+                            <div className={`grid ${isCertGas ? 'grid-cols-2' : 'grid-cols-3'} gap-3`}>
+                              {isCertGas ? (
+                                <div>
+                                  <label className="block text-xs font-medium text-slate-600 mb-1">Franja Horaria *</label>
+                                  <select value={agForm.franja} onChange={e => setAgForm(f => ({ ...f, franja: e.target.value }))} className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs bg-white focus:ring-1 focus:ring-green-500">
+                                    <option value="AM">AM</option>
+                                    <option value="PM">PM</option>
+                                  </select>
+                                </div>
+                              ) : (
+                                <>
+                                  <div>
+                                    <label className="block text-xs font-medium text-slate-600 mb-1">Hora Inicio</label>
+                                    <input type="time" value={agForm.hora_inicio} onChange={e => setAgForm(f => ({ ...f, hora_inicio: e.target.value }))} className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:ring-1 focus:ring-green-500" />
+                                  </div>
+                                  <div>
+                                    <label className="block text-xs font-medium text-slate-600 mb-1">Hora Fin</label>
+                                    <input type="time" value={agForm.hora_fin} onChange={e => setAgForm(f => ({ ...f, hora_fin: e.target.value }))} className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:ring-1 focus:ring-green-500" />
+                                  </div>
+                                </>
+                              )}
                               <div>
                                 <label className="block text-xs font-medium text-slate-600 mb-1">Tecnico</label>
-                                <select value={agForm.tecnico} onChange={e => setAgForm(f => ({ ...f, tecnico: e.target.value }))} className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs bg-white focus:ring-1 focus:ring-green-500">
-                                  <option value="">Sin asignar</option>
-                                  {tecnicos.map(t => <option key={t.id} value={t.nombre}>{t.nombre}</option>)}
-                                </select>
+                                {isCertGas ? (
+                                  <input type="text" value="CIG" disabled className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs bg-slate-50 text-slate-500" />
+                                ) : (
+                                  <select value={agForm.tecnico} onChange={e => setAgForm(f => ({ ...f, tecnico: e.target.value }))} className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs bg-white focus:ring-1 focus:ring-green-500">
+                                    <option value="">Sin asignar</option>
+                                    {tecnicos.map(t => <option key={t.id} value={t.nombre}>{t.nombre}</option>)}
+                                  </select>
+                                )}
                               </div>
                             </div>
                             <div>
