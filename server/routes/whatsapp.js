@@ -709,6 +709,29 @@ router.post('/agendar', authMiddleware, async (req, res) => {
       console.error('[Calendar] Error en agendar-whatsapp:', calErr.message);
     }
 
+    if (equipos === 'Certificacion de Gas') {
+      try {
+        const { agregarFilaCertificacion } = require('../google-sheets');
+        const jornada = hora_inicio && hora_inicio < '12:00' ? 'AM' : 'PM';
+        await agregarFilaCertificacion({
+          asesora: req.user.nombre,
+          barrio: clienteData.barrio,
+          tipoInmueble: 'RESIDENCIAL',
+          direccion: clienteData.direccion,
+          municipio: clienteData.ciudad,
+          nombreUsuario: clienteData.nombre,
+          contacto: clienteData.telefono,
+          cedula: '',
+          fechaVisita: fecha_agendamiento,
+          jornada,
+          tarifa: costo_cop ? String(costo_cop) : '',
+          observacion: observaciones || '',
+        });
+      } catch (sheetErr) {
+        console.error('[Sheets] Error al agregar certificacion:', sheetErr.message);
+      }
+    }
+
     res.status(201).json({ ok: true, agendamiento_id: agId });
   } catch (err) {
     if (client) try { await client.query('ROLLBACK'); } catch (e) {}
