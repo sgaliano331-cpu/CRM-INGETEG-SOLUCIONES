@@ -58,6 +58,10 @@ export default function WhatsApp() {
   const [adjunto, setAdjunto] = useState(null);
   const [panelTab, setPanelTab] = useState('info');
   const [contactoInfo, setContactoInfo] = useState(null);
+  const [showAgendar, setShowAgendar] = useState(false);
+  const [tecnicos, setTecnicos] = useState([]);
+  const [agForm, setAgForm] = useState({ equipos: [], tipo_servicio: 'Mantenimiento', fecha: '', costo: '', hora_inicio: '', hora_fin: '', tecnico: '', observaciones: '' });
+  const [agSending, setAgSending] = useState(false);
   const [asesores, setAsesores] = useState([]);
   const [etiquetasDisponibles, setEtiquetasDisponibles] = useState([]);
   const [nuevaEtiqueta, setNuevaEtiqueta] = useState('');
@@ -101,6 +105,7 @@ export default function WhatsApp() {
     fetchCampanas();
     fetchAsesores();
     fetchEtiquetas();
+    api.get('/whatsapp/tecnicos').then(({ data }) => setTecnicos(data)).catch(() => {});
     pollRef.current = setInterval(() => { fetchConversaciones(); fetchCampanas(); }, 15000);
     return () => clearInterval(pollRef.current);
   }, [fetchConversaciones, fetchCampanas, fetchAsesores, fetchEtiquetas]);
@@ -117,6 +122,40 @@ export default function WhatsApp() {
       fetchContactoInfo(conv.telefono);
       setTimeout(() => chatRef.current?.scrollTo(0, chatRef.current.scrollHeight), 100);
     } catch {}
+  };
+
+  const EQUIPOS_LIST = ['Cubierta', 'Estufas', 'Calentador', 'Horno', 'Campana Extractora', 'Lavadora', 'Nevera', 'Aire Acondicionado', 'Redes de Gas (Reparacion)', 'Redes de Gas (Mantenimiento)'];
+
+  const handleAgendar = async () => {
+    if (!selected || agForm.equipos.length === 0 || !agForm.fecha) return;
+    setAgSending(true);
+    try {
+      await api.post('/whatsapp/agendar', {
+        telefono: selected.telefono,
+        equipos: agForm.equipos.join(', '),
+        tipo_servicio: agForm.tipo_servicio,
+        fecha_agendamiento: agForm.fecha,
+        hora_inicio: agForm.hora_inicio || null,
+        hora_fin: agForm.hora_fin || null,
+        costo_cop: parseFloat(agForm.costo) || 0,
+        tecnico: agForm.tecnico || null,
+        observaciones: agForm.observaciones || null,
+      });
+      setShowAgendar(false);
+      setAgForm({ equipos: [], tipo_servicio: 'Mantenimiento', fecha: '', costo: '', hora_inicio: '', hora_fin: '', tecnico: '', observaciones: '' });
+      alert('Servicio agendado exitosamente');
+    } catch (err) {
+      alert('Error al agendar: ' + (err.response?.data?.error || err.message));
+    } finally {
+      setAgSending(false);
+    }
+  };
+
+  const toggleEquipo = (eq) => {
+    setAgForm(f => ({
+      ...f,
+      equipos: f.equipos.includes(eq) ? f.equipos.filter(e => e !== eq) : [...f.equipos, eq],
+    }));
   };
 
   const updateContacto = async (field, value) => {
@@ -921,6 +960,96 @@ export default function WhatsApp() {
                         </button>
                       </div>
                     </div>
+
+                    {/* Boton Agendar */}
+                    <button
+                      onClick={() => setShowAgendar(true)}
+                      className="w-full py-2.5 bg-green-600 hover:bg-green-700 text-white text-xs font-semibold rounded-lg transition-colors flex items-center justify-center gap-2"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                      Agendar Servicio
+                    </button>
+
+                    {/* Modal Agendar */}
+                    {showAgendar && (
+                      <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={() => setShowAgendar(false)}>
+                        <div className="bg-white rounded-xl shadow-2xl w-[480px] max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+                          <div className="px-5 py-4 border-b border-slate-200">
+                            <h3 className="text-sm font-bold text-slate-800">Agendar Servicio</h3>
+                            <p className="text-[11px] text-slate-500 mt-0.5">{contactoInfo?.cliente?.nombre || selected?.nombre_contacto || formatPhone(selected?.telefono)}</p>
+                          </div>
+                          <div className="px-5 py-4 space-y-4">
+                            <div>
+                              <label className="block text-xs font-medium text-slate-600 mb-2">Tipo de Equipo(s) *</label>
+                              <div className="flex flex-wrap gap-1.5">
+                                {EQUIPOS_LIST.map(eq => (
+                                  <button
+                                    key={eq}
+                                    onClick={() => toggleEquipo(eq)}
+                                    className={`px-2.5 py-1 rounded-full text-[11px] font-medium border transition-colors ${
+                                      agForm.equipos.includes(eq)
+                                        ? 'bg-green-100 border-green-400 text-green-800'
+                                        : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
+                                    }`}
+                                  >
+                                    {eq}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-3 gap-3">
+                              <div>
+                                <label className="block text-xs font-medium text-slate-600 mb-1">Tipo de Servicio</label>
+                                <select value={agForm.tipo_servicio} onChange={e => setAgForm(f => ({ ...f, tipo_servicio: e.target.value }))} className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs bg-white focus:ring-1 focus:ring-green-500">
+                                  <option>Mantenimiento</option>
+                                  <option>Reparacion</option>
+                                  <option>Garantia</option>
+                                </select>
+                              </div>
+                              <div>
+                                <label className="block text-xs font-medium text-slate-600 mb-1">Fecha *</label>
+                                <input type="date" value={agForm.fecha} onChange={e => setAgForm(f => ({ ...f, fecha: e.target.value }))} className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:ring-1 focus:ring-green-500" />
+                              </div>
+                              <div>
+                                <label className="block text-xs font-medium text-slate-600 mb-1">Costo (COP)</label>
+                                <input type="number" value={agForm.costo} onChange={e => setAgForm(f => ({ ...f, costo: e.target.value }))} placeholder="0" className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:ring-1 focus:ring-green-500" />
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-3 gap-3">
+                              <div>
+                                <label className="block text-xs font-medium text-slate-600 mb-1">Hora Inicio</label>
+                                <input type="time" value={agForm.hora_inicio} onChange={e => setAgForm(f => ({ ...f, hora_inicio: e.target.value }))} className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:ring-1 focus:ring-green-500" />
+                              </div>
+                              <div>
+                                <label className="block text-xs font-medium text-slate-600 mb-1">Hora Fin</label>
+                                <input type="time" value={agForm.hora_fin} onChange={e => setAgForm(f => ({ ...f, hora_fin: e.target.value }))} className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:ring-1 focus:ring-green-500" />
+                              </div>
+                              <div>
+                                <label className="block text-xs font-medium text-slate-600 mb-1">Tecnico</label>
+                                <select value={agForm.tecnico} onChange={e => setAgForm(f => ({ ...f, tecnico: e.target.value }))} className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs bg-white focus:ring-1 focus:ring-green-500">
+                                  <option value="">Sin asignar</option>
+                                  {tecnicos.map(t => <option key={t.id} value={t.nombre}>{t.nombre}</option>)}
+                                </select>
+                              </div>
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-slate-600 mb-1">Observaciones</label>
+                              <textarea value={agForm.observaciones} onChange={e => setAgForm(f => ({ ...f, observaciones: e.target.value }))} rows={2} placeholder="Observaciones del servicio..." className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:ring-1 focus:ring-green-500 resize-none" />
+                            </div>
+                          </div>
+                          <div className="px-5 py-3 border-t border-slate-200 flex justify-end gap-2">
+                            <button onClick={() => setShowAgendar(false)} className="px-4 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">Cancelar</button>
+                            <button
+                              onClick={handleAgendar}
+                              disabled={agSending || agForm.equipos.length === 0 || !agForm.fecha}
+                              className="px-4 py-1.5 text-xs font-semibold text-white bg-green-600 hover:bg-green-700 rounded-lg transition-colors disabled:opacity-50"
+                            >
+                              {agSending ? 'Agendando...' : 'Agendar'}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 

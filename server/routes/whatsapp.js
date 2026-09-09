@@ -648,4 +648,85 @@ router.post('/upload', authMiddleware, soloCoordinador, upload.single('file'), (
   res.json({ ok: true, url, filename: req.file.filename });
 });
 
+// POST /api/whatsapp/agendar — Agendar servicio desde panel WhatsApp
+router.post('/agendar', authMiddleware, async (req, res) => {
+  const { telefono, equipos, tipo_servicio, fecha_agendamiento, hora_inicio, hora_fin, costo_cop, tecnico, observaciones } = req.body;
+  if (!telefono || !equipos || !tipo_servicio || !fecha_agendamiento) {
+    return res.status(400).json({ error: 'Faltan campos obligatorios (telefono, equipos, tipo, fecha)' });
+  }
+  let client;
+  try {
+    const localPhone = telefono.startsWith('57') ? telefono.slice(2) : telefono;
+    const clRes = await pool.query(
+      'SELECT id, nombre, direccion, barrio, ciudad, telefono FROM clientes WHERE telefono LIKE $1 OR telefono LIKE $2 LIMIT 1',
+      [`%${localPhone}%`, `%${telefono}%`]
+    );
+    let cliente_id;
+    let clienteData;
+    if (clRes.rows.length > 0) {
+      cliente_id = clRes.rows[0].id;
+      clienteData = clRes.rows[0];
+    } else {
+      const contacto = await pool.query('SELECT nombre FROM whatsapp_contactos WHERE telefono = $1', [telefono]);
+      const nombre = contacto.rows[0]?.nombre || 'Cliente WhatsApp';
+      const ins = await pool.query(
+        'INSERT INTO clientes (nombre, telefono, direccion, ciudad, llamado, creado_en, actualizado_en) VALUES ($1, $2, $3, $4, 1, NOW(), NOW()) RETURNING id, nombre, direccion, barrio, ciudad, telefono',
+        [nombre, localPhone, '', '']
+      );
+      cliente_id = ins.rows[0].id;
+      clienteData = ins.rows[0];
+    }
+
+    client = await pool.connect();
+    await client.query('BEGIN');
+
+    const hlResult = await client.query(
+      `INSERT INTO historial_llamadas (cliente_id, usuario_id, inicio_llamada, fin_llamada, duracion_segundos, observaciones, acepto_servicio, creado_en)
+       VALUES ($1, $2, NOW(), NOW(), 0, $3, 1, NOW()) RETURNING id`,
+      [cliente_id, req.user.id, observaciones || 'Agendado desde WhatsApp']
+    );
+
+    const agResult = await client.query(
+      `INSERT INTO agendamientos (historial_id, cliente_id, usuario_id, equipos, tipo_servicio, fecha_agendamiento, hora_inicio, hora_fin, costo_cop, estado_servicio, tecnico, creado_en, actualizado_en)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'Agendado', $10, NOW(), NOW()) RETURNING id`,
+      [hlResult.rows[0].id, cliente_id, req.user.id, equipos, tipo_servicio, fecha_agendamiento, hora_inicio || null, hora_fin || null, parseFloat(costo_cop) || 0, tecnico || null]
+    );
+
+    await client.query('UPDATE clientes SET llamado = 1 WHERE id = $1', [cliente_id]);
+    await client.query('COMMIT');
+
+    const agId = agResult.rows[0].id;
+    try {
+      const { crearEventoAgendamiento } = require('../google-calendar');
+      const evId = await crearEventoAgendamiento({
+        clienteNombre: clienteData.nombre, clienteDireccion: clienteData.direccion, clienteBarrio: clienteData.barrio,
+        clienteCiudad: clienteData.ciudad, clienteTelefono: clienteData.telefono,
+        equipos, tipoServicio: tipo_servicio, fecha: fecha_agendamiento,
+        horaInicio: hora_inicio, horaFin: hora_fin, costoCop: costo_cop, observaciones, tecnico, asesora: req.user.nombre,
+      });
+      if (evId) await pool.query('UPDATE agendamientos SET google_event_id = $1 WHERE id = $2', [evId, agId]);
+    } catch (calErr) {
+      console.error('[Calendar] Error en agendar-whatsapp:', calErr.message);
+    }
+
+    res.status(201).json({ ok: true, agendamiento_id: agId });
+  } catch (err) {
+    if (client) try { await client.query('ROLLBACK'); } catch (e) {}
+    console.error('Error en agendar-whatsapp:', err.message);
+    res.status(500).json({ error: err.message });
+  } finally {
+    if (client) client.release();
+  }
+});
+
+// GET /api/whatsapp/tecnicos — Lista tecnicos para agendamiento
+router.get('/tecnicos', authMiddleware, async (req, res) => {
+  try {
+    const { rows } = await pool.query("SELECT id, nombre FROM usuarios WHERE rol = 'TECNICO' AND activo = 1 ORDER BY nombre");
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
