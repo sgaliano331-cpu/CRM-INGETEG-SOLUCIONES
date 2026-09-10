@@ -3,10 +3,12 @@ const { google } = require('googleapis');
 const CALENDARIOS_TECNICOS = {
   'HERNAN HERRERA': 'ae47a6b59b357e8a8e800d1ff852277d4bb5563bbd6979df5c7983f8c6855e45@group.calendar.google.com',
   'HERNAN': 'ae47a6b59b357e8a8e800d1ff852277d4bb5563bbd6979df5c7983f8c6855e45@group.calendar.google.com',
+  'HERNAN DARIO HERRERA RODRIGUEZ': 'ae47a6b59b357e8a8e800d1ff852277d4bb5563bbd6979df5c7983f8c6855e45@group.calendar.google.com',
   'FREDY CASTAÑEDA': '11f8a2529dc139b31e4663bdfed65536dbd42c6754a5d72e19594ce7512a34a3@group.calendar.google.com',
   'FREDY': '11f8a2529dc139b31e4663bdfed65536dbd42c6754a5d72e19594ce7512a34a3@group.calendar.google.com',
   'OMAR HERRERA': '2a4c1f86d9b21889e979a7444754d8c4c5ec4977f342a766e1689f1c3a56910e@group.calendar.google.com',
   'OMAR': '2a4c1f86d9b21889e979a7444754d8c4c5ec4977f342a766e1689f1c3a56910e@group.calendar.google.com',
+  'OMAR ALFREDO HERRERA RODRIGUEZ': '2a4c1f86d9b21889e979a7444754d8c4c5ec4977f342a766e1689f1c3a56910e@group.calendar.google.com',
   'ANDRES SANCHEZ': '8117d5b14cc385415fcd125bd8890e45b81f442c70506e59d1a0625f734c734b@group.calendar.google.com',
   'SANCHEZ': '8117d5b14cc385415fcd125bd8890e45b81f442c70506e59d1a0625f734c734b@group.calendar.google.com',
   'TÉCNICO PRUEBA': '7ffcaa68698de240623c58ab68befdf60608ad2334454ce8ccc261e0f84ba14e@group.calendar.google.com',
