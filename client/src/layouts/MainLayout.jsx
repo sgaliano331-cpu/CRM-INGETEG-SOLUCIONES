@@ -36,7 +36,7 @@ const NAV_ITEMS_COORD = [
   { to: '/clientes-nuevos', label: 'Clientes Nuevos', icon: ICON_CLIENTS, end: true },
   { to: '/mis-clientes', label: 'Todos los Clientes', icon: ICON_USERS },
   { to: '/calendario', label: 'Calendario', icon: ICON_CALENDAR },
-  { to: '/actualizacion-tecnica', label: 'Act. Tecnica', icon: ICON_GEAR },
+  { to: '/actualizacion-tecnica', label: 'Serv. Pendientes', icon: ICON_GEAR, badgeKey: 'serviciosPendientes' },
   { to: '/llamadas-reprogramadas', label: 'Reprogramadas', icon: ICON_CLOCK, badgeKey: 'reprogramadas' },
   { to: '/cotizacion-vigente', label: 'Cotizacion Vigente', icon: ICON_DOC, badgeKey: 'cotizaciones' },
   { to: '/pendientes-cobro', label: 'Pend. Cobro', icon: ICON_MONEY, badgeKey: 'pendientesCobro' },
