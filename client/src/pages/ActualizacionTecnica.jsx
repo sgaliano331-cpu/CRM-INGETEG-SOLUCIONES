@@ -27,6 +27,8 @@ export default function ActualizacionTecnica() {
   const [filtroAsesora, setFiltroAsesora] = useState('');
   const [filtroEstado, setFiltroEstado] = useState('');
   const [filtroMotivo, setFiltroMotivo] = useState('');
+  const [filtroTecnico, setFiltroTecnico] = useState('');
+  const [tecnicos, setTecnicos] = useState([]);
   const [busqueda, setBusqueda] = useState('');
   const [busquedaActiva, setBusquedaActiva] = useState('');
   const [cargando, setCargando] = useState(true);
@@ -79,6 +81,9 @@ export default function ActualizacionTecnica() {
       if (filtroMotivo) {
         lista = lista.filter(c => c.observaciones && c.observaciones.startsWith(`[${filtroMotivo}]`));
       }
+      if (filtroTecnico) {
+        lista = lista.filter(c => c.tecnico === filtroTecnico);
+      }
       setClientes(lista);
     } catch {
       setClientes([]);
@@ -92,10 +97,11 @@ export default function ActualizacionTecnica() {
   useEffect(() => {
     if (esGlobal) {
       api.get('/clientes/asesoras/lista').then(({ data }) => setAsesoras(data.asesoras)).catch(() => {});
+      api.get('/whatsapp/tecnicos').then(({ data }) => setTecnicos(data)).catch(() => {});
     }
   }, [esGlobal]);
 
-  useEffect(() => { cargarClientes(); }, [filtroAsesora, filtroEstado, busquedaActiva, filtroMotivo]);
+  useEffect(() => { cargarClientes(); }, [filtroAsesora, filtroEstado, busquedaActiva, filtroMotivo, filtroTecnico]);
 
   const handleBusqueda = (val) => {
     setBusqueda(val);
@@ -286,6 +292,16 @@ export default function ActualizacionTecnica() {
               <select className="input-field" value={filtroMotivo} onChange={e => setFiltroMotivo(e.target.value)}>
                 <option value="">Todos los motivos</option>
                 {MOTIVOS_RECHAZO.map(m => <option key={m} value={m}>{m}</option>)}
+              </select>
+            </div>
+          )}
+
+          {esGlobal && (
+            <div className="min-w-[200px]">
+              <label className="block text-xs font-medium text-slate-500 mb-1">Tecnico</label>
+              <select className="input-field" value={filtroTecnico} onChange={e => setFiltroTecnico(e.target.value)}>
+                <option value="">Todos los tecnicos</option>
+                {tecnicos.map(t => <option key={t.id} value={t.nombre}>{t.nombre}</option>)}
               </select>
             </div>
           )}
