@@ -73,6 +73,7 @@ export default function ActualizacionTecnica() {
         params.append('estado', filtroEstado);
       }
       if (busquedaActiva) params.append('buscar', busquedaActiva);
+      if (filtroTecnico) params.append('tecnico', filtroTecnico);
       const { data } = await api.get(`/llamadas/clientes-llamados?${params}`);
       let lista = data.clientes;
       if (isGestor && !isCoordinador) {
@@ -80,9 +81,6 @@ export default function ActualizacionTecnica() {
       }
       if (filtroMotivo) {
         lista = lista.filter(c => c.observaciones && c.observaciones.startsWith(`[${filtroMotivo}]`));
-      }
-      if (filtroTecnico) {
-        lista = lista.filter(c => c.tecnico === filtroTecnico);
       }
       setClientes(lista);
     } catch {

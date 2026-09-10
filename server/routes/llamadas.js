@@ -525,7 +525,7 @@ router.get('/buscar-agendamiento', authMiddleware, (req, res) => {
 router.get('/clientes-llamados', authMiddleware, gestorOCoordinador, (req, res) => {
   const db = getDb();
   const esCoord = req.user.rol === 'COORDINADOR';
-  const { asesora_id, solo_agendados, buscar, estado } = req.query;
+  const { asesora_id, solo_agendados, buscar, estado, tecnico } = req.query;
 
   let query = `
     SELECT c.id AS cliente_id, c.nombre, c.telefono, c.direccion, c.barrio, c.ciudad,
@@ -536,7 +536,7 @@ router.get('/clientes-llamados', authMiddleware, gestorOCoordinador, (req, res) 
            a.costo_cop, a.estado_servicio, a.metodo_pago, a.comprobante_pago_url,
            a.observaciones_tecnica, a.id_servicio, a.tecnico, a.fecha_atencion
     FROM clientes c
-    JOIN usuarios u ON c.asignado_a = u.id
+    LEFT JOIN usuarios u ON c.asignado_a = u.id
     JOIN historial_llamadas hl ON hl.cliente_id = c.id AND hl.fin_llamada IS NOT NULL
     LEFT JOIN agendamientos a ON a.historial_id = hl.id
     WHERE c.llamado = 1
@@ -575,6 +575,10 @@ router.get('/clientes-llamados', authMiddleware, gestorOCoordinador, (req, res) 
 
   if (solo_agendados === '1') {
     query += ' AND a.id IS NOT NULL';
+  }
+  if (tecnico) {
+    query += ' AND a.tecnico = ?';
+    params.push(tecnico);
   }
 
   query += ' ORDER BY c.nombre ASC, a.creado_en DESC, hl.fin_llamada ASC';
