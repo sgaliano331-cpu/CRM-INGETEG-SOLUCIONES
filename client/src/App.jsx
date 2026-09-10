@@ -121,7 +121,7 @@ export default function App() {
             <Route
               path="whatsapp"
               element={
-                <PrivateRoute coordinadorOnly>
+                <PrivateRoute gestorOCoord>
                   <WhatsApp />
                 </PrivateRoute>
               }

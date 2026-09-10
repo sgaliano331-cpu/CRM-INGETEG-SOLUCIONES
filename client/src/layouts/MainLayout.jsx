@@ -183,10 +183,10 @@ export default function MainLayout() {
             </NavLink>
           ))}
 
-          {isCoordinador && (
+          {(isCoordinador || isGestor) && (
             <>
-              <p className="px-3 pt-5 text-[10px] font-semibold text-slate-600 uppercase tracking-wider mb-2">Coordinador</p>
-              {COORD_ITEMS.map((item) => (
+              <p className="px-3 pt-5 text-[10px] font-semibold text-slate-600 uppercase tracking-wider mb-2">{isCoordinador ? 'Coordinador' : 'Gestion'}</p>
+              {(isCoordinador ? COORD_ITEMS : COORD_ITEMS.filter(i => i.to === '/whatsapp')).map((item) => (
                 <NavLink
                   key={item.to}
                   to={item.to}
