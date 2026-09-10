@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 
-const EQUIPOS_DISPONIBLES = [
+const EQUIPOS_BASE = [
   'Cubierta', 'Estufas', 'Calentador', 'Horno', 'Campana Extractora',
   'Lavadora', 'Nevera', 'Aire Acondicionado', 'Redes de Gas (Reparacion)', 'Redes de Gas (Mantenimiento)'
 ];
@@ -33,9 +33,13 @@ export default function ClientesNuevos() {
   const [horaFin, setHoraFin] = useState('');
   const [tecnico, setTecnico] = useState('');
   const [tecnicos, setTecnicos] = useState([]);
+  const [franja, setFranja] = useState('AM');
 
   const [guardando, setGuardando] = useState(false);
   const [mensaje, setMensaje] = useState('');
+
+  const EQUIPOS_DISPONIBLES = isCoordinador ? [...EQUIPOS_BASE, 'Certificacion de Gas'] : EQUIPOS_BASE;
+  const isCertGas = equiposSeleccionados.includes('Certificacion de Gas') && equiposSeleccionados.length === 1;
 
   useEffect(() => {
     if (isCoordinador) {
@@ -45,10 +49,20 @@ export default function ClientesNuevos() {
   }, [isCoordinador]);
 
   const handleToggleEquipo = (equipo) => {
-    if (equiposSeleccionados.includes(equipo)) {
-      setEquiposSeleccionados(equiposSeleccionados.filter(e => e !== equipo));
-    } else {
-      setEquiposSeleccionados([...equiposSeleccionados, equipo]);
+    const newEquipos = equiposSeleccionados.includes(equipo)
+      ? equiposSeleccionados.filter(e => e !== equipo)
+      : [...equiposSeleccionados, equipo];
+    const cert = newEquipos.length === 1 && newEquipos[0] === 'Certificacion de Gas';
+    setEquiposSeleccionados(newEquipos);
+    if (cert) {
+      setTecnico('CIG');
+      setTipoServicio('Certificacion');
+      setHoraInicio('');
+      setHoraFin('');
+      setFranja('AM');
+    } else if (equipo === 'Certificacion de Gas' && !newEquipos.includes('Certificacion de Gas')) {
+      setTecnico('');
+      setTipoServicio('Mantenimiento');
     }
   };
 
@@ -84,20 +98,25 @@ export default function ClientesNuevos() {
       const resLlamada = await api.post('/llamadas/iniciar', { cliente_id: clienteId });
       const historialId = resLlamada.data?.historial_id;
 
+      const certGas = equiposSeleccionados.length === 1 && equiposSeleccionados[0] === 'Certificacion de Gas';
+      const horaI = certGas ? (franja === 'AM' ? '08:00' : '14:00') : (horaInicio || null);
+      const horaF = certGas ? (franja === 'AM' ? '12:00' : '18:00') : (horaFin || null);
+      const obs = certGas ? `Franja: ${franja}${observaciones.trim() ? ' - ' + observaciones.trim() : ''}` : observaciones.trim();
+
       await api.post('/llamadas/guardar', {
         historial_id: historialId,
         cliente_id: clienteId,
-        observaciones: observaciones.trim(),
+        observaciones: obs,
         acepto_servicio: aceptoAgendar,
         inicio_llamada: new Date().toISOString(),
         ...(aceptoAgendar && {
           equipos: equiposSeleccionados.join(', '),
-          tipo_servicio: tipoServicio,
+          tipo_servicio: certGas ? 'Certificacion' : tipoServicio,
           fecha_agendamiento: fechaAgendamiento || new Date().toISOString().split('T')[0],
           costo_cop: parseFloat(costo) || 0,
-          hora_inicio: horaInicio || null,
-          hora_fin: horaFin || null,
-          tecnico: tecnico || null,
+          hora_inicio: horaI,
+          hora_fin: horaF,
+          tecnico: certGas ? 'CIG' : (tecnico || null),
         }),
       });
 
@@ -109,6 +128,7 @@ export default function ClientesNuevos() {
       setHoraInicio('');
       setHoraFin('');
       setTecnico('');
+      setFranja('AM');
       setEsPrioridad(false);
       setMensaje('OK Registro guardado y agendado correctamente.');
 
@@ -253,15 +273,17 @@ export default function ClientesNuevos() {
             </div>
 
             <div className="grid grid-cols-3 gap-4 pt-2">
-              <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1.5">Tipo de Servicio</label>
-                <select className="input-field"
-                  value={tipoServicio} onChange={e => setTipoServicio(e.target.value)}>
-                  <option value="Mantenimiento">Mantenimiento</option>
-                  <option value="Reparación">Reparación</option>
-                  <option value="Garantía">Garantía</option>
-                </select>
-              </div>
+              {!isCertGas && (
+                <div>
+                  <label className="block text-xs font-medium text-slate-500 mb-1.5">Tipo de Servicio</label>
+                  <select className="input-field"
+                    value={tipoServicio} onChange={e => setTipoServicio(e.target.value)}>
+                    <option value="Mantenimiento">Mantenimiento</option>
+                    <option value="Reparación">Reparación</option>
+                    <option value="Garantía">Garantía</option>
+                  </select>
+                </div>
+              )}
               <div>
                 <label className="block text-xs font-medium text-slate-500 mb-1.5">Fecha de Agendamiento</label>
                 <input type="date" className="input-field"
@@ -275,22 +297,38 @@ export default function ClientesNuevos() {
             </div>
 
             <div className="grid grid-cols-3 gap-4 pt-2">
-              <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1.5">Hora Inicio</label>
-                <input type="time" className="input-field"
-                  value={horaInicio} onChange={e => setHoraInicio(e.target.value)} />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1.5">Hora Fin</label>
-                <input type="time" className="input-field"
-                  value={horaFin} onChange={e => setHoraFin(e.target.value)} />
-              </div>
+              {isCertGas ? (
+                <div>
+                  <label className="block text-xs font-medium text-slate-500 mb-1.5">Franja Horaria</label>
+                  <select className="input-field" value={franja} onChange={e => setFranja(e.target.value)}>
+                    <option value="AM">AM (8:00 - 12:00)</option>
+                    <option value="PM">PM (14:00 - 18:00)</option>
+                  </select>
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-500 mb-1.5">Hora Inicio</label>
+                    <input type="time" className="input-field"
+                      value={horaInicio} onChange={e => setHoraInicio(e.target.value)} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-500 mb-1.5">Hora Fin</label>
+                    <input type="time" className="input-field"
+                      value={horaFin} onChange={e => setHoraFin(e.target.value)} />
+                  </div>
+                </>
+              )}
               <div>
                 <label className="block text-xs font-medium text-slate-500 mb-1.5">Tecnico Asignado</label>
-                <select className="input-field" value={tecnico} onChange={e => setTecnico(e.target.value)}>
-                  <option value="">Sin asignar</option>
-                  {tecnicos.map(t => <option key={t.id} value={t.nombre}>{t.nombre}</option>)}
-                </select>
+                {isCertGas ? (
+                  <input type="text" className="input-field bg-slate-50" value="CIG" disabled />
+                ) : (
+                  <select className="input-field" value={tecnico} onChange={e => setTecnico(e.target.value)}>
+                    <option value="">Sin asignar</option>
+                    {tecnicos.map(t => <option key={t.id} value={t.nombre}>{t.nombre}</option>)}
+                  </select>
+                )}
               </div>
             </div>
           </div>

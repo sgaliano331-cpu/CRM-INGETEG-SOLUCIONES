@@ -6,6 +6,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const { crearEventoAgendamiento, actualizarDescripcionEvento, moverEventoCalendario, actualizarEventoCompleto, eliminarEventoCalendario } = require('../google-calendar');
+const { agregarFilaCertificacion } = require('../google-sheets');
 
 // ─── Multer para comprobantes de pago ─────────────────────────────────────
 const comprobantesDir = path.join(__dirname, '../uploads/comprobantes');
@@ -104,6 +105,24 @@ router.post('/guardar', authMiddleware, async (req, res) => {
       }).then(evId => {
         if (evId) getClient().then(c => c.query('UPDATE agendamientos SET google_event_id = $1 WHERE id = $2', [evId, agendamientoId]).finally(() => c.release()));
       }).catch(e => console.error('[Calendar] Error en /guardar:', e.message));
+
+      if (equipos === 'Certificacion de Gas') {
+        const jornada = hora_inicio && hora_inicio < '12:00' ? 'AM' : 'PM';
+        agregarFilaCertificacion({
+          asesora: req.user.nombre,
+          barrio: cl?.barrio || '',
+          tipoInmueble: 'RESIDENCIAL',
+          direccion: cl?.direccion || '',
+          municipio: cl?.ciudad || '',
+          nombreUsuario: cl?.nombre || '',
+          contacto: cl?.telefono || '',
+          cedula: '',
+          fechaVisita: fecha_agendamiento,
+          jornada,
+          tarifa: costo_cop || '',
+          observacion: observaciones || '',
+        }).catch(e => console.error('[Sheets] Error en /guardar:', e.message));
+      }
     }
 
     await client.query('COMMIT');
