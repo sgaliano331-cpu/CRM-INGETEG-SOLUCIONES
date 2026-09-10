@@ -23,9 +23,10 @@ import WhatsApp from './pages/WhatsApp';
 import Liquidacion from './pages/Liquidacion';
 import GenerarCotizacion from './pages/GenerarCotizacion';
 
-function PrivateRoute({ children, coordinadorOnly = false, gestorOCoord = false }) {
+function PrivateRoute({ children, coordinadorOnly = false, gestorOCoord = false, allowUsers = [] }) {
   const { user, isCoordinador, isGestor } = useAuth();
   if (!user) return <Navigate to="/login" replace />;
+  if (allowUsers.length > 0 && allowUsers.includes(user.username)) return children;
   if (coordinadorOnly && !isCoordinador) return <Navigate to="/" replace />;
   if (gestorOCoord && !isGestor && !isCoordinador) return <Navigate to="/" replace />;
   return children;
@@ -121,7 +122,7 @@ export default function App() {
             <Route
               path="whatsapp"
               element={
-                <PrivateRoute gestorOCoord>
+                <PrivateRoute coordinadorOnly allowUsers={['ygiraldo']}>
                   <WhatsApp />
                 </PrivateRoute>
               }

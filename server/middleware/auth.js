@@ -29,4 +29,11 @@ function gestorOCoordinador(req, res, next) {
   next();
 }
 
-module.exports = { authMiddleware, soloCoordinador, gestorOCoordinador, JWT_SECRET };
+function coordOWhatsapp(req, res, next) {
+  if (req.user?.rol === 'COORDINADOR' || req.user?.username === 'ygiraldo') {
+    return next();
+  }
+  return res.status(403).json({ error: 'Acceso denegado' });
+}
+
+module.exports = { authMiddleware, soloCoordinador, gestorOCoordinador, coordOWhatsapp, JWT_SECRET };

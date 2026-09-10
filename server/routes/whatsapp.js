@@ -3,7 +3,7 @@ const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const { authMiddleware, gestorOCoordinador, gestorOCoordinador } = require('../middleware/auth');
+const { authMiddleware, coordOWhatsapp } = require('../middleware/auth');
 const { pool } = require('../db');
 
 const VERIFY_TOKEN = process.env.WA_VERIFY_TOKEN || 'ingeteg_whatsapp_verify_2026';
@@ -127,7 +127,7 @@ router.post('/webhook', async (req, res) => {
 });
 
 // POST /api/whatsapp/enviar — Enviar mensaje individual (texto, plantilla o media)
-router.post('/enviar', authMiddleware, gestorOCoordinador, async (req, res) => {
+router.post('/enviar', authMiddleware, coordOWhatsapp, async (req, res) => {
   const { telefono, mensaje, plantilla, plantilla_params, idioma, mediaType, mediaUrl, caption } = req.body;
 
   if (!WA_TOKEN || !WA_PHONE_ID) {
@@ -208,7 +208,7 @@ router.post('/enviar', authMiddleware, gestorOCoordinador, async (req, res) => {
 });
 
 // POST /api/whatsapp/enviar-masivo — Envío masivo con plantilla
-router.post('/enviar-masivo', authMiddleware, gestorOCoordinador, async (req, res) => {
+router.post('/enviar-masivo', authMiddleware, coordOWhatsapp, async (req, res) => {
   const { contactos, telefonos, plantilla, plantilla_params, idioma, headerComponents, campana } = req.body;
 
   if (!WA_TOKEN || !WA_PHONE_ID) {
@@ -341,7 +341,7 @@ router.post('/enviar-masivo', authMiddleware, gestorOCoordinador, async (req, re
 });
 
 // GET /api/whatsapp/mensajes — Historial de mensajes
-router.get('/mensajes', authMiddleware, gestorOCoordinador, async (req, res) => {
+router.get('/mensajes', authMiddleware, coordOWhatsapp, async (req, res) => {
   const { telefono, limit } = req.query;
   try {
     let query, params;
@@ -360,7 +360,7 @@ router.get('/mensajes', authMiddleware, gestorOCoordinador, async (req, res) => 
 });
 
 // GET /api/whatsapp/campanas — Lista de campañas con contadores
-router.get('/campanas', authMiddleware, gestorOCoordinador, async (req, res) => {
+router.get('/campanas', authMiddleware, coordOWhatsapp, async (req, res) => {
   try {
     const { rows } = await pool.query(`
       SELECT campana, plantilla, COUNT(*) as total,
@@ -378,7 +378,7 @@ router.get('/campanas', authMiddleware, gestorOCoordinador, async (req, res) => 
 });
 
 // GET /api/whatsapp/conversaciones — Lista de conversaciones (inbox)
-router.get('/conversaciones', authMiddleware, gestorOCoordinador, async (req, res) => {
+router.get('/conversaciones', authMiddleware, coordOWhatsapp, async (req, res) => {
   const { campana, etiqueta } = req.query;
   try {
     let query, params;
@@ -441,7 +441,7 @@ router.put('/marcar-leido/:telefono', authMiddleware, async (req, res) => {
 });
 
 // GET /api/whatsapp/plantillas — Listar plantillas de Meta
-router.get('/plantillas', authMiddleware, gestorOCoordinador, async (req, res) => {
+router.get('/plantillas', authMiddleware, coordOWhatsapp, async (req, res) => {
   const WABA_ID = process.env.WA_WABA_ID || '1045301044658851';
   try {
     const response = await fetch(
@@ -640,7 +640,7 @@ router.get('/asesores', authMiddleware, async (req, res) => {
 });
 
 // POST /api/whatsapp/upload — Subir archivo para header de plantilla
-router.post('/upload', authMiddleware, gestorOCoordinador, upload.single('file'), (req, res) => {
+router.post('/upload', authMiddleware, coordOWhatsapp, upload.single('file'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No se recibio archivo' });
   const protocol = req.headers['x-forwarded-proto'] || req.protocol;
   const host = req.get('host');
