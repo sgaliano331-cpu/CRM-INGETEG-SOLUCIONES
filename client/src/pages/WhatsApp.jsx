@@ -978,7 +978,17 @@ export default function WhatsApp() {
                         </div>
                         <select
                           value={contactoInfo.asesor_id || ''}
-                          onChange={e => { setContactoInfo(c => ({ ...c, asesor_id: e.target.value ? parseInt(e.target.value) : null })); updateContacto('asesor_id', e.target.value ? parseInt(e.target.value) : null); }}
+                          onChange={async e => {
+                            const uid = e.target.value ? parseInt(e.target.value) : null;
+                            setContactoInfo(c => ({ ...c, asesor_id: uid }));
+                            updateContacto('asesor_id', uid);
+                            if (isCoordinador && selected) {
+                              const prev = asignaciones.filter(a => a.tipo === 'chat' && a.valor === selected.telefono);
+                              for (const a of prev) { try { await api.delete(`/whatsapp/desasignar/${a.id}`); } catch {} }
+                              if (uid) { try { await api.post('/whatsapp/asignar', { tipo: 'chat', valor: selected.telefono, usuario_id: uid }); } catch {} }
+                              fetchAsignaciones();
+                            }
+                          }}
                           className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs text-slate-700 focus:ring-1 focus:ring-green-500 focus:border-green-500 bg-white"
                         >
                           <option value="">Sin asignar</option>
