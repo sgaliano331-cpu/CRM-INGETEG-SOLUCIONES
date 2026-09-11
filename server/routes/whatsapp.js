@@ -689,7 +689,7 @@ router.delete('/contacto/:telefono/nota/:notaId', authMiddleware, async (req, re
 // GET /api/whatsapp/asesores — Lista de usuarios para asignar
 router.get('/asesores', authMiddleware, async (req, res) => {
   try {
-    const { rows } = await pool.query('SELECT id, nombre, rol FROM usuarios WHERE activo = 1 ORDER BY nombre');
+    const { rows } = await pool.query("SELECT id, nombre, rol FROM usuarios WHERE activo = 1 AND (rol = 'COORDINADOR' OR username = 'ygiraldo') ORDER BY nombre");
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
