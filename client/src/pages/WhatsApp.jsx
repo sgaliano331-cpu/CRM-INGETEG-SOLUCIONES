@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import api from '../api/axios';
+import { useAuth } from '../context/AuthContext';
 import * as XLSX from 'xlsx';
 
 function formatPhone(phone) {
@@ -33,6 +34,7 @@ function formatDate(dateStr) {
 }
 
 export default function WhatsApp() {
+  const { isCoordinador } = useAuth();
   const [tab, setTab] = useState('inbox');
   const [conversaciones, setConversaciones] = useState([]);
   const [selected, setSelected] = useState(null);
@@ -67,6 +69,10 @@ export default function WhatsApp() {
   const [nuevaEtiqueta, setNuevaEtiqueta] = useState('');
   const [nuevaNota, setNuevaNota] = useState('');
   const [filtroEtiqueta, setFiltroEtiqueta] = useState('');
+  const [usuariosAsignables, setUsuariosAsignables] = useState([]);
+  const [asignaciones, setAsignaciones] = useState([]);
+  const [showAsignar, setShowAsignar] = useState(null); // { tipo: 'campana'|'chat', valor: string }
+  const [asignarUsuario, setAsignarUsuario] = useState('');
   const chatRef = useRef(null);
   const pollRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -100,15 +106,39 @@ export default function WhatsApp() {
     api.get('/whatsapp/etiquetas').then(({ data }) => setEtiquetasDisponibles(data)).catch(() => {});
   }, []);
 
+  const fetchAsignaciones = useCallback(() => {
+    if (!isCoordinador) return;
+    api.get('/whatsapp/asignaciones').then(({ data }) => setAsignaciones(data)).catch(() => {});
+    api.get('/whatsapp/usuarios-asignables').then(({ data }) => setUsuariosAsignables(data)).catch(() => {});
+  }, [isCoordinador]);
+
   useEffect(() => {
     fetchConversaciones();
     fetchCampanas();
     fetchAsesores();
     fetchEtiquetas();
+    fetchAsignaciones();
     api.get('/whatsapp/tecnicos').then(({ data }) => setTecnicos(data)).catch(() => {});
     pollRef.current = setInterval(() => { fetchConversaciones(); fetchCampanas(); }, 15000);
     return () => clearInterval(pollRef.current);
-  }, [fetchConversaciones, fetchCampanas, fetchAsesores, fetchEtiquetas]);
+  }, [fetchConversaciones, fetchCampanas, fetchAsesores, fetchEtiquetas, fetchAsignaciones]);
+
+  const handleAsignar = async () => {
+    if (!showAsignar || !asignarUsuario) return;
+    try {
+      await api.post('/whatsapp/asignar', { tipo: showAsignar.tipo, valor: showAsignar.valor, usuario_id: parseInt(asignarUsuario) });
+      fetchAsignaciones();
+      setShowAsignar(null);
+      setAsignarUsuario('');
+    } catch {}
+  };
+
+  const handleDesasignar = async (id) => {
+    try {
+      await api.delete(`/whatsapp/desasignar/${id}`);
+      fetchAsignaciones();
+    } catch {}
+  };
 
   const selectConversacion = async (conv) => {
     setSelected(conv);
@@ -426,24 +456,28 @@ export default function WhatsApp() {
           >
             Bandeja
           </button>
-          <button
-            onClick={() => setTab('nuevo')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === 'nuevo' ? 'bg-green-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
-          >
-            Nuevo Mensaje
-          </button>
-          <button
-            onClick={() => setTab('plantilla')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === 'plantilla' ? 'bg-green-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
-          >
-            Enviar Plantilla
-          </button>
-          <button
-            onClick={() => setTab('masivo')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === 'masivo' ? 'bg-green-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
-          >
+          {isCoordinador && (
+            <>
+              <button
+                onClick={() => setTab('nuevo')}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === 'nuevo' ? 'bg-green-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+              >
+                Nuevo Mensaje
+              </button>
+              <button
+                onClick={() => setTab('plantilla')}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === 'plantilla' ? 'bg-green-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+              >
+                Enviar Plantilla
+              </button>
+              <button
+                onClick={() => setTab('masivo')}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === 'masivo' ? 'bg-green-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+              >
             Envio Masivo
           </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -461,20 +495,36 @@ export default function WhatsApp() {
               {conversaciones.length}
             </span>
           </button>
-          {campanas.map(c => (
-            <button
-              key={c.campana}
-              onClick={() => { setCampanaActiva(c.campana); setSelected(null); setContactoInfo(null); }}
-              className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all flex items-center gap-2 border ${
-                campanaActiva === c.campana ? 'bg-green-600 text-white border-green-600 shadow-sm' : 'bg-white text-slate-600 border-slate-200 hover:border-green-300 hover:text-green-700'
-              }`}
-            >
-              {c.campana}
-              <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${campanaActiva === c.campana ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'}`}>
-                {c.total}
-              </span>
-            </button>
-          ))}
+          {campanas.map(c => {
+            const asignadasCamp = asignaciones.filter(a => a.tipo === 'campana' && a.valor === c.campana);
+            return (
+              <div key={c.campana} className="flex items-center gap-1 flex-shrink-0">
+                <button
+                  onClick={() => { setCampanaActiva(c.campana); setSelected(null); setContactoInfo(null); }}
+                  className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all flex items-center gap-2 border ${
+                    campanaActiva === c.campana ? 'bg-green-600 text-white border-green-600 shadow-sm' : 'bg-white text-slate-600 border-slate-200 hover:border-green-300 hover:text-green-700'
+                  }`}
+                >
+                  {c.campana}
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${campanaActiva === c.campana ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                    {c.total}
+                  </span>
+                  {asignadasCamp.length > 0 && (
+                    <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-blue-100 text-blue-700">{asignadasCamp.map(a => a.usuario_nombre.split(' ')[0]).join(', ')}</span>
+                  )}
+                </button>
+                {isCoordinador && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setShowAsignar({ tipo: 'campana', valor: c.campana }); setAsignarUsuario(''); }}
+                    className="w-6 h-6 rounded-full bg-blue-50 text-blue-600 hover:bg-blue-100 flex items-center justify-center text-xs font-bold flex-shrink-0"
+                    title="Asignar campaña"
+                  >
+                    +
+                  </button>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 
@@ -773,12 +823,36 @@ export default function WhatsApp() {
                       <p className="text-xs text-slate-500">{formatPhone(selected.telefono)}</p>
                     </div>
                   </div>
-                  <a href={`https://wa.me/${selected.telefono}`} target="_blank" rel="noopener noreferrer" className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center text-green-600 hover:bg-green-200 transition-colors" title="Abrir en WhatsApp">
-                    <svg className="w-4.5 h-4.5" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
-                    </svg>
-                  </a>
+                  <div className="flex items-center gap-1">
+                    {isCoordinador && (
+                      <button
+                        onClick={() => { setShowAsignar({ tipo: 'chat', valor: selected.telefono }); setAsignarUsuario(''); }}
+                        className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 hover:bg-blue-100 transition-colors"
+                        title="Asignar chat a usuario"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" /></svg>
+                      </button>
+                    )}
+                    <a href={`https://wa.me/${selected.telefono}`} target="_blank" rel="noopener noreferrer" className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center text-green-600 hover:bg-green-200 transition-colors" title="Abrir en WhatsApp">
+                      <svg className="w-4.5 h-4.5" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
+                      </svg>
+                    </a>
+                  </div>
                 </div>
+                {isCoordinador && (() => {
+                  const chatAsigs = asignaciones.filter(a => a.tipo === 'chat' && a.valor === selected.telefono);
+                  return chatAsigs.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {chatAsigs.map(a => (
+                        <span key={a.id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-[10px] font-medium">
+                          {a.usuario_nombre.split(' ')[0]}
+                          <button onClick={() => handleDesasignar(a.id)} className="text-blue-400 hover:text-red-500">&times;</button>
+                        </span>
+                      ))}
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* Tabs */}
@@ -1532,6 +1606,50 @@ export default function WhatsApp() {
               )}
             </div>
           </form>
+        </div>
+      )}
+      {/* Modal de asignación */}
+      {showAsignar && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={() => setShowAsignar(null)}>
+          <div className="bg-white rounded-xl shadow-2xl p-6 w-[400px] space-y-4" onClick={e => e.stopPropagation()}>
+            <h3 className="text-sm font-bold text-slate-800">
+              Asignar {showAsignar.tipo === 'campana' ? 'campaña' : 'chat'}
+            </h3>
+            <p className="text-xs text-slate-500">
+              {showAsignar.tipo === 'campana' ? `Campaña: ${showAsignar.valor}` : `Chat: ${formatPhone(showAsignar.valor)}`}
+            </p>
+
+            {/* Asignaciones existentes */}
+            {(() => {
+              const existentes = asignaciones.filter(a => a.tipo === showAsignar.tipo && a.valor === showAsignar.valor);
+              return existentes.length > 0 && (
+                <div className="space-y-1">
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase">Asignados</p>
+                  {existentes.map(a => (
+                    <div key={a.id} className="flex items-center justify-between bg-blue-50 rounded-lg px-3 py-1.5">
+                      <span className="text-xs font-medium text-blue-700">{a.usuario_nombre}</span>
+                      <button onClick={() => handleDesasignar(a.id)} className="text-xs text-red-400 hover:text-red-600">Quitar</button>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+
+            <div>
+              <label className="block text-xs font-medium text-slate-500 mb-1.5">Asignar a</label>
+              <select className="input-field" value={asignarUsuario} onChange={e => setAsignarUsuario(e.target.value)}>
+                <option value="">Seleccionar usuario...</option>
+                {usuariosAsignables.map(u => (
+                  <option key={u.id} value={u.id}>{u.nombre} ({u.rol})</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setShowAsignar(null)} className="btn-secondary">Cancelar</button>
+              <button onClick={handleAsignar} disabled={!asignarUsuario} className="btn-primary">Asignar</button>
+            </div>
+          </div>
         </div>
       )}
     </div>

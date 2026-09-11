@@ -220,6 +220,21 @@ app.listen(PORT, async () => {
       console.log('Constraint tipo_servicio actualizado con Certificacion.');
     } catch (e) {}
 
+    // Migración: tabla de asignaciones WhatsApp (campañas y chats a usuarios)
+    try {
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS whatsapp_asignaciones (
+          id SERIAL PRIMARY KEY,
+          tipo TEXT NOT NULL CHECK(tipo IN ('campana','chat')),
+          valor TEXT NOT NULL,
+          usuario_id INTEGER NOT NULL REFERENCES usuarios(id),
+          creado_en TIMESTAMPTZ DEFAULT NOW(),
+          UNIQUE(tipo, valor, usuario_id)
+        )
+      `);
+      console.log('Tabla whatsapp_asignaciones creada/verificada.');
+    } catch (e) {}
+
     // Índices para acelerar consultas de gestion-servicios
     const indices = [
       'CREATE INDEX IF NOT EXISTS idx_agendamientos_tecnico ON agendamientos(tecnico)',

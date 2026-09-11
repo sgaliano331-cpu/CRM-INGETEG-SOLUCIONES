@@ -3,7 +3,7 @@ const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const { authMiddleware, coordOWhatsapp } = require('../middleware/auth');
+const { authMiddleware, coordOWhatsapp, soloCoordinador } = require('../middleware/auth');
 const { pool } = require('../db');
 
 const VERIFY_TOKEN = process.env.WA_VERIFY_TOKEN || 'ingeteg_whatsapp_verify_2026';
@@ -362,15 +362,32 @@ router.get('/mensajes', authMiddleware, coordOWhatsapp, async (req, res) => {
 // GET /api/whatsapp/campanas — Lista de campañas con contadores
 router.get('/campanas', authMiddleware, coordOWhatsapp, async (req, res) => {
   try {
-    const { rows } = await pool.query(`
-      SELECT campana, plantilla, COUNT(*) as total,
-        COUNT(*) FILTER (WHERE estado = 'enviado') as enviados,
-        COUNT(*) FILTER (WHERE estado = 'respondio') as respondieron,
-        MAX(creado_en) as ultima_actividad
-      FROM whatsapp_campana_contactos
-      GROUP BY campana, plantilla
-      ORDER BY MAX(creado_en) DESC
-    `);
+    const esCoord = req.user.rol === 'COORDINADOR';
+    let query, params = [];
+    if (esCoord) {
+      query = `
+        SELECT cc.campana, cc.plantilla, COUNT(*) as total,
+          COUNT(*) FILTER (WHERE cc.estado = 'enviado') as enviados,
+          COUNT(*) FILTER (WHERE cc.estado = 'respondio') as respondieron,
+          MAX(cc.creado_en) as ultima_actividad
+        FROM whatsapp_campana_contactos cc
+        GROUP BY cc.campana, cc.plantilla
+        ORDER BY MAX(cc.creado_en) DESC
+      `;
+    } else {
+      query = `
+        SELECT cc.campana, cc.plantilla, COUNT(*) as total,
+          COUNT(*) FILTER (WHERE cc.estado = 'enviado') as enviados,
+          COUNT(*) FILTER (WHERE cc.estado = 'respondio') as respondieron,
+          MAX(cc.creado_en) as ultima_actividad
+        FROM whatsapp_campana_contactos cc
+        INNER JOIN whatsapp_asignaciones wa ON wa.tipo = 'campana' AND wa.valor = cc.campana AND wa.usuario_id = $1
+        GROUP BY cc.campana, cc.plantilla
+        ORDER BY MAX(cc.creado_en) DESC
+      `;
+      params = [req.user.id];
+    }
+    const { rows } = await pool.query(query, params);
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -380,12 +397,21 @@ router.get('/campanas', authMiddleware, coordOWhatsapp, async (req, res) => {
 // GET /api/whatsapp/conversaciones — Lista de conversaciones (inbox)
 router.get('/conversaciones', authMiddleware, coordOWhatsapp, async (req, res) => {
   const { campana, etiqueta } = req.query;
+  const esCoord = req.user.rol === 'COORDINADOR';
   try {
-    let query, params;
-    const etiquetaJoin = etiqueta ? `INNER JOIN whatsapp_contacto_etiquetas wce ON wce.contacto_telefono = m1.telefono
-        INNER JOIN whatsapp_etiquetas we ON we.id = wce.etiqueta_id AND we.nombre = ` : '';
+    let query, params = [];
+    let pIdx = 1;
+
     if (campana) {
-      const pIdx = etiqueta ? 2 : 1;
+      params.push(campana); // $1
+      pIdx = 2;
+      let extraJoins = '';
+      if (etiqueta) {
+        extraJoins += ` INNER JOIN whatsapp_contacto_etiquetas wce ON wce.contacto_telefono = m1.telefono
+          INNER JOIN whatsapp_etiquetas we ON we.id = wce.etiqueta_id AND we.nombre = $${pIdx}`;
+        params.push(etiqueta);
+        pIdx++;
+      }
       query = `
         SELECT m1.telefono,
           MAX(CASE WHEN m1.nombre_contacto != '' THEN m1.nombre_contacto ELSE NULL END) as nombre_contacto,
@@ -396,14 +422,22 @@ router.get('/conversaciones', authMiddleware, coordOWhatsapp, async (req, res) =
           cc.estado as estado_campana
         FROM whatsapp_mensajes m1
         INNER JOIN whatsapp_campana_contactos cc ON cc.telefono = m1.telefono AND cc.campana = $1
-        ${etiqueta ? `INNER JOIN whatsapp_contacto_etiquetas wce ON wce.contacto_telefono = m1.telefono
-        INNER JOIN whatsapp_etiquetas we ON we.id = wce.etiqueta_id AND we.nombre = $2` : ''}
+        ${extraJoins}
         GROUP BY m1.telefono, cc.estado
         ORDER BY (COUNT(*) FILTER (WHERE m1.estado = 'nuevo' AND m1.direccion = 'entrante') > 0) DESC, MAX(m1.creado_en) DESC
         LIMIT 100
       `;
-      params = etiqueta ? [campana, etiqueta] : [campana];
-    } else {
+    } else if (!esCoord) {
+      // Non-coordinator: show only assigned campaigns + assigned chats
+      params.push(req.user.id); // $1
+      pIdx = 2;
+      let extraJoins = '';
+      if (etiqueta) {
+        extraJoins += ` INNER JOIN whatsapp_contacto_etiquetas wce ON wce.contacto_telefono = m1.telefono
+          INNER JOIN whatsapp_etiquetas we ON we.id = wce.etiqueta_id AND we.nombre = $${pIdx}`;
+        params.push(etiqueta);
+        pIdx++;
+      }
       query = `
         SELECT m1.telefono,
           MAX(CASE WHEN m1.nombre_contacto != '' THEN m1.nombre_contacto ELSE NULL END) as nombre_contacto,
@@ -412,13 +446,36 @@ router.get('/conversaciones', authMiddleware, coordOWhatsapp, async (req, res) =
           (SELECT direccion FROM whatsapp_mensajes m3 WHERE m3.telefono = m1.telefono ORDER BY creado_en DESC LIMIT 1) as ultima_direccion,
           COUNT(*) FILTER (WHERE m1.estado = 'nuevo' AND m1.direccion = 'entrante') as no_leidos
         FROM whatsapp_mensajes m1
-        ${etiqueta ? `INNER JOIN whatsapp_contacto_etiquetas wce ON wce.contacto_telefono = m1.telefono
-        INNER JOIN whatsapp_etiquetas we ON we.id = wce.etiqueta_id AND we.nombre = $1` : ''}
+        ${extraJoins}
+        WHERE (
+          EXISTS (SELECT 1 FROM whatsapp_asignaciones wa WHERE wa.tipo = 'chat' AND wa.valor = m1.telefono AND wa.usuario_id = $1)
+          OR EXISTS (SELECT 1 FROM whatsapp_campana_contactos cc2 JOIN whatsapp_asignaciones wa2 ON wa2.tipo = 'campana' AND wa2.valor = cc2.campana AND wa2.usuario_id = $1 WHERE cc2.telefono = m1.telefono)
+        )
         GROUP BY m1.telefono
         ORDER BY (COUNT(*) FILTER (WHERE m1.estado = 'nuevo' AND m1.direccion = 'entrante') > 0) DESC, MAX(m1.creado_en) DESC
         LIMIT 100
       `;
-      params = etiqueta ? [etiqueta] : [];
+    } else {
+      // Coordinator: show all
+      let extraJoins = '';
+      if (etiqueta) {
+        extraJoins += ` INNER JOIN whatsapp_contacto_etiquetas wce ON wce.contacto_telefono = m1.telefono
+          INNER JOIN whatsapp_etiquetas we ON we.id = wce.etiqueta_id AND we.nombre = $1`;
+        params.push(etiqueta);
+      }
+      query = `
+        SELECT m1.telefono,
+          MAX(CASE WHEN m1.nombre_contacto != '' THEN m1.nombre_contacto ELSE NULL END) as nombre_contacto,
+          MAX(m1.creado_en) as ultimo_mensaje,
+          (SELECT mensaje FROM whatsapp_mensajes m2 WHERE m2.telefono = m1.telefono ORDER BY creado_en DESC LIMIT 1) as ultimo_texto,
+          (SELECT direccion FROM whatsapp_mensajes m3 WHERE m3.telefono = m1.telefono ORDER BY creado_en DESC LIMIT 1) as ultima_direccion,
+          COUNT(*) FILTER (WHERE m1.estado = 'nuevo' AND m1.direccion = 'entrante') as no_leidos
+        FROM whatsapp_mensajes m1
+        ${extraJoins}
+        GROUP BY m1.telefono
+        ORDER BY (COUNT(*) FILTER (WHERE m1.estado = 'nuevo' AND m1.direccion = 'entrante') > 0) DESC, MAX(m1.creado_en) DESC
+        LIMIT 100
+      `;
     }
     const { rows } = await pool.query(query, params);
     res.json(rows);
@@ -749,6 +806,59 @@ router.post('/agendar', authMiddleware, async (req, res) => {
 router.get('/tecnicos', authMiddleware, async (req, res) => {
   try {
     const { rows } = await pool.query("SELECT id, nombre FROM usuarios WHERE rol = 'TECNICO' AND activo = 1 ORDER BY nombre");
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── Asignaciones WhatsApp (solo coordinador) ────────────────────────────
+
+// GET /api/whatsapp/asignaciones — Listar asignaciones
+router.get('/asignaciones', authMiddleware, soloCoordinador, async (req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT wa.id, wa.tipo, wa.valor, wa.usuario_id, u.nombre as usuario_nombre, wa.creado_en
+      FROM whatsapp_asignaciones wa
+      JOIN usuarios u ON u.id = wa.usuario_id
+      ORDER BY wa.creado_en DESC
+    `);
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/whatsapp/asignar — Asignar campaña o chat a usuario
+router.post('/asignar', authMiddleware, soloCoordinador, async (req, res) => {
+  const { tipo, valor, usuario_id } = req.body;
+  if (!tipo || !valor || !usuario_id) return res.status(400).json({ error: 'tipo, valor y usuario_id son requeridos' });
+  if (!['campana', 'chat'].includes(tipo)) return res.status(400).json({ error: 'tipo debe ser campana o chat' });
+  try {
+    await pool.query(
+      'INSERT INTO whatsapp_asignaciones (tipo, valor, usuario_id) VALUES ($1, $2, $3) ON CONFLICT (tipo, valor, usuario_id) DO NOTHING',
+      [tipo, valor, usuario_id]
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /api/whatsapp/desasignar/:id — Quitar asignación
+router.delete('/desasignar/:id', authMiddleware, soloCoordinador, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM whatsapp_asignaciones WHERE id = $1', [req.params.id]);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/whatsapp/usuarios-asignables — Usuarios que pueden recibir asignaciones
+router.get('/usuarios-asignables', authMiddleware, soloCoordinador, async (req, res) => {
+  try {
+    const { rows } = await pool.query("SELECT id, nombre, username, rol FROM usuarios WHERE activo = 1 AND rol IN ('ASESORA','GESTOR') ORDER BY nombre");
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
