@@ -332,14 +332,16 @@ router.post('/enviar-masivo', authMiddleware, coordOWhatsapp, async (req, res) =
         // Guardar campos extra en whatsapp_contactos
         try {
           const extra = contacto.extra || {};
-          if (extra.telefono2 || extra.proxima_certificacion || extra.municipio) {
+          const fechaParam = getParam(['fecha']);
+          const certDate = extra.proxima_certificacion || fechaParam || null;
+          if (extra.telefono2 || certDate || extra.municipio) {
             await pool.query(
               'INSERT INTO whatsapp_contactos (telefono) VALUES ($1) ON CONFLICT (telefono) DO NOTHING',
               [fullPhone]
             );
             const sets = []; const vals = []; let pi = 1;
             if (extra.telefono2) { sets.push(`telefono2 = $${pi++}`); vals.push(extra.telefono2); }
-            if (extra.proxima_certificacion) { sets.push(`proxima_certificacion = $${pi++}`); vals.push(extra.proxima_certificacion); }
+            if (certDate) { sets.push(`proxima_certificacion = $${pi++}`); vals.push(certDate); }
             if (sets.length > 0) {
               sets.push('actualizado_en = NOW()');
               vals.push(fullPhone);
