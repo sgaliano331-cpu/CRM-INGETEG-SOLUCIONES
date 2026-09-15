@@ -388,9 +388,9 @@ export default function WhatsApp() {
     e.preventDefault();
     if (!masivo.excelData || !masivo.plantilla) return;
     const cols = Object.keys(masivo.excelData[0]);
-    const telCol = cols.find(c => /tel[eé]fono|phone|celular|numero/i.test(c)) || cols[0];
+    const telCol = cols.find(c => /^tel[eé]fono$/i.test(c.trim())) || cols.find(c => /tel[eé]fono|phone|celular|numero/i.test(c) && !/2|segundo/i.test(c)) || cols[0];
     const extraFields = ['telefono2', 'segundo_telefono', 'segundo_numero', 'municipio', 'ciudad', 'proxima_certificacion', 'proxima certificacion', 'certificacion'];
-    const isExtra = (c) => extraFields.some(ef => c.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').includes(ef.replace(/_/g, ' ')));
+    const isExtra = (c) => extraFields.some(ef => c.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').includes(ef.replace(/_/g, ' ')));
     const varCols = cols.filter(c => c !== telCol && !isExtra(c));
     const extraCols = cols.filter(c => c !== telCol && isExtra(c));
     setMasivo(m => ({ ...m, enviando: true, resultado: null }));
@@ -405,7 +405,7 @@ export default function WhatsApp() {
         }
         return {
           telefono: String(row[telCol]).replace(/\D/g, ''),
-          params: varCols.map(c => ({ name: c, value: String(row[c] ?? '') })),
+          params: varCols.map(c => ({ name: c.trim(), value: String(row[c] ?? '') })),
           extra,
         };
       });
@@ -1033,9 +1033,11 @@ export default function WhatsApp() {
                         <span className="text-xs font-medium text-slate-600">Proxima certificacion</span>
                       </div>
                       <input
-                        type="date"
-                        value={contactoInfo.proxima_certificacion ? contactoInfo.proxima_certificacion.slice(0, 10) : ''}
-                        onChange={e => { setContactoInfo(c => ({ ...c, proxima_certificacion: e.target.value })); updateContacto('proxima_certificacion', e.target.value || null); }}
+                        type="text"
+                        value={contactoInfo.proxima_certificacion || ''}
+                        onChange={e => setContactoInfo(c => ({ ...c, proxima_certificacion: e.target.value }))}
+                        onBlur={e => updateContacto('proxima_certificacion', e.target.value || null)}
+                        placeholder="Ej: 16 de septiembre 2026"
                         className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs text-slate-700 focus:ring-1 focus:ring-green-500 focus:border-green-500"
                       />
                     </div>

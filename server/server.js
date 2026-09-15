@@ -237,7 +237,8 @@ app.listen(PORT, async () => {
 
     // Migración: campos telefono2 y proxima_certificacion en whatsapp_contactos
     try { await client.query('ALTER TABLE whatsapp_contactos ADD COLUMN telefono2 TEXT'); } catch (e) {}
-    try { await client.query('ALTER TABLE whatsapp_contactos ADD COLUMN proxima_certificacion DATE'); } catch (e) {}
+    try { await client.query('ALTER TABLE whatsapp_contactos ADD COLUMN proxima_certificacion TEXT'); } catch (e) {}
+    try { await client.query('ALTER TABLE whatsapp_contactos ALTER COLUMN proxima_certificacion TYPE TEXT'); } catch (e) {}
 
     // Índices para acelerar consultas de gestion-servicios
     const indices = [
