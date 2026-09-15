@@ -22,6 +22,7 @@ import Usuarios from './pages/Usuarios';
 import WhatsApp from './pages/WhatsApp';
 import Liquidacion from './pages/Liquidacion';
 import GenerarCotizacion from './pages/GenerarCotizacion';
+import Auditoria from './pages/Auditoria';
 
 function PrivateRoute({ children, coordinadorOnly = false, gestorOCoord = false, allowUsers = [] }) {
   const { user, isCoordinador, isGestor } = useAuth();
@@ -140,6 +141,14 @@ export default function App() {
               element={
                 <PrivateRoute coordinadorOnly>
                   <GenerarCotizacion />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="auditoria"
+              element={
+                <PrivateRoute coordinadorOnly>
+                  <Auditoria />
                 </PrivateRoute>
               }
             />

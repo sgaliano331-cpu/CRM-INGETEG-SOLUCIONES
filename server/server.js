@@ -2,15 +2,37 @@ process.env.TZ = 'America/Bogota';
 
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
 const path = require('path');
+const { loginLimiter, apiLimiter } = require('./middleware/rateLimiter');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// ─── Middleware ────────────────────────────────────────────────────────────
-app.use(cors({ origin: true, credentials: true }));
+// ─── Seguridad ────────────────────────────────────────────────────────────
+app.set('trust proxy', 1);
+app.use(helmet({ contentSecurityPolicy: false }));
+
+const allowedOrigins = [
+  process.env.FRONTEND_URL,
+  'http://localhost:5173',
+  'http://localhost:3001'
+].filter(Boolean);
+
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+    callback(new Error('CORS no permitido'));
+  },
+  credentials: true
+}));
+
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// ─── Rate Limiting ───────────────────────────────────────────────────────
+app.use('/api/auth/login', loginLimiter);
+app.use('/api', apiLimiter);
 
 // Servir archivos estáticos (comprobantes de pago)
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
@@ -27,6 +49,7 @@ app.use('/api/usuarios', require('./routes/usuarios'));
 app.use('/api/whatsapp', require('./routes/whatsapp'));
 app.use('/api/liquidacion', require('./routes/liquidacion'));
 app.use('/api/cotizacion-pdf', require('./routes/cotizacion-pdf'));
+app.use('/api/audit', require('./routes/audit'));
 
 // ─── Frontend (produccion) ────────────────────────────────────────────────
 const clientDist = path.join(__dirname, '..', 'client', 'dist');
@@ -233,6 +256,61 @@ app.listen(PORT, async () => {
         )
       `);
       console.log('Tabla whatsapp_asignaciones creada/verificada.');
+    } catch (e) {}
+
+    // Migración: tablas de auditoría y seguridad
+    try {
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS audit_login (
+          id SERIAL PRIMARY KEY,
+          username TEXT NOT NULL,
+          success BOOLEAN NOT NULL,
+          ip_address TEXT,
+          user_agent TEXT,
+          failure_reason TEXT,
+          user_id INTEGER REFERENCES usuarios(id),
+          created_at TIMESTAMPTZ DEFAULT NOW()
+        )
+      `);
+      await client.query('CREATE INDEX IF NOT EXISTS idx_audit_login_username ON audit_login(username, created_at)');
+      await client.query('CREATE INDEX IF NOT EXISTS idx_audit_login_ip ON audit_login(ip_address, created_at)');
+    } catch (e) {}
+
+    try {
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS audit_actions (
+          id SERIAL PRIMARY KEY,
+          user_id INTEGER NOT NULL REFERENCES usuarios(id),
+          username TEXT NOT NULL,
+          action TEXT NOT NULL,
+          table_name TEXT NOT NULL,
+          record_id INTEGER,
+          old_values JSONB,
+          new_values JSONB,
+          ip_address TEXT,
+          created_at TIMESTAMPTZ DEFAULT NOW()
+        )
+      `);
+      await client.query('CREATE INDEX IF NOT EXISTS idx_audit_actions_table ON audit_actions(table_name, record_id)');
+      await client.query('CREATE INDEX IF NOT EXISTS idx_audit_actions_user ON audit_actions(user_id, created_at)');
+      await client.query('CREATE INDEX IF NOT EXISTS idx_audit_actions_date ON audit_actions(created_at)');
+    } catch (e) {}
+
+    try {
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS active_sessions (
+          id SERIAL PRIMARY KEY,
+          user_id INTEGER NOT NULL REFERENCES usuarios(id),
+          token_jti TEXT NOT NULL UNIQUE,
+          ip_address TEXT,
+          user_agent TEXT,
+          created_at TIMESTAMPTZ DEFAULT NOW(),
+          expires_at TIMESTAMPTZ NOT NULL,
+          revoked_at TIMESTAMPTZ
+        )
+      `);
+      await client.query('CREATE INDEX IF NOT EXISTS idx_active_sessions_jti ON active_sessions(token_jti)');
+      await client.query('CREATE INDEX IF NOT EXISTS idx_active_sessions_user ON active_sessions(user_id, revoked_at)');
     } catch (e) {}
 
     // Migración: campos telefono2 y proxima_certificacion en whatsapp_contactos

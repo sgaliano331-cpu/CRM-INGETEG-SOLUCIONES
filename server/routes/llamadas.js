@@ -7,6 +7,7 @@ const path = require('path');
 const fs = require('fs');
 const { crearEventoAgendamiento, actualizarDescripcionEvento, moverEventoCalendario, actualizarEventoCompleto, eliminarEventoCalendario } = require('../google-calendar');
 const { agregarFilaCertificacion } = require('../google-sheets');
+const { logAudit, getClientIp } = require('../middleware/auditLogger');
 
 // ─── Multer para comprobantes de pago ─────────────────────────────────────
 const comprobantesDir = path.join(__dirname, '../uploads/comprobantes');
@@ -910,6 +911,7 @@ router.delete('/eliminar-servicios', authMiddleware, gestorOCoordinador, async (
     const del = await client.query('DELETE FROM agendamientos WHERE id = ANY($1)', [ids]);
     await client.query('COMMIT');
     client.release();
+    logAudit({ userId: req.user.id, username: req.user.username, action: 'DELETE', tableName: 'agendamientos', oldValues: { ids }, ip: getClientIp(req) });
     res.json({ ok: true, eliminados: del.rowCount });
   } catch (err) {
     console.error('Error eliminando servicios:', err.message);
@@ -937,6 +939,7 @@ router.put('/liquidar-lote', authMiddleware, gestorOCoordinador, async (req, res
     }
     await client.query('COMMIT');
     client.release();
+    logAudit({ userId: req.user.id, username: req.user.username, action: 'UPDATE', tableName: 'agendamientos', newValues: { liquidar_lote: items.map(i => i.id) }, ip: getClientIp(req) });
     res.json({ ok: true, total: items.length });
   } catch (err) {
     console.error('Error en liquidar-lote:', err.message);
@@ -1082,6 +1085,7 @@ router.put('/mover-servicio', authMiddleware, async (req, res) => {
       }
     }
 
+    logAudit({ userId: req.user.id, username: req.user.username, action: 'UPDATE', tableName: 'agendamientos', recordId: agendamiento_id, newValues: { fecha_agendamiento, hora_inicio, hora_fin }, ip: getClientIp(req) });
     res.json({ ok: true });
   } catch (err) {
     console.error('Error mover servicio:', err.message);

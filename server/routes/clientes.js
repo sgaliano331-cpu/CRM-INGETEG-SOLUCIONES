@@ -3,6 +3,7 @@ const router = express.Router();
 const { getDb, getClient } = require('../db');
 const { authMiddleware, soloCoordinador } = require('../middleware/auth');
 const { actualizarEventoCompleto } = require('../google-calendar');
+const { logAudit, getClientIp } = require('../middleware/auditLogger');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
@@ -140,6 +141,7 @@ router.put('/:id', authMiddleware, (req, res) => {
         console.error('[Calendar] Error al sincronizar tras editar cliente:', calErr.message);
       }
 
+      logAudit({ userId: req.user.id, username: req.user.username, action: 'UPDATE', tableName: 'clientes', recordId: parseInt(clienteId), oldValues: { nombre: cliente.nombre, telefono: cliente.telefono, direccion: cliente.direccion, barrio: cliente.barrio, ciudad: cliente.ciudad }, newValues: { nombre, telefono, direccion, barrio, ciudad }, ip: getClientIp(req) });
       res.json({ ok: true });
     });
   });
@@ -165,6 +167,7 @@ router.post('/nuevo', authMiddleware, (req, res) => {
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, NOW(), NOW())
     `, [nombre || '', telefono || '', direccion || '', barrio || '', ciudad || 'Medellín', targetUserId, posicion, esPrioridad], function(errInsert) {
       if (errInsert) return res.status(500).json({ error: 'Error al guardar el cliente' });
+      logAudit({ userId: req.user.id, username: req.user.username, action: 'INSERT', tableName: 'clientes', recordId: this.lastID, newValues: { nombre, telefono, direccion, barrio, ciudad }, ip: getClientIp(req) });
       res.status(201).json({ id: this.lastID, posicion });
     });
   });
