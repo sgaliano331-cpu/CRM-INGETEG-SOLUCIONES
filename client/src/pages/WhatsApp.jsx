@@ -893,32 +893,34 @@ export default function WhatsApp() {
                 {panelTab === 'info' && (
                   <div className="p-4 space-y-4">
                     {/* Nombre del cliente */}
-                    {contactoInfo.cliente?.nombre && (
-                      <div>
-                        <div className="flex items-center gap-2 mb-1.5">
-                          <svg className="w-3.5 h-3.5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
-                          <span className="text-xs font-medium text-slate-600">Nombre</span>
-                        </div>
-                        <p className="text-xs text-slate-700 px-2.5 py-1.5 bg-slate-50 rounded-lg">{contactoInfo.cliente.nombre}</p>
+                    <div>
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <svg className="w-3.5 h-3.5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                        <span className="text-xs font-medium text-slate-600">Nombre</span>
                       </div>
-                    )}
+                      <input
+                        type="text"
+                        defaultValue={contactoInfo.cliente?.nombre || contactoInfo.nombre || ''}
+                        key={`nombre-${selected?.telefono}`}
+                        onBlur={e => { if (e.target.value.trim()) updateContacto('nombre', e.target.value.trim()); }}
+                        placeholder="Agregar nombre..."
+                        className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs text-slate-700 focus:ring-1 focus:ring-green-500 focus:border-green-500"
+                      />
+                    </div>
                     {/* Municipio del cliente */}
                     <div>
                       <div className="flex items-center gap-2 mb-1.5">
                         <svg className="w-3.5 h-3.5 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
                         <span className="text-xs font-medium text-slate-600">Municipio</span>
                       </div>
-                      {contactoInfo.cliente?.ciudad ? (
-                        <p className="text-xs text-slate-700 px-2.5 py-1.5 bg-slate-50 rounded-lg">{contactoInfo.cliente.ciudad}</p>
-                      ) : (
-                        <input
-                          type="text"
-                          defaultValue=""
-                          onBlur={e => { if (e.target.value.trim()) updateContacto('ciudad', e.target.value.trim()); }}
-                          placeholder="Agregar municipio..."
-                          className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs text-slate-700 focus:ring-1 focus:ring-green-500 focus:border-green-500"
-                        />
-                      )}
+                      <input
+                        type="text"
+                        defaultValue={contactoInfo.cliente?.ciudad || ''}
+                        key={`ciudad-${selected?.telefono}`}
+                        onBlur={e => updateContacto('ciudad', e.target.value.trim())}
+                        placeholder="Agregar municipio..."
+                        className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs text-slate-700 focus:ring-1 focus:ring-green-500 focus:border-green-500"
+                      />
                     </div>
                     {/* Direccion del cliente */}
                     <div>
@@ -926,18 +928,14 @@ export default function WhatsApp() {
                         <svg className="w-3.5 h-3.5 text-red-500" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
                         <span className="text-xs font-medium text-slate-600">Direccion</span>
                       </div>
-                      {contactoInfo.cliente?.direccion ? (
-                        <p className="text-xs text-slate-700 px-2.5 py-1.5 bg-slate-50 rounded-lg">{contactoInfo.cliente.direccion}</p>
-                      ) : (
-                        <input
-                          type="text"
-                          value={contactoInfo.direccion || ''}
-                          onChange={e => setContactoInfo(c => ({ ...c, direccion: e.target.value }))}
-                          onBlur={e => updateContacto('direccion', e.target.value)}
-                          placeholder="Agregar direccion..."
-                          className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs text-slate-700 focus:ring-1 focus:ring-green-500 focus:border-green-500"
-                        />
-                      )}
+                      <input
+                        type="text"
+                        defaultValue={contactoInfo.cliente?.direccion || contactoInfo.direccion || ''}
+                        key={`dir-${selected?.telefono}`}
+                        onBlur={e => updateContacto('direccion_cliente', e.target.value)}
+                        placeholder="Agregar direccion..."
+                        className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs text-slate-700 focus:ring-1 focus:ring-green-500 focus:border-green-500"
+                      />
                     </div>
 
                     {/* Barrio del cliente */}

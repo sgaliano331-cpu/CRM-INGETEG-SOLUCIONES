@@ -601,7 +601,7 @@ router.get('/contacto/:telefono', authMiddleware, async (req, res) => {
 // PUT /api/whatsapp/contacto/:telefono — Actualizar info del contacto
 router.put('/contacto/:telefono', authMiddleware, async (req, res) => {
   const tel = req.params.telefono;
-  const { direccion, estado, asesor_id, ciudad, telefono2, proxima_certificacion } = req.body;
+  const { direccion, estado, asesor_id, ciudad, telefono2, proxima_certificacion, nombre, direccion_cliente } = req.body;
   try {
     await pool.query(
       'INSERT INTO whatsapp_contactos (telefono) VALUES ($1) ON CONFLICT (telefono) DO NOTHING',
@@ -615,7 +615,7 @@ router.put('/contacto/:telefono', authMiddleware, async (req, res) => {
     if (asesor_id !== undefined) { sets.push(`asesor_id = $${idx++}`); params.push(asesor_id || null); }
     if (telefono2 !== undefined) { sets.push(`telefono2 = $${idx++}`); params.push(telefono2 || null); }
     if (proxima_certificacion !== undefined) { sets.push(`proxima_certificacion = $${idx++}`); params.push(proxima_certificacion || null); }
-    if (sets.length === 0 && ciudad === undefined) return res.status(400).json({ error: 'Nada que actualizar' });
+    if (sets.length === 0 && ciudad === undefined && nombre === undefined && direccion_cliente === undefined) return res.status(400).json({ error: 'Nada que actualizar' });
     if (sets.length > 0) {
       sets.push(`actualizado_en = NOW()`);
       params.push(tel);
@@ -624,9 +624,15 @@ router.put('/contacto/:telefono', authMiddleware, async (req, res) => {
         params
       );
     }
+    const localPhone = tel.startsWith('57') ? tel.slice(2) : tel;
     if (ciudad !== undefined) {
-      const localPhone = tel.startsWith('57') ? tel.slice(2) : tel;
       await pool.query('UPDATE clientes SET ciudad = $1, actualizado_en = NOW() WHERE telefono = $2 OR telefono = $3', [ciudad, localPhone, tel]);
+    }
+    if (nombre !== undefined) {
+      await pool.query('UPDATE clientes SET nombre = $1, actualizado_en = NOW() WHERE telefono = $2 OR telefono = $3', [nombre, localPhone, tel]);
+    }
+    if (direccion_cliente !== undefined) {
+      await pool.query('UPDATE clientes SET direccion = $1, actualizado_en = NOW() WHERE telefono = $2 OR telefono = $3', [direccion_cliente, localPhone, tel]);
     }
     const { rows } = await pool.query('SELECT * FROM whatsapp_contactos WHERE telefono = $1', [tel]);
     res.json(rows[0]);
