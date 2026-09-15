@@ -231,11 +231,71 @@ router.post('/enviar-masivo', authMiddleware, coordOWhatsapp, async (req, res) =
     const fullPhone = phone.startsWith('57') ? phone : '57' + phone;
 
     try {
+      const params = contacto.params || [];
+      const normalize = (s) => (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z]/g, '');
+      const getParam = (names) => {
+        for (const n of names) {
+          const found = params.find(v => v.name && normalize(v.name) === n);
+          if (found && String(found.value).trim()) return String(found.value).trim();
+        }
+        return null;
+      };
+
+      // Actualizar info del cliente SIEMPRE (antes de enviar)
+      try {
+        const extra = contacto.extra || {};
+        const cNombre = getParam(['nombre']);
+        const cDireccion = getParam(['direccion']);
+        const cBarrio = getParam(['barrio']);
+        const cCiudad = extra.municipio || getParam(['municipio', 'ciudad']) || null;
+        const localPhone = phone.startsWith('57') ? phone.slice(2) : phone;
+
+        const existe = await pool.query('SELECT id FROM clientes WHERE telefono = $1 OR telefono = $2', [localPhone, fullPhone]);
+        if (existe.rows.length === 0) {
+          const coord = await pool.query("SELECT id FROM usuarios WHERE rol = 'COORDINADOR' AND activo = 1 LIMIT 1");
+          const coordId = coord.rows[0]?.id || req.user.id;
+          await pool.query(
+            'INSERT INTO clientes (nombre, telefono, direccion, barrio, ciudad, asignado_a) VALUES ($1, $2, $3, $4, $5, $6)',
+            [cNombre || 'Sin nombre', localPhone, cDireccion, cBarrio, cCiudad, coordId]
+          );
+        } else {
+          const upd = []; const uv = []; let ui = 1;
+          if (cNombre) { upd.push(`nombre = $${ui++}`); uv.push(cNombre); }
+          if (cDireccion) { upd.push(`direccion = $${ui++}`); uv.push(cDireccion); }
+          if (cBarrio) { upd.push(`barrio = $${ui++}`); uv.push(cBarrio); }
+          if (cCiudad) { upd.push(`ciudad = $${ui++}`); uv.push(cCiudad); }
+          if (upd.length > 0) {
+            upd.push('actualizado_en = NOW()');
+            uv.push(localPhone, fullPhone);
+            await pool.query(`UPDATE clientes SET ${upd.join(', ')} WHERE telefono = $${ui} OR telefono = $${ui + 1}`, uv);
+          }
+        }
+      } catch (clienteErr) {
+        console.error('[WhatsApp] Error actualizando cliente:', clienteErr.message);
+      }
+
+      // Guardar campos extra en whatsapp_contactos SIEMPRE
+      try {
+        const extra = contacto.extra || {};
+        const fechaParam = getParam(['fecha']);
+        const certDate = extra.proxima_certificacion || fechaParam || null;
+        await pool.query('INSERT INTO whatsapp_contactos (telefono) VALUES ($1) ON CONFLICT (telefono) DO NOTHING', [fullPhone]);
+        const sets = []; const vals = []; let pi = 1;
+        if (extra.telefono2) { sets.push(`telefono2 = $${pi++}`); vals.push(extra.telefono2); }
+        if (certDate) { sets.push(`proxima_certificacion = $${pi++}`); vals.push(certDate); }
+        if (sets.length > 0) {
+          sets.push('actualizado_en = NOW()');
+          vals.push(fullPhone);
+          await pool.query(`UPDATE whatsapp_contactos SET ${sets.join(', ')} WHERE telefono = $${pi}`, vals);
+        }
+      } catch (extraErr) {
+        console.error('[WhatsApp] Error guardando extra:', extraErr.message);
+      }
+
       const components = [];
       if (headerComponents && headerComponents.length > 0) {
         components.push(...headerComponents);
       }
-      const params = contacto.params || [];
       if (params.length > 0) {
         const filtered = params.filter(v => {
           const val = typeof v === 'object' ? v.value : v;
@@ -297,60 +357,6 @@ router.post('/enviar-masivo', authMiddleware, coordOWhatsapp, async (req, res) =
           [campName, plantilla, fullPhone]
         );
 
-        // Auto-crear cliente si no existe
-        try {
-          const normalize = (s) => (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z]/g, '');
-          const getParam = (names) => {
-            for (const n of names) {
-              const found = params.find(v => v.name && normalize(v.name) === n);
-              if (found && String(found.value).trim()) return String(found.value).trim();
-            }
-            return null;
-          };
-          const extra = contacto.extra || {};
-          const cNombre = getParam(['nombre']) || 'Sin nombre';
-          const cDireccion = getParam(['direccion']);
-          const cBarrio = getParam(['barrio']);
-          const cCiudad = extra.municipio || getParam(['municipio', 'ciudad']) || null;
-          const localPhone = phone.startsWith('57') ? phone.slice(2) : phone;
-
-          const existe = await pool.query('SELECT id FROM clientes WHERE telefono = $1 OR telefono = $2', [localPhone, fullPhone]);
-          if (existe.rows.length === 0) {
-            const coord = await pool.query("SELECT id FROM usuarios WHERE rol = 'COORDINADOR' AND activo = 1 LIMIT 1");
-            const coordId = coord.rows[0]?.id || req.user.id;
-            await pool.query(
-              'INSERT INTO clientes (nombre, telefono, direccion, barrio, ciudad, asignado_a) VALUES ($1, $2, $3, $4, $5, $6)',
-              [cNombre, localPhone, cDireccion, cBarrio, cCiudad, coordId]
-            );
-          } else if (cCiudad) {
-            await pool.query('UPDATE clientes SET ciudad = $1, actualizado_en = NOW() WHERE telefono = $2 OR telefono = $3', [cCiudad, localPhone, fullPhone]);
-          }
-        } catch (clienteErr) {
-          console.error('[WhatsApp] Error creando cliente:', clienteErr.message);
-        }
-
-        // Guardar campos extra en whatsapp_contactos
-        try {
-          const extra = contacto.extra || {};
-          const fechaParam = getParam(['fecha']);
-          const certDate = extra.proxima_certificacion || fechaParam || null;
-          if (extra.telefono2 || certDate || extra.municipio) {
-            await pool.query(
-              'INSERT INTO whatsapp_contactos (telefono) VALUES ($1) ON CONFLICT (telefono) DO NOTHING',
-              [fullPhone]
-            );
-            const sets = []; const vals = []; let pi = 1;
-            if (extra.telefono2) { sets.push(`telefono2 = $${pi++}`); vals.push(extra.telefono2); }
-            if (certDate) { sets.push(`proxima_certificacion = $${pi++}`); vals.push(certDate); }
-            if (sets.length > 0) {
-              sets.push('actualizado_en = NOW()');
-              vals.push(fullPhone);
-              await pool.query(`UPDATE whatsapp_contactos SET ${sets.join(', ')} WHERE telefono = $${pi}`, vals);
-            }
-          }
-        } catch (extraErr) {
-          console.error('[WhatsApp] Error guardando extra:', extraErr.message);
-        }
       } else {
         resultados.fallidos++;
         resultados.errores.push({ telefono: fullPhone, error: data.error?.message });
