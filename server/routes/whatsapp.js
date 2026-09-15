@@ -482,6 +482,7 @@ router.get('/conversaciones', authMiddleware, coordOWhatsapp, async (req, res) =
         WHERE (
           EXISTS (SELECT 1 FROM whatsapp_asignaciones wa WHERE wa.tipo = 'chat' AND wa.valor = m1.telefono AND wa.usuario_id = $1)
           OR EXISTS (SELECT 1 FROM whatsapp_campana_contactos cc2 JOIN whatsapp_asignaciones wa2 ON wa2.tipo = 'campana' AND wa2.valor = cc2.campana AND wa2.usuario_id = $1 WHERE cc2.telefono = m1.telefono)
+          OR EXISTS (SELECT 1 FROM whatsapp_contactos wc WHERE wc.telefono = m1.telefono AND wc.asesor_id = $1)
         )
         GROUP BY m1.telefono
         ORDER BY (COUNT(*) FILTER (WHERE m1.estado = 'nuevo' AND m1.direccion = 'entrante') > 0) DESC, MAX(m1.creado_en) DESC
