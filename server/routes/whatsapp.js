@@ -307,10 +307,11 @@ router.post('/enviar-masivo', authMiddleware, coordOWhatsapp, async (req, res) =
             }
             return null;
           };
+          const extra = contacto.extra || {};
           const cNombre = getParam(['nombre']) || 'Sin nombre';
           const cDireccion = getParam(['direccion']);
           const cBarrio = getParam(['barrio']);
-          const cCiudad = getParam(['municipio', 'ciudad']) || null;
+          const cCiudad = extra.municipio || getParam(['municipio', 'ciudad']) || null;
           const localPhone = phone.startsWith('57') ? phone.slice(2) : phone;
 
           const existe = await pool.query('SELECT id FROM clientes WHERE telefono = $1 OR telefono = $2', [localPhone, fullPhone]);
@@ -321,9 +322,32 @@ router.post('/enviar-masivo', authMiddleware, coordOWhatsapp, async (req, res) =
               'INSERT INTO clientes (nombre, telefono, direccion, barrio, ciudad, asignado_a) VALUES ($1, $2, $3, $4, $5, $6)',
               [cNombre, localPhone, cDireccion, cBarrio, cCiudad, coordId]
             );
+          } else if (cCiudad) {
+            await pool.query('UPDATE clientes SET ciudad = $1, actualizado_en = NOW() WHERE telefono = $2 OR telefono = $3', [cCiudad, localPhone, fullPhone]);
           }
         } catch (clienteErr) {
           console.error('[WhatsApp] Error creando cliente:', clienteErr.message);
+        }
+
+        // Guardar campos extra en whatsapp_contactos
+        try {
+          const extra = contacto.extra || {};
+          if (extra.telefono2 || extra.proxima_certificacion || extra.municipio) {
+            await pool.query(
+              'INSERT INTO whatsapp_contactos (telefono) VALUES ($1) ON CONFLICT (telefono) DO NOTHING',
+              [fullPhone]
+            );
+            const sets = []; const vals = []; let pi = 1;
+            if (extra.telefono2) { sets.push(`telefono2 = $${pi++}`); vals.push(extra.telefono2); }
+            if (extra.proxima_certificacion) { sets.push(`proxima_certificacion = $${pi++}`); vals.push(extra.proxima_certificacion); }
+            if (sets.length > 0) {
+              sets.push('actualizado_en = NOW()');
+              vals.push(fullPhone);
+              await pool.query(`UPDATE whatsapp_contactos SET ${sets.join(', ')} WHERE telefono = $${pi}`, vals);
+            }
+          }
+        } catch (extraErr) {
+          console.error('[WhatsApp] Error guardando extra:', extraErr.message);
         }
       } else {
         resultados.fallidos++;
