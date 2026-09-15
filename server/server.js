@@ -15,6 +15,7 @@ app.use(helmet({ contentSecurityPolicy: false }));
 
 const allowedOrigins = [
   process.env.FRONTEND_URL,
+  process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : null,
   'http://localhost:5173',
   'http://localhost:3001'
 ].filter(Boolean);
@@ -22,6 +23,7 @@ const allowedOrigins = [
 app.use(cors({
   origin: (origin, callback) => {
     if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+    if (origin && origin.endsWith('.up.railway.app')) return callback(null, true);
     callback(new Error('CORS no permitido'));
   },
   credentials: true

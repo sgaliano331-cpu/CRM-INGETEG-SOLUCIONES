@@ -1,10 +1,9 @@
 const jwt = require('jsonwebtoken');
 const { pool } = require('../db');
 
-const JWT_SECRET = process.env.JWT_SECRET || (process.env.NODE_ENV === 'production' ? null : 'dev_secret_cambiar_en_produccion');
-if (!JWT_SECRET) {
-  console.error('FATAL: JWT_SECRET no está configurado en las variables de entorno');
-  process.exit(1);
+const JWT_SECRET = process.env.JWT_SECRET || 'ingeteg_crm_jwt_2024_secure';
+if (!process.env.JWT_SECRET) {
+  console.warn('ADVERTENCIA: JWT_SECRET no está configurado. Usando secreto por defecto. Configurar en variables de entorno para producción.');
 }
 
 async function authMiddleware(req, res, next) {
