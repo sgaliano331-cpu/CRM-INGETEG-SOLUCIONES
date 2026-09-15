@@ -575,7 +575,7 @@ router.get('/contacto/:telefono', authMiddleware, async (req, res) => {
 // PUT /api/whatsapp/contacto/:telefono — Actualizar info del contacto
 router.put('/contacto/:telefono', authMiddleware, async (req, res) => {
   const tel = req.params.telefono;
-  const { direccion, estado, asesor_id, ciudad } = req.body;
+  const { direccion, estado, asesor_id, ciudad, telefono2, proxima_certificacion } = req.body;
   try {
     await pool.query(
       'INSERT INTO whatsapp_contactos (telefono) VALUES ($1) ON CONFLICT (telefono) DO NOTHING',
@@ -587,6 +587,8 @@ router.put('/contacto/:telefono', authMiddleware, async (req, res) => {
     if (direccion !== undefined) { sets.push(`direccion = $${idx++}`); params.push(direccion); }
     if (estado !== undefined) { sets.push(`estado = $${idx++}`); params.push(estado); }
     if (asesor_id !== undefined) { sets.push(`asesor_id = $${idx++}`); params.push(asesor_id || null); }
+    if (telefono2 !== undefined) { sets.push(`telefono2 = $${idx++}`); params.push(telefono2 || null); }
+    if (proxima_certificacion !== undefined) { sets.push(`proxima_certificacion = $${idx++}`); params.push(proxima_certificacion || null); }
     if (sets.length === 0 && ciudad === undefined) return res.status(400).json({ error: 'Nada que actualizar' });
     if (sets.length > 0) {
       sets.push(`actualizado_en = NOW()`);

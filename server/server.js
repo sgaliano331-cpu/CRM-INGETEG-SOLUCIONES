@@ -235,6 +235,10 @@ app.listen(PORT, async () => {
       console.log('Tabla whatsapp_asignaciones creada/verificada.');
     } catch (e) {}
 
+    // Migración: campos telefono2 y proxima_certificacion en whatsapp_contactos
+    try { await client.query('ALTER TABLE whatsapp_contactos ADD COLUMN telefono2 TEXT'); } catch (e) {}
+    try { await client.query('ALTER TABLE whatsapp_contactos ADD COLUMN proxima_certificacion DATE'); } catch (e) {}
+
     // Índices para acelerar consultas de gestion-servicios
     const indices = [
       'CREATE INDEX IF NOT EXISTS idx_agendamientos_tecnico ON agendamientos(tecnico)',
