@@ -127,6 +127,7 @@ router.post('/guardar', authMiddleware, async (req, res) => {
     }
 
     await client.query('COMMIT');
+    logAudit({ userId: req.user.id, username: req.user.username, action: 'INSERT', tableName: 'historial_llamadas', recordId: historial_id, newValues: { cliente_id, acepto_servicio, agendamientoId, equipos, tipo_servicio, fecha_agendamiento }, ip: getClientIp(req) });
     res.json({ ok: true, duracionSeg, agendamientoId });
   } catch (err) {
     if (client) try { await client.query('ROLLBACK'); } catch (e) {}
@@ -277,6 +278,7 @@ router.post('/nuevo-servicio', authMiddleware, async (req, res) => {
       if (evId) getClient().then(c => c.query('UPDATE agendamientos SET google_event_id = $1 WHERE id = $2', [evId, nuevoAgId]).finally(() => c.release()));
     }).catch(e => console.error('[Calendar] Error en /nuevo-servicio:', e.message));
 
+    logAudit({ userId: req.user.id, username: req.user.username, action: 'INSERT', tableName: 'agendamientos', recordId: nuevoAgId, newValues: { cliente_id, equipos, tipo_servicio, fecha_agendamiento, tecnico }, ip: getClientIp(req) });
     res.json({ ok: true, agendamiento_id: nuevoAgId });
   } catch (err) {
     if (client) try { await client.query('ROLLBACK'); } catch (e) {}
@@ -387,6 +389,7 @@ router.put('/actualizar-servicio/:id', authMiddleware, gestorOCoordinador, uploa
           console.error('[Calendar] Error al sincronizar actualizar-servicio:', calErr.message);
         }
 
+        logAudit({ userId: req.user.id, username: req.user.username, action: 'UPDATE', tableName: 'agendamientos', recordId: parseInt(agId), oldValues: { estado_servicio: current.estado_servicio }, newValues: { estado_servicio, metodo_pago, costo_cop, tecnico }, ip: getClientIp(req) });
         res.json({ ok: true, comprobante_url: urlComprobante });
       });
     });
@@ -412,6 +415,7 @@ router.put('/subir-comprobante/:id', authMiddleware, uploadComp.single('comproba
         console.error('Error subiendo comprobante:', err.message);
         return res.status(500).json({ error: 'Error al subir comprobante' });
       }
+      logAudit({ userId: req.user.id, username: req.user.username, action: 'UPDATE', tableName: 'agendamientos', recordId: parseInt(agId), newValues: { comprobante_pago_url: comprobante_url, metodo_pago: 'Transferencia' }, ip: getClientIp(req) });
       res.json({ ok: true, comprobante_url });
     }
   );
@@ -505,6 +509,7 @@ router.put('/enviar-cotizacion/:id', authMiddleware, gestorOCoordinador, (req, r
         [agId, ag.cliente_id, ag.usuario_id, req.user.id, parseFloat(valor_cotizacion), observacion_repuesto.trim()],
         function (err2) {
           if (err2) return res.status(500).json({ error: err2.message });
+          logAudit({ userId: req.user.id, username: req.user.username, action: 'INSERT', tableName: 'cotizaciones', recordId: this.lastID, newValues: { agendamiento_id: agId, valor_cotizacion: parseFloat(valor_cotizacion), observacion_repuesto }, ip: getClientIp(req) });
           res.json({ ok: true, cotizacion_id: this.lastID });
         }
       );
@@ -659,6 +664,7 @@ router.post('/nuevo-agendamiento', authMiddleware, async (req, res) => {
         if (evId) getClient().then(c => c.query('UPDATE agendamientos SET google_event_id = $1 WHERE id = $2', [evId, nuevoAgId3]).finally(() => c.release()));
       }).catch(e => console.error('[Calendar] Error en /nuevo-agendamiento:', e.message));
 
+      logAudit({ userId: req.user.id, username: req.user.username, action: 'INSERT', tableName: 'agendamientos', recordId: nuevoAgId3, newValues: { cliente_id, equipos, tipo_servicio, fecha_agendamiento, tecnico }, ip: getClientIp(req) });
       res.status(201).json({ ok: true, agendamiento_id: nuevoAgId3 });
     } catch (errTx) {
       if (client) try { await client.query('ROLLBACK'); } catch (e) {}
@@ -696,6 +702,7 @@ router.post('/reprogramar', authMiddleware, (req, res) => {
         console.error('Error al reprogramar llamada:', errIns.message, 'Params:', { cliente_id, agendamiento_id, fecha_reprogramacion, hora_reprogramacion });
         return res.status(500).json({ error: 'Error al crear reprogramación: ' + errIns.message });
       }
+      logAudit({ userId: req.user.id, username: req.user.username, action: 'INSERT', tableName: 'llamadas_reprogramadas', recordId: this.lastID, newValues: { cliente_id, agendamiento_id, fecha_reprogramacion, hora_reprogramacion, motivo }, ip: getClientIp(req) });
       res.status(201).json({ ok: true, id: this.lastID });
     });
   });
@@ -763,6 +770,7 @@ router.put('/reprogramada/:id/completar', authMiddleware, (req, res) => {
         console.error('Error al completar reprogramación:', errUpd.message);
         return res.status(500).json({ error: 'Error al completar reprogramación' });
       }
+      logAudit({ userId: req.user.id, username: req.user.username, action: 'UPDATE', tableName: 'llamadas_reprogramadas', recordId: parseInt(repId), oldValues: { estado: 'pendiente' }, newValues: { estado: 'completada' }, ip: getClientIp(req) });
       res.json({ ok: true });
     });
   });
@@ -999,6 +1007,7 @@ router.put('/asignar-tecnico', authMiddleware, gestorOCoordinador, (req, res) =>
       }
     }
 
+    logAudit({ userId: req.user.id, username: req.user.username, action: 'UPDATE', tableName: 'agendamientos', recordId: parseInt(agendamiento_id), newValues: { tecnico, fecha_atencion }, ip: getClientIp(req) });
     res.json({ ok: true });
   });
 });

@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { getDb } = require('../db');
 const { authMiddleware, gestorOCoordinador } = require('../middleware/auth');
+const { logAudit, getClientIp } = require('../middleware/auditLogger');
 
 // POST /api/cotizaciones — Crear cotizacion (cuando gestor marca Pendiente por repuesto)
 router.post('/', authMiddleware, gestorOCoordinador, (req, res) => {
@@ -21,6 +22,7 @@ router.post('/', authMiddleware, gestorOCoordinador, (req, res) => {
       [agendamiento_id, ag.cliente_id, ag.usuario_id, req.user.id, parseFloat(valor_cotizacion), observacion_gestor || null],
       function (err2) {
         if (err2) return res.status(500).json({ error: err2.message });
+        logAudit({ userId: req.user.id, username: req.user.username, action: 'INSERT', tableName: 'cotizaciones', recordId: this.lastID, newValues: { agendamiento_id, valor_cotizacion: parseFloat(valor_cotizacion), observacion_gestor }, ip: getClientIp(req) });
         res.json({ ok: true, id: this.lastID });
       }
     );
@@ -79,6 +81,7 @@ router.put('/:id/resultado', authMiddleware, (req, res) => {
       [estado, observacion_asesora || null, id],
       (err2) => {
         if (err2) return res.status(500).json({ error: err2.message });
+        logAudit({ userId: req.user.id, username: req.user.username, action: 'UPDATE', tableName: 'cotizaciones', recordId: parseInt(id), oldValues: { estado: cot.estado }, newValues: { estado, observacion_asesora }, ip: getClientIp(req) });
 
         if (estado === 'agendado' && agendamiento_data) {
           const { equipos, tipo_servicio, fecha_agendamiento, costo_cop } = agendamiento_data;
