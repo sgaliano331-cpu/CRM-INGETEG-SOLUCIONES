@@ -252,7 +252,7 @@ router.post('/enviar-masivo', authMiddleware, coordOWhatsapp, async (req, res) =
         const localPhone = phoneDigits.startsWith('57') ? phoneDigits.slice(2) : phoneDigits;
 
         const existe = await pool.query(
-          `SELECT id FROM clientes WHERE REGEXP_REPLACE(telefono, '[^0-9]', '', 'g') = $1 OR REGEXP_REPLACE(telefono, '[^0-9]', '', 'g') = $2`,
+          `SELECT id FROM clientes WHERE REGEXP_REPLACE(telefono, '[^0-9]', '', 'g') = $1 OR REGEXP_REPLACE(telefono, '[^0-9]', '', 'g') = $2 ORDER BY actualizado_en DESC LIMIT 1`,
           [localPhone, phoneDigits]
         );
         if (existe.rows.length === 0) {
@@ -270,8 +270,8 @@ router.post('/enviar-masivo', authMiddleware, coordOWhatsapp, async (req, res) =
           if (cCiudad) { upd.push(`ciudad = $${ui++}`); uv.push(cCiudad); }
           if (upd.length > 0) {
             upd.push('actualizado_en = NOW()');
-            uv.push(localPhone, fullPhone);
-            await pool.query(`UPDATE clientes SET ${upd.join(', ')} WHERE telefono = $${ui} OR telefono = $${ui + 1}`, uv);
+            uv.push(existe.rows[0].id);
+            await pool.query(`UPDATE clientes SET ${upd.join(', ')} WHERE id = $${ui}`, uv);
           }
         }
       } catch (clienteErr) {
@@ -639,15 +639,23 @@ router.put('/contacto/:telefono', authMiddleware, async (req, res) => {
         params
       );
     }
-    const localPhone = tel.startsWith('57') ? tel.slice(2) : tel;
-    if (ciudad !== undefined) {
-      await pool.query('UPDATE clientes SET ciudad = $1, actualizado_en = NOW() WHERE telefono = $2 OR telefono = $3', [ciudad, localPhone, tel]);
-    }
-    if (nombre !== undefined) {
-      await pool.query('UPDATE clientes SET nombre = $1, actualizado_en = NOW() WHERE telefono = $2 OR telefono = $3', [nombre, localPhone, tel]);
-    }
-    if (direccion_cliente !== undefined) {
-      await pool.query('UPDATE clientes SET direccion = $1, actualizado_en = NOW() WHERE telefono = $2 OR telefono = $3', [direccion_cliente, localPhone, tel]);
+    const telDigits = tel.replace(/\D/g, '');
+    const localPhone = telDigits.startsWith('57') ? telDigits.slice(2) : telDigits;
+    const clienteMatch = await pool.query(
+      `SELECT id FROM clientes WHERE REGEXP_REPLACE(telefono, '[^0-9]', '', 'g') = $1 OR REGEXP_REPLACE(telefono, '[^0-9]', '', 'g') = $2 ORDER BY actualizado_en DESC LIMIT 1`,
+      [localPhone, telDigits]
+    );
+    const clienteId = clienteMatch.rows[0]?.id;
+    if (clienteId) {
+      if (ciudad !== undefined) {
+        await pool.query('UPDATE clientes SET ciudad = $1, actualizado_en = NOW() WHERE id = $2', [ciudad, clienteId]);
+      }
+      if (nombre !== undefined) {
+        await pool.query('UPDATE clientes SET nombre = $1, actualizado_en = NOW() WHERE id = $2', [nombre, clienteId]);
+      }
+      if (direccion_cliente !== undefined) {
+        await pool.query('UPDATE clientes SET direccion = $1, actualizado_en = NOW() WHERE id = $2', [direccion_cliente, clienteId]);
+      }
     }
     const { rows } = await pool.query('SELECT * FROM whatsapp_contactos WHERE telefono = $1', [tel]);
     res.json(rows[0]);
