@@ -142,6 +142,7 @@ export default function WhatsApp() {
 
   const selectConversacion = async (conv) => {
     setSelected(conv);
+    setContactoInfo(null);
     setTab('inbox');
     setPanelTab('info');
     try {
@@ -901,7 +902,7 @@ export default function WhatsApp() {
                       <input
                         type="text"
                         defaultValue={contactoInfo.cliente?.nombre || contactoInfo.nombre || ''}
-                        key={`nombre-${selected?.telefono}`}
+                        key={`nombre-${selected?.telefono}-${contactoInfo?.cliente?.id || ''}`}
                         onBlur={e => { if (e.target.value.trim()) updateContacto('nombre', e.target.value.trim()); }}
                         placeholder="Agregar nombre..."
                         className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs text-slate-700 focus:ring-1 focus:ring-green-500 focus:border-green-500"
@@ -916,7 +917,7 @@ export default function WhatsApp() {
                       <input
                         type="text"
                         defaultValue={contactoInfo.cliente?.ciudad || ''}
-                        key={`ciudad-${selected?.telefono}`}
+                        key={`ciudad-${selected?.telefono}-${contactoInfo?.cliente?.id || ''}`}
                         onBlur={e => updateContacto('ciudad', e.target.value.trim())}
                         placeholder="Agregar municipio..."
                         className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs text-slate-700 focus:ring-1 focus:ring-green-500 focus:border-green-500"
@@ -931,7 +932,7 @@ export default function WhatsApp() {
                       <input
                         type="text"
                         defaultValue={contactoInfo.cliente?.direccion || contactoInfo.direccion || ''}
-                        key={`dir-${selected?.telefono}`}
+                        key={`dir-${selected?.telefono}-${contactoInfo?.cliente?.id || ''}`}
                         onBlur={e => updateContacto('direccion_cliente', e.target.value)}
                         placeholder="Agregar direccion..."
                         className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs text-slate-700 focus:ring-1 focus:ring-green-500 focus:border-green-500"
