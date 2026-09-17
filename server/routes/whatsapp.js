@@ -248,9 +248,13 @@ router.post('/enviar-masivo', authMiddleware, coordOWhatsapp, async (req, res) =
         const cDireccion = getParam(['direccion']);
         const cBarrio = getParam(['barrio']);
         const cCiudad = extra.municipio || getParam(['municipio', 'ciudad']) || null;
-        const localPhone = phone.startsWith('57') ? phone.slice(2) : phone;
+        const phoneDigits = phone.replace(/\D/g, '');
+        const localPhone = phoneDigits.startsWith('57') ? phoneDigits.slice(2) : phoneDigits;
 
-        const existe = await pool.query('SELECT id FROM clientes WHERE telefono = $1 OR telefono = $2', [localPhone, fullPhone]);
+        const existe = await pool.query(
+          `SELECT id FROM clientes WHERE REGEXP_REPLACE(telefono, '[^0-9]', '', 'g') = $1 OR REGEXP_REPLACE(telefono, '[^0-9]', '', 'g') = $2`,
+          [localPhone, phoneDigits]
+        );
         if (existe.rows.length === 0) {
           const coord = await pool.query("SELECT id FROM usuarios WHERE rol = 'COORDINADOR' AND activo = 1 LIMIT 1");
           const coordId = coord.rows[0]?.id || req.user.id;
@@ -587,11 +591,15 @@ router.get('/contacto/:telefono', authMiddleware, async (req, res) => {
       [tel]
     );
 
-    // Buscar datos del cliente en tabla clientes (sin 57 o con 57)
-    const localPhone = tel.startsWith('57') ? tel.slice(2) : tel;
+    // Buscar datos del cliente normalizando el telefono (quitar espacios, guiones, +, y prefijo 57)
+    const digitsOnly = tel.replace(/\D/g, '');
+    const localPhone = digitsOnly.startsWith('57') ? digitsOnly.slice(2) : digitsOnly;
     const cliente = await pool.query(
-      'SELECT id, nombre, direccion, barrio, ciudad FROM clientes WHERE telefono = $1 OR telefono = $2 LIMIT 1',
-      [localPhone, tel]
+      `SELECT id, nombre, direccion, barrio, ciudad FROM clientes
+       WHERE REGEXP_REPLACE(telefono, '[^0-9]', '', 'g') = $1
+          OR REGEXP_REPLACE(telefono, '[^0-9]', '', 'g') = $2
+       ORDER BY actualizado_en DESC LIMIT 1`,
+      [localPhone, digitsOnly]
     );
 
     res.json({
@@ -754,10 +762,14 @@ router.post('/agendar', authMiddleware, async (req, res) => {
   }
   let client;
   try {
-    const localPhone = telefono.startsWith('57') ? telefono.slice(2) : telefono;
+    const phoneDigits = telefono.replace(/\D/g, '');
+    const localPhone = phoneDigits.startsWith('57') ? phoneDigits.slice(2) : phoneDigits;
     const clRes = await pool.query(
-      'SELECT id, nombre, direccion, barrio, ciudad, telefono FROM clientes WHERE telefono LIKE $1 OR telefono LIKE $2 LIMIT 1',
-      [`%${localPhone}%`, `%${telefono}%`]
+      `SELECT id, nombre, direccion, barrio, ciudad, telefono FROM clientes
+       WHERE REGEXP_REPLACE(telefono, '[^0-9]', '', 'g') = $1
+          OR REGEXP_REPLACE(telefono, '[^0-9]', '', 'g') = $2
+       ORDER BY actualizado_en DESC LIMIT 1`,
+      [localPhone, phoneDigits]
     );
     let cliente_id;
     let clienteData;
