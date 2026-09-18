@@ -73,6 +73,11 @@ export default function WhatsApp() {
   const [asignaciones, setAsignaciones] = useState([]);
   const [showAsignar, setShowAsignar] = useState(null); // { tipo: 'campana'|'chat', valor: string }
   const [asignarUsuario, setAsignarUsuario] = useState('');
+  const [respuestasRapidas, setRespuestasRapidas] = useState([]);
+  const [showRespuestas, setShowRespuestas] = useState(false);
+  const [filtroRespuesta, setFiltroRespuesta] = useState('');
+  const [rrForm, setRrForm] = useState({ atajo: '', mensaje: '' });
+  const [rrEditId, setRrEditId] = useState(null);
   const chatRef = useRef(null);
   const pollRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -119,6 +124,7 @@ export default function WhatsApp() {
     fetchEtiquetas();
     fetchAsignaciones();
     api.get('/whatsapp/tecnicos').then(({ data }) => setTecnicos(data)).catch(() => {});
+    api.get('/whatsapp/respuestas-rapidas').then(({ data }) => setRespuestasRapidas(data)).catch(() => {});
     pollRef.current = setInterval(() => { fetchConversaciones(); fetchCampanas(); }, 15000);
     return () => clearInterval(pollRef.current);
   }, [fetchConversaciones, fetchCampanas, fetchAsesores, fetchEtiquetas, fetchAsignaciones]);
@@ -772,21 +778,54 @@ export default function WhatsApp() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
                       </svg>
                     </button>
-                    <textarea
-                      value={texto}
-                      onChange={e => setTexto(e.target.value)}
-                      onKeyDown={e => {
-                        if (e.key === 'Enter' && !e.shiftKey) {
-                          e.preventDefault();
-                          if (texto.trim() || adjunto) enviarMensaje(e);
-                        }
-                      }}
-                      placeholder={adjunto ? "Agrega un comentario..." : "Escribe un mensaje... (Shift+Enter para salto de línea)"}
-                      rows={1}
-                      className="flex-1 px-4 py-2.5 bg-white border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 resize-none overflow-hidden"
-                      style={{ maxHeight: '120px', overflowY: texto.split('\n').length > 4 ? 'auto' : 'hidden' }}
-                      onInput={e => { e.target.style.height = 'auto'; e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px'; }}
-                    />
+                    <div className="flex-1 relative">
+                      {showRespuestas && (() => {
+                        const filtered = respuestasRapidas.filter(r => !filtroRespuesta || r.atajo.includes(filtroRespuesta) || r.mensaje.toLowerCase().includes(filtroRespuesta.toLowerCase()));
+                        return filtered.length > 0 ? (
+                          <div className="absolute bottom-full left-0 right-0 mb-1 bg-white border border-slate-200 rounded-xl shadow-lg max-h-48 overflow-y-auto z-50">
+                            {filtered.map(r => (
+                              <button key={r.id} type="button"
+                                className="w-full text-left px-4 py-2.5 hover:bg-green-50 border-b border-slate-100 last:border-0 transition-colors"
+                                onClick={() => { setTexto(r.mensaje); setShowRespuestas(false); setFiltroRespuesta(''); }}
+                              >
+                                <span className="text-xs font-bold text-green-700">/{r.atajo}</span>
+                                <p className="text-xs text-slate-600 mt-0.5 line-clamp-2">{r.mensaje}</p>
+                              </button>
+                            ))}
+                          </div>
+                        ) : null;
+                      })()}
+                      <textarea
+                        value={texto}
+                        onChange={e => {
+                          const val = e.target.value;
+                          setTexto(val);
+                          if (val.startsWith('/')) {
+                            setShowRespuestas(true);
+                            setFiltroRespuesta(val.slice(1).toLowerCase());
+                          } else {
+                            setShowRespuestas(false);
+                          }
+                        }}
+                        onKeyDown={e => {
+                          if (e.key === 'Escape' && showRespuestas) { setShowRespuestas(false); return; }
+                          if (e.key === 'Enter' && !e.shiftKey) {
+                            e.preventDefault();
+                            if (showRespuestas) {
+                              const filtered = respuestasRapidas.filter(r => !filtroRespuesta || r.atajo.includes(filtroRespuesta));
+                              if (filtered.length === 1) { setTexto(filtered[0].mensaje); setShowRespuestas(false); setFiltroRespuesta(''); return; }
+                            }
+                            if (texto.trim() || adjunto) enviarMensaje(e);
+                          }
+                        }}
+                        onBlur={() => setTimeout(() => setShowRespuestas(false), 200)}
+                        placeholder={adjunto ? "Agrega un comentario..." : "Escribe un mensaje... ( / para respuestas rápidas)"}
+                        rows={1}
+                        className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 resize-none overflow-hidden"
+                        style={{ maxHeight: '120px', overflowY: texto.split('\n').length > 4 ? 'auto' : 'hidden' }}
+                        onInput={e => { e.target.style.height = 'auto'; e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px'; }}
+                      />
+                    </div>
                     <button
                       type="submit"
                       disabled={sending || (!texto.trim() && !adjunto)}
@@ -875,6 +914,7 @@ export default function WhatsApp() {
                 {[
                   { key: 'info', label: 'Informacion' },
                   { key: 'notas', label: 'Notas' },
+                  { key: 'rapidas', label: 'Resp. Rapidas' },
                 ].map(t => (
                   <button
                     key={t.key}
@@ -1257,6 +1297,72 @@ export default function WhatsApp() {
                       ))}
                       {(contactoInfo.notas || []).length === 0 && (
                         <p className="text-center text-xs text-slate-400 py-6">No hay notas para este contacto</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {panelTab === 'rapidas' && (
+                  <div className="p-4">
+                    <div className="mb-4 space-y-2">
+                      <input
+                        value={rrForm.atajo}
+                        onChange={e => setRrForm(f => ({ ...f, atajo: e.target.value.replace(/\s/g, '').toLowerCase() }))}
+                        placeholder="Atajo (ej: gracias)"
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs focus:ring-1 focus:ring-green-500"
+                      />
+                      <textarea
+                        value={rrForm.mensaje}
+                        onChange={e => setRrForm(f => ({ ...f, mensaje: e.target.value }))}
+                        placeholder="Mensaje completo..."
+                        rows={3}
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs resize-none focus:ring-1 focus:ring-green-500"
+                      />
+                      <button
+                        onClick={async () => {
+                          if (!rrForm.atajo.trim() || !rrForm.mensaje.trim()) return;
+                          try {
+                            if (rrEditId) {
+                              await api.put(`/whatsapp/respuestas-rapidas/${rrEditId}`, rrForm);
+                            } else {
+                              await api.post('/whatsapp/respuestas-rapidas', rrForm);
+                            }
+                            const { data } = await api.get('/whatsapp/respuestas-rapidas');
+                            setRespuestasRapidas(data);
+                            setRrForm({ atajo: '', mensaje: '' });
+                            setRrEditId(null);
+                          } catch (err) {
+                            alert(err.response?.data?.error || 'Error');
+                          }
+                        }}
+                        disabled={!rrForm.atajo.trim() || !rrForm.mensaje.trim()}
+                        className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-medium hover:bg-green-700 disabled:opacity-50 transition-colors"
+                      >
+                        {rrEditId ? 'Guardar cambios' : '+ Agregar respuesta'}
+                      </button>
+                      {rrEditId && (
+                        <button onClick={() => { setRrForm({ atajo: '', mensaje: '' }); setRrEditId(null); }} className="ml-2 px-3 py-1.5 text-xs text-slate-500 hover:text-slate-700">Cancelar</button>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      {respuestasRapidas.map(r => (
+                        <div key={r.id} className="p-3 bg-slate-50 border border-slate-200 rounded-lg group relative">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-xs font-bold text-green-700">/{r.atajo}</span>
+                            <div className="opacity-0 group-hover:opacity-100 flex gap-1 transition-opacity">
+                              <button onClick={() => { setRrForm({ atajo: r.atajo, mensaje: r.mensaje }); setRrEditId(r.id); }} className="text-blue-400 hover:text-blue-600" title="Editar">
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                              </button>
+                              <button onClick={async () => { await api.delete(`/whatsapp/respuestas-rapidas/${r.id}`); const { data } = await api.get('/whatsapp/respuestas-rapidas'); setRespuestasRapidas(data); }} className="text-red-400 hover:text-red-600" title="Eliminar">
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                              </button>
+                            </div>
+                          </div>
+                          <p className="text-xs text-slate-600 whitespace-pre-wrap">{r.mensaje}</p>
+                        </div>
+                      ))}
+                      {respuestasRapidas.length === 0 && (
+                        <p className="text-center text-xs text-slate-400 py-6">No hay respuestas rapidas. Crea una arriba.</p>
                       )}
                     </div>
                   </div>

@@ -926,4 +926,52 @@ router.get('/usuarios-asignables', authMiddleware, soloCoordinador, async (req, 
   }
 });
 
+// ─── Respuestas Rápidas ────────────────────────────────────────────────────
+
+router.get('/respuestas-rapidas', authMiddleware, async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT id, atajo, mensaje FROM whatsapp_respuestas_rapidas ORDER BY atajo');
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/respuestas-rapidas', authMiddleware, coordOWhatsapp, async (req, res) => {
+  const { atajo, mensaje } = req.body;
+  if (!atajo?.trim() || !mensaje?.trim()) return res.status(400).json({ error: 'Atajo y mensaje son requeridos' });
+  try {
+    const { rows } = await pool.query(
+      'INSERT INTO whatsapp_respuestas_rapidas (atajo, mensaje, creado_por) VALUES ($1, $2, $3) RETURNING id, atajo, mensaje',
+      [atajo.trim().toLowerCase(), mensaje.trim(), req.user.id]
+    );
+    res.json(rows[0]);
+  } catch (err) {
+    if (err.code === '23505') return res.status(400).json({ error: 'Ese atajo ya existe' });
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.put('/respuestas-rapidas/:id', authMiddleware, coordOWhatsapp, async (req, res) => {
+  const { atajo, mensaje } = req.body;
+  try {
+    await pool.query(
+      'UPDATE whatsapp_respuestas_rapidas SET atajo = $1, mensaje = $2 WHERE id = $3',
+      [atajo?.trim().toLowerCase(), mensaje?.trim(), req.params.id]
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.delete('/respuestas-rapidas/:id', authMiddleware, coordOWhatsapp, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM whatsapp_respuestas_rapidas WHERE id = $1', [req.params.id]);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

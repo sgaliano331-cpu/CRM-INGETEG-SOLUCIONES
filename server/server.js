@@ -320,6 +320,19 @@ app.listen(PORT, async () => {
     try { await client.query('ALTER TABLE whatsapp_contactos ADD COLUMN proxima_certificacion TEXT'); } catch (e) {}
     try { await client.query('ALTER TABLE whatsapp_contactos ALTER COLUMN proxima_certificacion TYPE TEXT'); } catch (e) {}
 
+    // Tabla de respuestas rápidas de WhatsApp
+    try {
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS whatsapp_respuestas_rapidas (
+          id SERIAL PRIMARY KEY,
+          atajo VARCHAR(50) NOT NULL UNIQUE,
+          mensaje TEXT NOT NULL,
+          creado_por INTEGER REFERENCES usuarios(id),
+          creado_en TIMESTAMPTZ DEFAULT NOW()
+        )
+      `);
+    } catch (e) {}
+
     // Índices para acelerar consultas de gestion-servicios
     const indices = [
       'CREATE INDEX IF NOT EXISTS idx_agendamientos_tecnico ON agendamientos(tecnico)',
