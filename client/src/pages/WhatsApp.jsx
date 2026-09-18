@@ -390,7 +390,7 @@ export default function WhatsApp() {
     if (!masivo.excelData || !masivo.plantilla) return;
     const cols = Object.keys(masivo.excelData[0]);
     const telCol = cols.find(c => /^tel[eé]fono$/i.test(c.trim())) || cols.find(c => /tel[eé]fono|phone|celular|numero/i.test(c) && !/2|segundo/i.test(c)) || cols[0];
-    const extraFields = ['telefono2', 'segundo_telefono', 'segundo_numero', 'municipio', 'ciudad', 'proxima_certificacion', 'proxima certificacion', 'certificacion'];
+    const extraFields = ['telefono2', 'segundo_telefono', 'segundo_numero', 'municipio', 'ciudad', 'barrio', 'proxima_certificacion', 'proxima certificacion', 'certificacion'];
     const isExtra = (c) => extraFields.some(ef => c.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').includes(ef.replace(/_/g, ' ')));
     const varCols = cols.filter(c => c !== telCol && !isExtra(c));
     const extraCols = cols.filter(c => c !== telCol && isExtra(c));
@@ -401,6 +401,7 @@ export default function WhatsApp() {
         for (const c of extraCols) {
           const cl = c.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
           if (cl.includes('telefono2') || cl.includes('segundo')) extra.telefono2 = String(row[c] ?? '').trim();
+          else if (cl.includes('barrio')) extra.barrio = String(row[c] ?? '').trim();
           else if (cl.includes('municipio') || cl.includes('ciudad')) extra.municipio = String(row[c] ?? '').trim();
           else if (cl.includes('certificacion')) extra.proxima_certificacion = String(row[c] ?? '').trim();
         }
