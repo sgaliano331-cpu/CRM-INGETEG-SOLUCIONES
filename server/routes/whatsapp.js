@@ -301,21 +301,17 @@ router.post('/enviar-masivo', authMiddleware, coordOWhatsapp, async (req, res) =
         components.push(...headerComponents);
       }
       if (params.length > 0) {
-        const filtered = params.filter(v => {
-          const val = typeof v === 'object' ? v.value : v;
-          return String(val).trim();
+        components.push({
+          type: 'body',
+          parameters: params.map(v => {
+            if (typeof v === 'object' && v.name) {
+              const val = String(v.value || '').trim() || 'No registrada';
+              return { type: 'text', parameter_name: v.name, text: val };
+            }
+            const val = String(v || '').trim() || 'No registrada';
+            return { type: 'text', text: val };
+          }),
         });
-        if (filtered.length > 0) {
-          components.push({
-            type: 'body',
-            parameters: filtered.map(v => {
-              if (typeof v === 'object' && v.name) {
-                return { type: 'text', parameter_name: v.name, text: String(v.value) };
-              }
-              return { type: 'text', text: String(v) };
-            }),
-          });
-        }
       } else if (plantilla_params && plantilla_params.length > 0) {
         components.push(...plantilla_params);
       }
