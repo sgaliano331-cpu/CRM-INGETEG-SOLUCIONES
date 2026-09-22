@@ -24,13 +24,18 @@ const COLORES_ESTADO = {
 
 const COLOR_DEFAULT = { bg: '#94a3b8', border: '#64748b' };
 
+function getTecnicos(tecnico) {
+  if (!tecnico) return [];
+  return tecnico.split(',').map(t => t.trim().toUpperCase().split(' ')[0]).filter(Boolean);
+}
+
 function getColor(tecnico, estado) {
   if (estado && estado !== 'Agendado' && COLORES_ESTADO[estado]) {
     return COLORES_ESTADO[estado];
   }
-  if (!tecnico) return COLOR_DEFAULT;
-  const key = tecnico.toUpperCase().trim().split(' ')[0];
-  return COLORES_TECNICO[key] || COLOR_DEFAULT;
+  const keys = getTecnicos(tecnico);
+  if (!keys.length) return COLOR_DEFAULT;
+  return COLORES_TECNICO[keys[0]] || COLOR_DEFAULT;
 }
 
 export default function Calendario() {
@@ -56,13 +61,14 @@ export default function Calendario() {
       const { data } = await api.get(`/llamadas/calendario?${params}`);
       const evts = (data.eventos || []).map(e => {
         const color = getColor(e.tecnico, e.estado_servicio);
+        const fecha = e.fecha_atencion || e.fecha_agendamiento;
         const start = e.hora_inicio
-          ? `${e.fecha_agendamiento}T${e.hora_inicio.padStart(5, '0')}:00`
-          : e.fecha_agendamiento;
+          ? `${fecha}T${e.hora_inicio.padStart(5, '0')}:00`
+          : fecha;
         const end = e.hora_fin
-          ? `${e.fecha_agendamiento}T${e.hora_fin.padStart(5, '0')}:00`
+          ? `${fecha}T${e.hora_fin.padStart(5, '0')}:00`
           : e.hora_inicio
-            ? `${e.fecha_agendamiento}T${sumarHoras(e.hora_inicio, 2)}:00`
+            ? `${fecha}T${sumarHoras(e.hora_inicio, 2)}:00`
             : undefined;
 
         return {
@@ -108,8 +114,8 @@ export default function Calendario() {
 
   const eventosFiltrados = filtroTecnico
     ? eventos.filter(e => {
-        const t = e.extendedProps.tecnico?.toUpperCase().trim().split(' ')[0];
-        return t === filtroTecnico;
+        const keys = getTecnicos(e.extendedProps.tecnico);
+        return keys.includes(filtroTecnico);
       })
     : eventos;
 
@@ -252,7 +258,7 @@ export default function Calendario() {
           eventResize={handleEventResize}
           eventClick={handleEventClick}
           nowIndicator={true}
-          dayMaxEvents={3}
+          dayMaxEvents={6}
           eventDisplay="block"
         />
       </div>

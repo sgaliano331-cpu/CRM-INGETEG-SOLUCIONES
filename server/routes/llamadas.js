@@ -1019,13 +1019,14 @@ router.get('/calendario', authMiddleware, async (req, res) => {
   try {
     client = await getClient();
     const { rows } = await client.query(`
-      SELECT a.id, a.fecha_agendamiento, a.hora_inicio, a.hora_fin, a.equipos,
+      SELECT a.id, a.fecha_agendamiento, a.fecha_atencion, a.hora_inicio, a.hora_fin, a.equipos,
              a.tipo_servicio, a.estado_servicio, a.tecnico, a.costo_cop,
              c.nombre AS cliente_nombre, c.direccion, c.barrio, c.ciudad, c.telefono
       FROM agendamientos a
       JOIN clientes c ON a.cliente_id = c.id
-      WHERE a.fecha_agendamiento >= $1 AND a.fecha_agendamiento <= $2
-      ORDER BY a.fecha_agendamiento, a.hora_inicio
+      WHERE COALESCE(a.fecha_atencion, a.fecha_agendamiento) >= $1
+        AND COALESCE(a.fecha_atencion, a.fecha_agendamiento) <= $2
+      ORDER BY COALESCE(a.fecha_atencion, a.fecha_agendamiento), a.hora_inicio
     `, [fecha_desde || '2020-01-01', fecha_hasta || '2099-12-31']);
     res.json({ eventos: rows || [] });
   } catch (err) {
