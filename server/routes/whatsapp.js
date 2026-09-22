@@ -245,7 +245,7 @@ router.post('/enviar-masivo', authMiddleware, coordOWhatsapp, async (req, res) =
       try {
         const extra = contacto.extra || {};
         const cNombre = getParam(['nombre']);
-        const cDireccion = extra.direccion || getParam(['direccion']) || null;
+        const cDireccion = getParam(['direccion']) || null;
         const cBarrio = extra.barrio || getParam(['barrio']) || null;
         const cCiudad = extra.municipio || getParam(['municipio', 'ciudad']) || null;
         const phoneDigits = phone.replace(/\D/g, '');
