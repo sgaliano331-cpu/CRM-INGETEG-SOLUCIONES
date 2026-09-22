@@ -391,6 +391,18 @@ router.get('/mensajes', authMiddleware, coordOWhatsapp, async (req, res) => {
   }
 });
 
+// DELETE /api/whatsapp/campanas/:nombre — Eliminar una campaña
+router.delete('/campanas/:nombre', authMiddleware, soloCoordinador, async (req, res) => {
+  try {
+    const { nombre } = req.params;
+    const result = await pool.query('DELETE FROM whatsapp_campana_contactos WHERE campana = $1', [nombre]);
+    await pool.query("DELETE FROM whatsapp_asignaciones WHERE tipo = 'campana' AND valor = $1", [nombre]);
+    res.json({ ok: true, eliminados: result.rowCount });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /api/whatsapp/campanas — Lista de campañas con contadores
 router.get('/campanas', authMiddleware, coordOWhatsapp, async (req, res) => {
   try {
