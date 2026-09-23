@@ -49,7 +49,7 @@ export default function Usuarios() {
   };
 
   const cambiarPassword = async (id) => {
-    if (!newPass || newPass.length < 4) return flash('Minimo 4 caracteres', true);
+    if (!newPass || newPass.length < 8 || !/[A-Z]/.test(newPass) || !/[a-z]/.test(newPass) || !/[0-9]/.test(newPass)) return flash('Minimo 8 caracteres, una mayuscula, una minuscula y un numero', true);
     try {
       const { data } = await api.put(`/usuarios/${id}/password`, { password: newPass });
       flash(data.message);
@@ -140,7 +140,7 @@ export default function Usuarios() {
                 onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                 required
-                minLength={4}
+                minLength={8}
               />
             </div>
             <div>
