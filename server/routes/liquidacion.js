@@ -74,7 +74,7 @@ router.get('/informe', async (req, res) => {
     const { rows: servicios } = await pool.query(`
       SELECT a.id, a.equipos, a.costo_cop, a.tipo_servicio, a.estado_servicio,
              a.fecha_agendamiento, a.fecha_atencion, a.liquidado, a.honorario_override,
-             c.nombre as cliente, c.direccion, c.ciudad
+             a.metodo_pago, c.nombre as cliente, c.direccion, c.ciudad
       FROM agendamientos a
       JOIN clientes c ON c.id = a.cliente_id
       WHERE a.tecnico = $1 AND a.estado_servicio = 'Cumplido'${dateFilter}
@@ -198,6 +198,7 @@ router.get('/informe', async (req, res) => {
         total_tecnico: totalEquipos + totalRepuestos,
         liquidado: s.liquidado,
         honorario_override: override,
+        metodo_pago: s.metodo_pago,
       };
     });
 

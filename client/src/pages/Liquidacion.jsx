@@ -159,10 +159,10 @@ export default function Liquidacion() {
   const exportarExcel = () => {
     if (!informe || informe.servicios.length === 0) return;
     let csv = '﻿';
-    csv += 'Fecha,Cliente,Equipos,Mano Obra Cobrada,Honorario Equipos,Repuestos,Honorario Repuestos,Total Tecnico,Liquidado\n';
+    csv += 'Fecha,Cliente,Equipos,Mano Obra Cobrada,Honorario Equipos,Repuestos,Honorario Repuestos,Metodo Pago,Total Tecnico,Liquidado\n';
     for (const s of informe.servicios) {
       const reps = s.repuestos.map(r => `${r.nombre} x${r.cantidad}`).join(' | ');
-      csv += `${s.fecha},"${s.cliente}","${s.equipos}",${s.mano_obra_cobrada},${s.honorario_equipos},"${reps}",${s.honorario_repuestos},${s.total_tecnico},${s.liquidado ? 'Si' : 'No'}\n`;
+      csv += `${s.fecha},"${s.cliente}","${s.equipos}",${s.mano_obra_cobrada},${s.honorario_equipos},"${reps}",${s.honorario_repuestos},${s.metodo_pago || 'N/A'},${s.total_tecnico},${s.liquidado ? 'Si' : 'No'}\n`;
     }
     const totEq = informe.servicios.reduce((s, x) => s + x.honorario_equipos, 0);
     const totRep = informe.servicios.reduce((s, x) => s + x.honorario_repuestos, 0);
@@ -658,6 +658,7 @@ export default function Liquidacion() {
                       <th className="py-2.5 px-3 text-right text-xs font-semibold text-blue-600">Hon. Equipos</th>
                       <th className="py-2.5 px-3 text-left text-xs font-semibold text-slate-500">Repuestos</th>
                       <th className="py-2.5 px-3 text-right text-xs font-semibold text-amber-600">Hon. Repuestos</th>
+                      <th className="py-2.5 px-3 text-left text-xs font-semibold text-slate-500">Método Pago</th>
                       <th className="py-2.5 px-3 text-right text-xs font-semibold text-emerald-600">Total</th>
                     </tr>
                   </thead>
@@ -718,13 +719,18 @@ export default function Liquidacion() {
                           ))}
                         </td>
                         <td className="py-2.5 px-3 text-right font-semibold text-amber-700">{fmt(s.honorario_repuestos)}</td>
+                        <td className="py-2.5 px-3">
+                          <span className={`text-xs px-1.5 py-0.5 rounded-full ${s.metodo_pago === 'Efectivo' ? 'bg-green-100 text-green-700' : s.metodo_pago === 'Transferencia' ? 'bg-blue-100 text-blue-700' : s.metodo_pago === 'Pendiente por cobro' ? 'bg-red-100 text-red-700' : s.metodo_pago === 'Garantía' ? 'bg-purple-100 text-purple-700' : 'bg-slate-100 text-slate-500'}`}>
+                            {s.metodo_pago || 'N/A'}
+                          </span>
+                        </td>
                         <td className="py-2.5 px-3 text-right font-bold text-emerald-700">{fmt(s.total_tecnico)}</td>
                       </tr>
                     ))}
                   </tbody>
                   <tfoot>
                     <tr className="bg-slate-50 border-t-2 border-slate-300">
-                      <td colSpan={5} className="py-3 px-3 text-right text-sm font-bold text-slate-600">TOTALES</td>
+                      <td colSpan={6} className="py-3 px-3 text-right text-sm font-bold text-slate-600">TOTALES</td>
                       <td className="py-3 px-3 text-right font-bold text-slate-800">{fmt(totalMO)}</td>
                       <td className="py-3 px-3 text-right font-bold text-blue-800">{fmt(totalEquipos)}</td>
                       <td className="py-3 px-3"></td>
