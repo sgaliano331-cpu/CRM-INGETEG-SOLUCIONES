@@ -1562,4 +1562,19 @@ router.post('/sync-observaciones-calendario', authMiddleware, async (req, res) =
   }
 });
 
+// TEMP: fix historial_llamadas cliente_id
+router.put('/fix-historial-cliente', authMiddleware, gestorOCoordinador, async (req, res) => {
+  const { historial_id, nuevo_cliente_id } = req.body;
+  if (!historial_id || !nuevo_cliente_id) return res.status(400).json({ error: 'historial_id y nuevo_cliente_id requeridos' });
+  try {
+    const client = await getClient();
+    const result = await client.query('UPDATE historial_llamadas SET cliente_id = $1 WHERE id = $2', [nuevo_cliente_id, historial_id]);
+    client.release();
+    logAudit({ userId: req.user.id, username: req.user.username, action: 'UPDATE', tableName: 'historial_llamadas', recordId: historial_id, newValues: { cliente_id: nuevo_cliente_id }, ip: getClientIp(req) });
+    res.json({ ok: true, changes: result.rowCount });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
