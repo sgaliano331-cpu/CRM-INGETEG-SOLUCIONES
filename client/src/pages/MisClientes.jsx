@@ -87,6 +87,7 @@ export default function MisClientes() {
   const [waResultado, setWaResultado] = useState(null);
   const [waCargandoTpl, setWaCargandoTpl] = useState(false);
   const [waPhones, setWaPhones] = useState([]);
+  const [waParams, setWaParams] = useState([]);
   const [timerStart, setTimerStart] = useState(null);
   const [editForm, setEditForm] = useState(null);
   const [editGuardando, setEditGuardando] = useState(false);
@@ -283,12 +284,17 @@ export default function MisClientes() {
   const enviarWhatsApp = async () => {
     if (!waTemplate) return;
     setWaEnviando(true); setWaResultado(null);
+    const bodyParams = waParams.filter(v => v.trim());
+    const plantilla_params = bodyParams.length > 0 ? [{
+      type: 'body',
+      parameters: bodyParams.map(v => ({ type: 'text', text: v })),
+    }] : [];
     try {
       if (waPhones.length === 1) {
-        await api.post('/whatsapp/enviar', { telefono: waPhones[0], plantilla: waTemplate, idioma: 'es_CO' });
+        await api.post('/whatsapp/enviar', { telefono: waPhones[0], plantilla: waTemplate, plantilla_params, idioma: 'es_CO' });
         setWaResultado({ ok: true, msg: 'Mensaje enviado correctamente' });
       } else {
-        const { data } = await api.post('/whatsapp/enviar-masivo', { telefonos: waPhones, plantilla: waTemplate, idioma: 'es_CO' });
+        const { data } = await api.post('/whatsapp/enviar-masivo', { telefonos: waPhones, plantilla: waTemplate, plantilla_params, idioma: 'es_CO' });
         setWaResultado({ ok: true, msg: `Enviados: ${data.enviados} | Fallidos: ${data.fallidos} de ${data.total}` });
       }
     } catch (err) {
@@ -790,7 +796,13 @@ export default function MisClientes() {
                 ) : waTemplates.length === 0 ? (
                   <p className="text-xs text-red-500">No hay plantillas aprobadas. Crea una en Meta Business Suite.</p>
                 ) : (
-                  <select className="input-field" value={waTemplate} onChange={e => setWaTemplate(e.target.value)}>
+                  <select className="input-field" value={waTemplate} onChange={e => {
+                    setWaTemplate(e.target.value);
+                    const tpl = waTemplates.find(t => t.name === e.target.value);
+                    const bodyComp = tpl?.components?.find(c => c.type === 'BODY');
+                    const matches = bodyComp?.text?.match(/\{\{\d+\}\}/g) || [];
+                    setWaParams(matches.map(() => ''));
+                  }}>
                     <option value="">Seleccionar plantilla</option>
                     {waTemplates.map(t => (
                       <option key={t.name} value={t.name}>{t.name} ({t.language})</option>
@@ -798,6 +810,29 @@ export default function MisClientes() {
                   </select>
                 )}
               </div>
+              {waTemplate && (() => {
+                const tpl = waTemplates.find(t => t.name === waTemplate);
+                const bodyComp = tpl?.components?.find(c => c.type === 'BODY');
+                return bodyComp?.text ? (
+                  <div className="space-y-3">
+                    <div className="p-3 bg-slate-50 rounded-lg">
+                      <p className="text-xs text-slate-500 mb-1">Vista previa del mensaje</p>
+                      <p className="text-sm text-slate-700 whitespace-pre-wrap">{bodyComp.text}</p>
+                    </div>
+                    {waParams.length > 0 && waParams.map((val, i) => (
+                      <div key={i}>
+                        <label className="block text-xs font-medium text-slate-500 mb-1">Variable {`{{${i + 1}}}`}</label>
+                        <input type="text" className="input-field" placeholder={`Valor para {{${i + 1}}}`}
+                          value={val} onChange={e => {
+                            const next = [...waParams];
+                            next[i] = e.target.value;
+                            setWaParams(next);
+                          }} />
+                      </div>
+                    ))}
+                  </div>
+                ) : null;
+              })()}
               {waResultado && (
                 <div className={`p-3 rounded-lg text-sm ${waResultado.ok ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
                   {waResultado.msg}
