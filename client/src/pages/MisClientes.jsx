@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import api from '../api/axios';
 
 const fmt = n => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n);
@@ -75,8 +75,12 @@ export default function MisClientes() {
   const [clientes, setClientes] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [busqueda, setBusqueda] = useState('');
+  const [busquedaDebounced, setBusquedaDebounced] = useState('');
   const [filtroEstado, setFiltroEstado] = useState('');
   const [filtroObjecion, setFiltroObjecion] = useState('');
+  const [pagina, setPagina] = useState(1);
+  const [totalClientes, setTotalClientes] = useState(0);
+  const [totalPaginas, setTotalPaginas] = useState(0);
   const [expandido, setExpandido] = useState(null);
 
   const [seleccionados, setSeleccionados] = useState(new Set());
@@ -110,36 +114,32 @@ export default function MisClientes() {
     api.get('/llamadas/tecnicos').then(({ data }) => setTecnicos(data.tecnicos || [])).catch(() => {});
   }, []);
 
-  const cargar = () => {
+  useEffect(() => {
+    const timer = setTimeout(() => setBusquedaDebounced(busqueda), 400);
+    return () => clearTimeout(timer);
+  }, [busqueda]);
+
+  const cargar = useCallback(() => {
     setCargando(true);
-    api.get('/llamadas/mis-clientes')
-      .then(({ data }) => setClientes(data.clientes || []))
+    const params = new URLSearchParams({ page: pagina, limit: 50 });
+    if (busquedaDebounced) params.set('q', busquedaDebounced);
+    if (filtroEstado) params.set('estado', filtroEstado);
+    if (filtroObjecion) params.set('objecion', filtroObjecion);
+    api.get(`/llamadas/mis-clientes?${params}`)
+      .then(({ data }) => {
+        setClientes(data.clientes || []);
+        setTotalClientes(data.total || 0);
+        setTotalPaginas(data.pages || 0);
+      })
       .catch(() => setClientes([]))
       .finally(() => setCargando(false));
-  };
+  }, [pagina, busquedaDebounced, filtroEstado, filtroObjecion]);
 
-  useEffect(() => { cargar(); }, []);
+  useEffect(() => { cargar(); }, [cargar]);
 
-  const filtrados = clientes.filter(c => {
-    if (busqueda) {
-      const q = busqueda.toLowerCase();
-      if (!c.nombre?.toLowerCase().includes(q) && !c.telefono?.toLowerCase().includes(q) && !c.direccion?.toLowerCase().includes(q) && !c.barrio?.toLowerCase().includes(q)) return false;
-    }
-    if (filtroEstado) {
-      const tieneEstado = c.servicios.some(s => {
-        if (filtroEstado === 'Sin agendar') return !s.agendamiento_id;
-        return s.estado_servicio === filtroEstado;
-      });
-      if (!tieneEstado) return false;
-    }
-    if (filtroObjecion) {
-      const tieneObjecion = c.servicios.some(s =>
-        s.obs_marcacion && s.obs_marcacion.startsWith(`[${filtroObjecion}]`)
-      );
-      if (!tieneObjecion) return false;
-    }
-    return true;
-  });
+  useEffect(() => { setPagina(1); }, [busquedaDebounced, filtroEstado, filtroObjecion]);
+
+  const filtrados = clientes;
 
   const abrirForm = (cliente) => {
     setFormCliente(cliente);
@@ -367,7 +367,7 @@ export default function MisClientes() {
           </div>
           <div className="text-right">
             <span className="text-xs text-slate-400">Clientes</span>
-            <p className="text-lg font-bold text-slate-800">{filtrados.length}</p>
+            <p className="text-lg font-bold text-slate-800">{totalClientes.toLocaleString()}</p>
           </div>
         </div>
       </div>
@@ -785,6 +785,16 @@ export default function MisClientes() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {totalPaginas > 1 && (
+        <div className="flex items-center justify-center gap-2">
+          <button onClick={() => setPagina(p => Math.max(1, p - 1))} disabled={pagina <= 1}
+            className="px-3 py-1.5 text-sm rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed">Anterior</button>
+          <span className="text-sm text-slate-600">Pagina {pagina} de {totalPaginas}</span>
+          <button onClick={() => setPagina(p => Math.min(totalPaginas, p + 1))} disabled={pagina >= totalPaginas}
+            className="px-3 py-1.5 text-sm rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed">Siguiente</button>
         </div>
       )}
 

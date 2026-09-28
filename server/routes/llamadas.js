@@ -155,43 +155,82 @@ router.get('/mis-registros', authMiddleware, (req, res) => {
 });
 
 // ─── GET /api/llamadas/mis-clientes ──────────────────────────────────────
-router.get('/mis-clientes', authMiddleware, (req, res) => {
-  const db = getDb();
+router.get('/mis-clientes', authMiddleware, async (req, res) => {
   const userId = req.user.id;
   const esCoord = req.user.rol === 'COORDINADOR';
+  const page = Math.max(1, parseInt(req.query.page) || 1);
+  const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 50));
+  const offset = (page - 1) * limit;
+  const busqueda = (req.query.q || '').trim();
+  const estado = (req.query.estado || '').trim();
+  const objecion = (req.query.objecion || '').trim();
 
-  const whereUsuario = esCoord ? '' : 'AND hl.usuario_id = ?';
-  const params = esCoord ? [] : [userId];
+  try {
+    const client = await getClient();
+    const params = [];
+    let pi = 1;
+    const conditions = ['hl.fin_llamada IS NOT NULL'];
 
-  const query = `
-    SELECT
-      c.id AS cliente_id, c.nombre, c.telefono, c.direccion, c.barrio, c.ciudad,
-      hl.id AS historial_id, hl.observaciones AS obs_marcacion,
-      hl.inicio_llamada, hl.fin_llamada, hl.acepto_servicio,
-      u.nombre AS asesora_nombre,
-      a.id AS agendamiento_id, a.equipos, a.tipo_servicio,
-      a.fecha_agendamiento, a.estado_servicio, a.metodo_pago,
-      a.costo_cop, a.observaciones_tecnica AS obs_tecnica,
-      a.comprobante_pago_url,
-      co.valor_cotizacion, co.observacion_gestor, co.observacion_asesora, co.estado AS estado_cotizacion
-    FROM historial_llamadas hl
-    JOIN clientes c ON hl.cliente_id = c.id
-    JOIN usuarios u ON hl.usuario_id = u.id
-    LEFT JOIN agendamientos a ON a.historial_id = hl.id
-    LEFT JOIN cotizaciones co ON co.agendamiento_id = a.id
-    WHERE hl.fin_llamada IS NOT NULL
-      ${whereUsuario}
-    ORDER BY c.nombre ASC, hl.inicio_llamada DESC
-  `;
-
-  db.all(query, params, (err, rows) => {
-    if (err) {
-      console.error('Error en /mis-clientes:', err.message);
-      return res.status(500).json({ error: 'Error al consultar clientes' });
+    if (!esCoord) {
+      conditions.push(`hl.usuario_id = $${pi++}`);
+      params.push(userId);
+    }
+    if (busqueda) {
+      conditions.push(`(c.nombre ILIKE $${pi} OR c.telefono ILIKE $${pi} OR c.direccion ILIKE $${pi} OR c.barrio ILIKE $${pi})`);
+      params.push(`%${busqueda}%`);
+      pi++;
+    }
+    if (estado === 'Sin agendar') {
+      conditions.push(`a.id IS NULL`);
+    } else if (estado) {
+      conditions.push(`a.estado_servicio = $${pi++}`);
+      params.push(estado);
+    }
+    if (objecion) {
+      conditions.push(`hl.observaciones LIKE $${pi++}`);
+      params.push(`[${objecion}]%`);
     }
 
+    const where = conditions.join(' AND ');
+
+    const countQ = await client.query(
+      `SELECT COUNT(DISTINCT c.id) as total FROM historial_llamadas hl JOIN clientes c ON hl.cliente_id = c.id LEFT JOIN agendamientos a ON a.historial_id = hl.id WHERE ${where}`,
+      params
+    );
+    const total = parseInt(countQ.rows[0].total);
+
+    const dataParams = [...params, limit, offset];
+    const rows = (await client.query(`
+      SELECT
+        c.id AS cliente_id, c.nombre, c.telefono, c.direccion, c.barrio, c.ciudad,
+        hl.id AS historial_id, hl.observaciones AS obs_marcacion,
+        hl.inicio_llamada, hl.fin_llamada, hl.acepto_servicio,
+        u.nombre AS asesora_nombre,
+        a.id AS agendamiento_id, a.equipos, a.tipo_servicio,
+        a.fecha_agendamiento, a.estado_servicio, a.metodo_pago,
+        a.costo_cop, a.observaciones_tecnica AS obs_tecnica,
+        a.comprobante_pago_url,
+        co.valor_cotizacion, co.observacion_gestor, co.observacion_asesora, co.estado AS estado_cotizacion
+      FROM historial_llamadas hl
+      JOIN clientes c ON hl.cliente_id = c.id
+      JOIN usuarios u ON hl.usuario_id = u.id
+      LEFT JOIN agendamientos a ON a.historial_id = hl.id
+      LEFT JOIN cotizaciones co ON co.agendamiento_id = a.id
+      WHERE c.id IN (
+        SELECT DISTINCT c2.id FROM historial_llamadas hl2
+        JOIN clientes c2 ON hl2.cliente_id = c2.id
+        LEFT JOIN agendamientos a2 ON a2.historial_id = hl2.id
+        WHERE ${where.replace(/hl\./g, 'hl2.').replace(/c\./g, 'c2.').replace(/a\./g, 'a2.')}
+        ORDER BY c2.nombre ASC
+        LIMIT $${pi++} OFFSET $${pi++}
+      )
+      ORDER BY c.nombre ASC, hl.inicio_llamada DESC
+    `, dataParams)).rows;
+
+    client.release();
+
     const mapaClientes = {};
-    for (const row of (rows || [])) {
+    for (const row of rows) {
       if (!mapaClientes[row.cliente_id]) {
         mapaClientes[row.cliente_id] = {
           cliente_id: row.cliente_id,
@@ -232,8 +271,11 @@ router.get('/mis-clientes', authMiddleware, (req, res) => {
       return fb - fa;
     });
 
-    res.json({ clientes });
-  });
+    res.json({ clientes, total, page, pages: Math.ceil(total / limit) });
+  } catch (err) {
+    console.error('Error en /mis-clientes:', err.message);
+    res.status(500).json({ error: 'Error al consultar clientes' });
+  }
 });
 
 // ─── POST /api/llamadas/nuevo-servicio ──────────────────────────────────────
