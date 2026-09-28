@@ -270,6 +270,7 @@ export default function MisClientes() {
     setSeleccionados(seleccionados.size === filtrados.length ? new Set() : new Set(filtrados.map(c => c.cliente_id)));
   };
   const [waClientes, setWaClientes] = useState([]);
+  const [waHeaderUrl, setWaHeaderUrl] = useState('');
   const autoFillParams = (paramNames, cliente) => {
     const map = { nombre: cliente.nombre, direccion: cliente.direccion, barrio: cliente.barrio, ciudad: cliente.ciudad, telefono: cliente.telefono };
     return paramNames.map(name => ({ name, value: map[name.toLowerCase()] || '' }));
@@ -277,7 +278,7 @@ export default function MisClientes() {
   const abrirWaModal = (clientesList) => {
     const cls = clientesList || filtrados.filter(c => seleccionados.has(c.cliente_id) && c.telefono);
     if (!cls.length) return;
-    setWaClientes(cls); setWaPhones(cls.map(c => c.telefono)); setWaResultado(null); setWaTemplate(''); setWaParams([]); setWaModal(true);
+    setWaClientes(cls); setWaPhones(cls.map(c => c.telefono)); setWaResultado(null); setWaTemplate(''); setWaParams([]); setWaHeaderUrl(''); setWaModal(true);
     if (!waTemplates.length) {
       setWaCargandoTpl(true);
       api.get('/whatsapp/plantillas').then(({ data }) => {
@@ -292,12 +293,18 @@ export default function MisClientes() {
     const tpl = waTemplates.find(t => t.name === waTemplate);
     const bodyComp = tpl?.components?.find(c => c.type === 'BODY');
     const paramNames = (bodyComp?.text?.match(/\{\{(\w+)\}\}/g) || []).map(m => m.replace(/[{}]/g, ''));
+    const headerComp = tpl?.components?.find(c => c.type === 'HEADER');
+    const headerComponents = [];
+    if (headerComp?.format === 'IMAGE' && waHeaderUrl.trim()) {
+      headerComponents.push({ type: 'header', parameters: [{ type: 'image', image: { link: waHeaderUrl.trim() } }] });
+    }
     try {
       if (waClientes.length === 1) {
-        const plantilla_params = waParams.filter(p => p.value.trim()).length > 0 ? [{
-          type: 'body',
-          parameters: waParams.map(p => ({ type: 'text', parameter_name: p.name, text: p.value || 'N/A' })),
-        }] : [];
+        const plantilla_params = [];
+        if (headerComponents.length) plantilla_params.push(...headerComponents);
+        if (waParams.filter(p => p.value.trim()).length > 0) {
+          plantilla_params.push({ type: 'body', parameters: waParams.map(p => ({ type: 'text', parameter_name: p.name, text: p.value || 'N/A' })) });
+        }
         await api.post('/whatsapp/enviar', { telefono: waPhones[0], plantilla: waTemplate, plantilla_params, idioma: 'es_CO' });
         setWaResultado({ ok: true, msg: 'Mensaje enviado correctamente' });
       } else {
@@ -305,7 +312,7 @@ export default function MisClientes() {
           telefono: c.telefono,
           params: autoFillParams(paramNames, c),
         }));
-        const { data } = await api.post('/whatsapp/enviar-masivo', { contactos, plantilla: waTemplate, idioma: 'es_CO' });
+        const { data } = await api.post('/whatsapp/enviar-masivo', { contactos, plantilla: waTemplate, headerComponents, idioma: 'es_CO' });
         setWaResultado({ ok: true, msg: `Enviados: ${data.enviados} | Fallidos: ${data.fallidos} de ${data.total}` });
       }
     } catch (err) {
@@ -825,6 +832,19 @@ export default function MisClientes() {
                   </select>
                 )}
               </div>
+              {waTemplate && (() => {
+                const selTpl = waTemplates.find(t => t.name === waTemplate);
+                const headerType = selTpl?.components?.find(c => c.type === 'HEADER');
+                if (headerType?.format === 'IMAGE') return (
+                  <div>
+                    <label className="block text-xs font-medium text-slate-500 mb-1">Imagen del header (URL publica)</label>
+                    <input type="url" className="input-field" placeholder="https://ejemplo.com/imagen.jpg"
+                      value={waHeaderUrl} onChange={e => setWaHeaderUrl(e.target.value)} />
+                    {waHeaderUrl && <img src={waHeaderUrl} alt="preview" className="mt-2 rounded-lg max-h-32 object-contain" onError={e => e.target.style.display='none'} />}
+                  </div>
+                );
+                return null;
+              })()}
               {waTemplate && (() => {
                 const tpl = waTemplates.find(t => t.name === waTemplate);
                 const bodyComp = tpl?.components?.find(c => c.type === 'BODY');
