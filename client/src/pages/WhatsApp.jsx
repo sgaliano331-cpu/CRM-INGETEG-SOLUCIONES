@@ -46,6 +46,11 @@ export default function WhatsApp() {
   const [campanas, setCampanas] = useState([]);
   const [campanaActiva, setCampanaActiva] = useState(null);
   const [masivo, setMasivo] = useState({ plantilla: '', idioma: 'es_CO', headerType: 'none', headerUrl: '', enviando: false, resultado: null, excelData: null, excelFileName: '', campana: '' });
+  const [tplList, setTplList] = useState([]);
+  const [tplCargando, setTplCargando] = useState(false);
+  const [tplCargado, setTplCargado] = useState(false);
+  const [tplVarsMasivo, setTplVarsMasivo] = useState([]);
+  const [tplPreviewMasivo, setTplPreviewMasivo] = useState('');
   const [envioDirecto, setEnvioDirecto] = useState({ telefono: '', mensaje: '', enviando: false });
   const [plantilla, setPlantilla] = useState({
     telefono: '',
@@ -111,6 +116,18 @@ export default function WhatsApp() {
     api.get('/whatsapp/etiquetas').then(({ data }) => setEtiquetasDisponibles(data)).catch(() => {});
   }, []);
 
+  const fetchTplMasivo = useCallback(async () => {
+    if (tplCargado) return;
+    setTplCargando(true);
+    try {
+      const { data } = await api.get('/whatsapp/plantillas');
+      const list = (Array.isArray(data) ? data : data.templates || []).filter(t => t.status === 'APPROVED');
+      setTplList(list);
+      setTplCargado(true);
+    } catch { setTplList([]); }
+    setTplCargando(false);
+  }, [tplCargado]);
+
   const fetchAsignaciones = useCallback(() => {
     if (!isCoordinador) return;
     api.get('/whatsapp/asignaciones').then(({ data }) => setAsignaciones(data)).catch(() => {});
@@ -128,6 +145,10 @@ export default function WhatsApp() {
     pollRef.current = setInterval(() => { fetchConversaciones(); fetchCampanas(); }, 15000);
     return () => clearInterval(pollRef.current);
   }, [fetchConversaciones, fetchCampanas, fetchAsesores, fetchEtiquetas, fetchAsignaciones]);
+
+  useEffect(() => {
+    if (tab === 'masivo') fetchTplMasivo();
+  }, [tab, fetchTplMasivo]);
 
   const handleAsignar = async () => {
     if (!showAsignar || !asignarUsuario) return;
@@ -1446,43 +1467,62 @@ export default function WhatsApp() {
                 <p className="text-[11px] text-slate-400 mt-1">Nombre para identificar esta campana. Si lo dejas vacio se usa el nombre de la plantilla.</p>
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">Nombre de plantilla</label>
-                <input
-                  type="text"
-                  value={masivo.plantilla}
-                  onChange={e => setMasivo(m => ({ ...m, plantilla: e.target.value }))}
-                  placeholder="Ej: certificaciones2026"
-                  className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                  required
-                />
-                <p className="text-[11px] text-slate-400 mt-1">Nombre exacto de la plantilla aprobada en Meta Business.</p>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Plantilla</label>
+                {tplCargando ? (
+                  <p className="text-xs text-slate-400 py-2">Cargando plantillas...</p>
+                ) : (
+                  <select
+                    value={masivo.plantilla}
+                    onChange={e => {
+                      const name = e.target.value;
+                      const tpl = tplList.find(t => t.name === name);
+                      let headerType = 'none';
+                      let vars = [];
+                      let preview = '';
+                      let idioma = masivo.idioma;
+                      if (tpl) {
+                        idioma = tpl.language || masivo.idioma;
+                        for (const comp of (tpl.components || [])) {
+                          if (comp.type === 'HEADER' && comp.format && comp.format !== 'TEXT') {
+                            headerType = comp.format.toLowerCase();
+                          }
+                          if (comp.type === 'BODY' && comp.text) {
+                            preview = comp.text;
+                            const matches = comp.text.matchAll(/\{\{(\w+)\}\}/g);
+                            for (const m of matches) vars.push(m[1]);
+                          }
+                        }
+                      }
+                      setMasivo(m => ({ ...m, plantilla: name, headerType, idioma, headerUrl: headerType === 'none' ? '' : m.headerUrl }));
+                      setTplVarsMasivo(vars);
+                      setTplPreviewMasivo(preview);
+                    }}
+                    className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white"
+                    required
+                  >
+                    <option value="">Seleccionar plantilla...</option>
+                    {tplList.map(t => (
+                      <option key={t.name} value={t.name}>{t.name} ({t.language})</option>
+                    ))}
+                  </select>
+                )}
               </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">Idioma</label>
-                <select
-                  value={masivo.idioma}
-                  onChange={e => setMasivo(m => ({ ...m, idioma: e.target.value }))}
-                  className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white"
-                >
-                  <option value="es_CO">Espanol (Colombia)</option>
-                  <option value="es">Espanol</option>
-                  <option value="es_MX">Espanol (Mexico)</option>
-                  <option value="en_US">English (US)</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">Encabezado (header)</label>
-                <select
-                  value={masivo.headerType}
-                  onChange={e => setMasivo(m => ({ ...m, headerType: e.target.value }))}
-                  className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white"
-                >
-                  <option value="none">Sin encabezado</option>
-                  <option value="image">Imagen</option>
-                  <option value="video">Video</option>
-                  <option value="document">Documento</option>
-                </select>
-              </div>
+              {tplPreviewMasivo && (
+                <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
+                  <p className="text-[11px] font-medium text-slate-500 mb-1">Vista previa del mensaje:</p>
+                  <p className="text-xs text-slate-700 whitespace-pre-wrap">{tplPreviewMasivo}</p>
+                </div>
+              )}
+              {tplVarsMasivo.length > 0 && (
+                <div className="p-3 bg-amber-50 rounded-lg border border-amber-200">
+                  <p className="text-[11px] font-medium text-amber-700 mb-1">Variables requeridas (columnas del Excel):</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {tplVarsMasivo.map(v => (
+                      <span key={v} className="px-2 py-0.5 bg-amber-100 text-amber-800 rounded text-xs font-mono">{`{{${v}}}`}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
               {masivo.headerType !== 'none' && (
                 <div>
                   <label className="block text-xs font-medium text-slate-600 mb-1">URL del {masivo.headerType === 'image' ? 'imagen' : masivo.headerType === 'video' ? 'video' : 'documento'}</label>
