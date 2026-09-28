@@ -284,10 +284,10 @@ export default function MisClientes() {
   const enviarWhatsApp = async () => {
     if (!waTemplate) return;
     setWaEnviando(true); setWaResultado(null);
-    const bodyParams = waParams.filter(v => v.trim());
-    const plantilla_params = bodyParams.length > 0 ? [{
+    const filledParams = waParams.filter(p => p.value.trim());
+    const plantilla_params = filledParams.length > 0 ? [{
       type: 'body',
-      parameters: bodyParams.map(v => ({ type: 'text', text: v })),
+      parameters: filledParams.map(p => ({ type: 'text', parameter_name: p.name, text: p.value })),
     }] : [];
     try {
       if (waPhones.length === 1) {
@@ -800,8 +800,8 @@ export default function MisClientes() {
                     setWaTemplate(e.target.value);
                     const tpl = waTemplates.find(t => t.name === e.target.value);
                     const bodyComp = tpl?.components?.find(c => c.type === 'BODY');
-                    const matches = bodyComp?.text?.match(/\{\{\d+\}\}/g) || [];
-                    setWaParams(matches.map(() => ''));
+                    const matches = bodyComp?.text?.match(/\{\{(\w+)\}\}/g) || [];
+                    setWaParams(matches.map(m => ({ name: m.replace(/[{}]/g, ''), value: '' })));
                   }}>
                     <option value="">Seleccionar plantilla</option>
                     {waTemplates.map(t => (
@@ -819,13 +819,13 @@ export default function MisClientes() {
                       <p className="text-xs text-slate-500 mb-1">Vista previa del mensaje</p>
                       <p className="text-sm text-slate-700 whitespace-pre-wrap">{bodyComp.text}</p>
                     </div>
-                    {waParams.length > 0 && waParams.map((val, i) => (
+                    {waParams.length > 0 && waParams.map((p, i) => (
                       <div key={i}>
-                        <label className="block text-xs font-medium text-slate-500 mb-1">Variable {`{{${i + 1}}}`}</label>
-                        <input type="text" className="input-field" placeholder={`Valor para {{${i + 1}}}`}
-                          value={val} onChange={e => {
+                        <label className="block text-xs font-medium text-slate-500 mb-1">{`{{${p.name}}}`}</label>
+                        <input type="text" className="input-field" placeholder={`Valor para ${p.name}`}
+                          value={p.value} onChange={e => {
                             const next = [...waParams];
-                            next[i] = e.target.value;
+                            next[i] = { ...next[i], value: e.target.value };
                             setWaParams(next);
                           }} />
                       </div>
