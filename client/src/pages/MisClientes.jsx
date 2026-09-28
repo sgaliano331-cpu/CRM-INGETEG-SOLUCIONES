@@ -274,7 +274,10 @@ export default function MisClientes() {
     setWaPhones(telefonos); setWaResultado(null); setWaTemplate(''); setWaModal(true);
     if (!waTemplates.length) {
       setWaCargandoTpl(true);
-      api.get('/whatsapp/plantillas').then(({ data }) => setWaTemplates(data.templates || [])).catch(() => setWaTemplates([])).finally(() => setWaCargandoTpl(false));
+      api.get('/whatsapp/plantillas').then(({ data }) => {
+        const all = Array.isArray(data) ? data : data.templates || [];
+        setWaTemplates(all.filter(t => t.status === 'APPROVED'));
+      }).catch(() => setWaTemplates([])).finally(() => setWaCargandoTpl(false));
     }
   };
   const enviarWhatsApp = async () => {
