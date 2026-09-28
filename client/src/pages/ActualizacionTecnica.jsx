@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 
@@ -32,6 +32,9 @@ export default function ActualizacionTecnica() {
   const [busqueda, setBusqueda] = useState('');
   const [busquedaActiva, setBusquedaActiva] = useState('');
   const [cargando, setCargando] = useState(true);
+  const [pagina, setPagina] = useState(1);
+  const [totalRegistros, setTotalRegistros] = useState(0);
+  const [totalPaginas, setTotalPaginas] = useState(0);
   const debounceRef = useRef(null);
 
   const [seleccionado, setSeleccionado] = useState(null);
@@ -62,13 +65,14 @@ export default function ActualizacionTecnica() {
   const [guardando, setGuardando] = useState(false);
   const [mensaje, setMensaje] = useState('');
 
-  const cargarClientes = async () => {
+  const cargarClientes = useCallback(async () => {
     setCargando(true);
     try {
-      const params = new URLSearchParams();
+      const params = new URLSearchParams({ page: pagina, limit: 50 });
       if (filtroAsesora) params.append('asesora_id', filtroAsesora);
       if (isGestor && !isCoordinador) {
         params.append('estado', 'Agendado');
+        params.append('solo_agendados', '1');
       } else if (filtroEstado) {
         params.append('estado', filtroEstado);
       }
@@ -76,19 +80,18 @@ export default function ActualizacionTecnica() {
       if (filtroTecnico) params.append('tecnico', filtroTecnico);
       const { data } = await api.get(`/llamadas/clientes-llamados?${params}`);
       let lista = data.clientes;
-      if (isGestor && !isCoordinador) {
-        lista = lista.filter(c => c.agendamiento_id);
-      }
       if (filtroMotivo) {
         lista = lista.filter(c => c.observaciones && c.observaciones.startsWith(`[${filtroMotivo}]`));
       }
       setClientes(lista);
+      setTotalRegistros(data.total || 0);
+      setTotalPaginas(data.pages || 0);
     } catch {
       setClientes([]);
     } finally {
       setCargando(false);
     }
-  };
+  }, [pagina, filtroAsesora, filtroEstado, busquedaActiva, filtroTecnico, filtroMotivo, isGestor, isCoordinador]);
 
   const esGlobal = isCoordinador || isGestor;
 
@@ -99,7 +102,8 @@ export default function ActualizacionTecnica() {
     }
   }, [esGlobal]);
 
-  useEffect(() => { cargarClientes(); }, [filtroAsesora, filtroEstado, busquedaActiva, filtroMotivo, filtroTecnico]);
+  useEffect(() => { cargarClientes(); }, [cargarClientes]);
+  useEffect(() => { setPagina(1); }, [filtroAsesora, filtroEstado, busquedaActiva, filtroMotivo, filtroTecnico]);
 
   const handleBusqueda = (val) => {
     setBusqueda(val);
@@ -306,7 +310,7 @@ export default function ActualizacionTecnica() {
 
           <div className="ml-auto text-right">
             <span className="text-xs text-slate-400">Registros</span>
-            <p className="text-lg font-bold text-slate-800">{clientes.length}</p>
+            <p className="text-lg font-bold text-slate-800">{totalRegistros.toLocaleString()}</p>
           </div>
         </div>
       </div>
@@ -686,6 +690,16 @@ export default function ActualizacionTecnica() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {totalPaginas > 1 && (
+        <div className="flex items-center justify-center gap-2">
+          <button onClick={() => setPagina(p => Math.max(1, p - 1))} disabled={pagina <= 1}
+            className="px-3 py-1.5 text-sm rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed">Anterior</button>
+          <span className="text-sm text-slate-600">Pagina {pagina} de {totalPaginas}</span>
+          <button onClick={() => setPagina(p => Math.min(totalPaginas, p + 1))} disabled={pagina >= totalPaginas}
+            className="px-3 py-1.5 text-sm rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed">Siguiente</button>
         </div>
       )}
     </div>
