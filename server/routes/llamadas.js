@@ -166,10 +166,10 @@ router.get('/mis-clientes', authMiddleware, async (req, res) => {
   const objecion = (req.query.objecion || '').trim();
 
   try {
-    const client = await getClient();
+    const { pool } = require('../db');
+    const conditions = ['hl.fin_llamada IS NOT NULL'];
     const params = [];
     let pi = 1;
-    const conditions = ['hl.fin_llamada IS NOT NULL'];
 
     if (!esCoord) {
       conditions.push(`hl.usuario_id = $${pi++}`);
@@ -193,87 +193,95 @@ router.get('/mis-clientes', authMiddleware, async (req, res) => {
 
     const where = conditions.join(' AND ');
 
-    const countQ = await client.query(
-      `SELECT COUNT(DISTINCT c.id) as total FROM historial_llamadas hl JOIN clientes c ON hl.cliente_id = c.id LEFT JOIN agendamientos a ON a.historial_id = hl.id WHERE ${where}`,
+    const countResult = await pool.query(
+      `SELECT COUNT(DISTINCT c.id) as total
+       FROM historial_llamadas hl
+       JOIN clientes c ON hl.cliente_id = c.id
+       LEFT JOIN agendamientos a ON a.historial_id = hl.id
+       WHERE ${where}`,
       params
     );
-    const total = parseInt(countQ.rows[0].total);
+    const total = parseInt(countResult.rows[0].total);
 
-    const dataParams = [...params, limit, offset];
-    const rows = (await client.query(`
-      SELECT
-        c.id AS cliente_id, c.nombre, c.telefono, c.direccion, c.barrio, c.ciudad,
-        hl.id AS historial_id, hl.observaciones AS obs_marcacion,
-        hl.inicio_llamada, hl.fin_llamada, hl.acepto_servicio,
-        u.nombre AS asesora_nombre,
-        a.id AS agendamiento_id, a.equipos, a.tipo_servicio,
-        a.fecha_agendamiento, a.estado_servicio, a.metodo_pago,
-        a.costo_cop, a.observaciones_tecnica AS obs_tecnica,
-        a.comprobante_pago_url,
-        co.valor_cotizacion, co.observacion_gestor, co.observacion_asesora, co.estado AS estado_cotizacion
-      FROM historial_llamadas hl
-      JOIN clientes c ON hl.cliente_id = c.id
-      JOIN usuarios u ON hl.usuario_id = u.id
-      LEFT JOIN agendamientos a ON a.historial_id = hl.id
-      LEFT JOIN cotizaciones co ON co.agendamiento_id = a.id
-      WHERE c.id IN (
-        SELECT DISTINCT c2.id FROM historial_llamadas hl2
-        JOIN clientes c2 ON hl2.cliente_id = c2.id
-        LEFT JOIN agendamientos a2 ON a2.historial_id = hl2.id
-        WHERE ${where.replace(/hl\./g, 'hl2.').replace(/c\./g, 'c2.').replace(/a\./g, 'a2.')}
-        ORDER BY c2.nombre ASC
-        LIMIT $${pi++} OFFSET $${pi++}
-      )
-      ORDER BY c.nombre ASC, hl.inicio_llamada DESC
-    `, dataParams)).rows;
+    const idsResult = await pool.query(
+      `SELECT DISTINCT c.id
+       FROM historial_llamadas hl
+       JOIN clientes c ON hl.cliente_id = c.id
+       LEFT JOIN agendamientos a ON a.historial_id = hl.id
+       WHERE ${where}
+       ORDER BY c.id
+       LIMIT $${pi++} OFFSET $${pi++}`,
+      [...params, limit, offset]
+    );
+    const clienteIds = idsResult.rows.map(r => r.id);
 
-    client.release();
+    let clientes = [];
+    if (clienteIds.length > 0) {
+      const dataResult = await pool.query(`
+        SELECT
+          c.id AS cliente_id, c.nombre, c.telefono, c.direccion, c.barrio, c.ciudad,
+          hl.id AS historial_id, hl.observaciones AS obs_marcacion,
+          hl.inicio_llamada, hl.fin_llamada, hl.acepto_servicio,
+          u.nombre AS asesora_nombre,
+          a.id AS agendamiento_id, a.equipos, a.tipo_servicio,
+          a.fecha_agendamiento, a.estado_servicio, a.metodo_pago,
+          a.costo_cop, a.observaciones_tecnica AS obs_tecnica,
+          a.comprobante_pago_url,
+          co.valor_cotizacion, co.observacion_gestor, co.observacion_asesora, co.estado AS estado_cotizacion
+        FROM historial_llamadas hl
+        JOIN clientes c ON hl.cliente_id = c.id
+        JOIN usuarios u ON hl.usuario_id = u.id
+        LEFT JOIN agendamientos a ON a.historial_id = hl.id
+        LEFT JOIN cotizaciones co ON co.agendamiento_id = a.id
+        WHERE c.id = ANY($1)
+        ORDER BY c.nombre ASC, hl.inicio_llamada DESC
+      `, [clienteIds]);
 
-    const mapaClientes = {};
-    for (const row of rows) {
-      if (!mapaClientes[row.cliente_id]) {
-        mapaClientes[row.cliente_id] = {
-          cliente_id: row.cliente_id,
-          nombre: row.nombre,
-          telefono: row.telefono,
-          direccion: row.direccion,
-          barrio: row.barrio,
-          ciudad: row.ciudad,
-          servicios: [],
-        };
+      const mapaClientes = {};
+      for (const row of dataResult.rows) {
+        if (!mapaClientes[row.cliente_id]) {
+          mapaClientes[row.cliente_id] = {
+            cliente_id: row.cliente_id,
+            nombre: row.nombre,
+            telefono: row.telefono,
+            direccion: row.direccion,
+            barrio: row.barrio,
+            ciudad: row.ciudad,
+            servicios: [],
+          };
+        }
+        mapaClientes[row.cliente_id].servicios.push({
+          historial_id: row.historial_id,
+          obs_marcacion: row.obs_marcacion,
+          inicio_llamada: row.inicio_llamada,
+          fin_llamada: row.fin_llamada,
+          acepto_servicio: row.acepto_servicio,
+          agendamiento_id: row.agendamiento_id,
+          equipos: row.equipos,
+          tipo_servicio: row.tipo_servicio,
+          fecha_agendamiento: row.fecha_agendamiento,
+          estado_servicio: row.estado_servicio,
+          metodo_pago: row.metodo_pago,
+          costo_cop: row.costo_cop,
+          obs_tecnica: row.obs_tecnica,
+          comprobante_pago_url: row.comprobante_pago_url,
+          valor_cotizacion: row.valor_cotizacion,
+          observacion_gestor: row.observacion_gestor,
+          observacion_asesora: row.observacion_asesora,
+          estado_cotizacion: row.estado_cotizacion,
+        });
       }
-      mapaClientes[row.cliente_id].servicios.push({
-        historial_id: row.historial_id,
-        obs_marcacion: row.obs_marcacion,
-        inicio_llamada: row.inicio_llamada,
-        fin_llamada: row.fin_llamada,
-        acepto_servicio: row.acepto_servicio,
-        agendamiento_id: row.agendamiento_id,
-        equipos: row.equipos,
-        tipo_servicio: row.tipo_servicio,
-        fecha_agendamiento: row.fecha_agendamiento,
-        estado_servicio: row.estado_servicio,
-        metodo_pago: row.metodo_pago,
-        costo_cop: row.costo_cop,
-        obs_tecnica: row.obs_tecnica,
-        comprobante_pago_url: row.comprobante_pago_url,
-        valor_cotizacion: row.valor_cotizacion,
-        observacion_gestor: row.observacion_gestor,
-        observacion_asesora: row.observacion_asesora,
-        estado_cotizacion: row.estado_cotizacion,
+      clientes = Object.values(mapaClientes);
+      clientes.sort((a, b) => {
+        const fa = new Date(a.servicios[0]?.inicio_llamada || 0).getTime();
+        const fb = new Date(b.servicios[0]?.inicio_llamada || 0).getTime();
+        return fb - fa;
       });
     }
 
-    const clientes = Object.values(mapaClientes);
-    clientes.sort((a, b) => {
-      const fa = new Date(a.servicios[0]?.inicio_llamada || 0).getTime();
-      const fb = new Date(b.servicios[0]?.inicio_llamada || 0).getTime();
-      return fb - fa;
-    });
-
     res.json({ clientes, total, page, pages: Math.ceil(total / limit) });
   } catch (err) {
-    console.error('Error en /mis-clientes:', err.message);
+    console.error('Error en /mis-clientes:', err.message, err.stack);
     res.status(500).json({ error: 'Error al consultar clientes' });
   }
 });
