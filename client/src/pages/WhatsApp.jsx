@@ -421,6 +421,8 @@ export default function WhatsApp() {
     const isExtra = (c) => extraFields.some(ef => c.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').includes(ef.replace(/_/g, ' ')));
     const varCols = cols.filter(c => c !== telCol && !isExtra(c));
     const extraCols = cols.filter(c => c !== telCol && isExtra(c));
+    const norm = s => (s || '').trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+    const tplVars = tplVarsMasivo;
     setMasivo(m => ({ ...m, enviando: true, resultado: null }));
     try {
       const contactos = masivo.excelData.map(row => {
@@ -432,9 +434,15 @@ export default function WhatsApp() {
           else if (cl.includes('municipio') || cl.includes('ciudad')) extra.municipio = String(row[c] ?? '').trim();
           else if (cl.includes('certificacion')) extra.proxima_certificacion = String(row[c] ?? '').trim();
         }
+        const params = tplVars.length > 0
+          ? tplVars.map(v => {
+              const col = varCols.find(c => norm(c) === norm(v));
+              return { name: v, value: col ? String(row[col] ?? '') : '' };
+            })
+          : varCols.map(c => ({ name: c.trim().toLowerCase(), value: String(row[c] ?? '') }));
         return {
           telefono: String(row[telCol]).replace(/\D/g, ''),
-          params: varCols.map(c => ({ name: c.trim(), value: String(row[c] ?? '') })),
+          params,
           extra,
         };
       });
