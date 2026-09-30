@@ -100,13 +100,13 @@ export default function GenerarCotizacion() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-5 pb-12">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div>
           <h1 className="text-lg font-bold text-slate-800">Generar Cotizacion</h1>
           <p className="text-slate-500 text-sm mt-0.5">Crea cotizaciones PDF profesionales para clientes</p>
         </div>
         <button onClick={cargarHistorial}
-          className="px-3 py-1.5 text-xs font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-all">
+          className="px-3 py-1.5 text-xs font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-all self-start sm:self-auto">
           {showHistorial ? 'Ocultar historial' : 'Ver historial'}
         </button>
       </div>
@@ -135,8 +135,8 @@ export default function GenerarCotizacion() {
 
       <div className="card space-y-4">
         <h3 className="text-xs font-semibold text-emerald-700 uppercase tracking-wider">Datos del cliente</h3>
-        <div className="grid grid-cols-2 gap-4">
-          <div className="col-span-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="sm:col-span-2">
             <label className="block text-xs font-medium text-slate-500 mb-1">Nombre del cliente <span className="text-red-500">*</span></label>
             <input type="text" className="input-field" placeholder="Nombre completo..."
               value={clienteNombre} onChange={e => setClienteNombre(e.target.value)} />
@@ -181,7 +181,7 @@ export default function GenerarCotizacion() {
               </button>
             )}
             <div className="text-[10px] font-semibold text-slate-400 uppercase">Item {idx + 1}</div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-medium text-slate-500 mb-1">Concepto <span className="text-red-500">*</span></label>
                 <input type="text" className="input-field" placeholder="Ej: Instalacion"
@@ -192,7 +192,7 @@ export default function GenerarCotizacion() {
                 <input type="text" className="input-field" placeholder="Ej: Instalacion de aire acondicionado"
                   value={item.subtitulo} onChange={e => updateItem(idx, 'subtitulo', e.target.value)} />
               </div>
-              <div className="col-span-2">
+              <div className="sm:col-span-2">
                 <label className="block text-xs font-medium text-slate-500 mb-1">Descripcion</label>
                 <input type="text" className="input-field" placeholder="Descripcion detallada del concepto..."
                   value={item.descripcion} onChange={e => updateItem(idx, 'descripcion', e.target.value)} />
@@ -213,13 +213,13 @@ export default function GenerarCotizacion() {
       </div>
 
       <div className="card">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <p className="text-xs text-slate-400">Total cotizacion</p>
             <p className="text-2xl font-bold text-emerald-700">{fmt(total)}</p>
           </div>
           <button onClick={generar} disabled={generando}
-            className="px-6 py-2.5 bg-emerald-600 text-white text-sm font-semibold rounded-lg hover:bg-emerald-700 disabled:opacity-50 transition-all flex items-center gap-2">
+            className="px-6 py-2.5 bg-emerald-600 text-white text-sm font-semibold rounded-lg hover:bg-emerald-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2 w-full sm:w-auto">
             {generando ? (
               <>
                 <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">

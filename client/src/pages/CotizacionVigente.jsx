@@ -129,9 +129,9 @@ export default function CotizacionVigente() {
                     ? 'bg-violet-50 border-violet-200 ring-1 ring-violet-200'
                     : c.llamado ? 'bg-amber-50/50 border-amber-200' : 'bg-white border-slate-100 hover:bg-slate-50'
                 }`} onClick={() => !selected && seleccionar(c)}>
-                  <div className="flex items-start gap-4">
+                  <div className="flex flex-col sm:flex-row sm:items-start gap-2 sm:gap-4">
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                         <p className="text-sm font-semibold text-slate-800">{c.nombre}</p>
                         {c.estado === 'piensa' && (
                           <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-[10px] rounded font-semibold">Desea pensarlo</span>
@@ -168,7 +168,7 @@ export default function CotizacionVigente() {
                 </div>
 
                 {selected && (
-                  <div className="ml-6 mt-2 rounded-lg border border-violet-200 bg-violet-50/30 p-4 space-y-4">
+                  <div className="mt-2 sm:ml-6 rounded-lg border border-violet-200 bg-violet-50/30 p-3 sm:p-4 space-y-4">
                     <h3 className="text-xs font-semibold text-violet-700 uppercase tracking-wider">
                       Resultado de llamada - {c.nombre}
                     </h3>
@@ -182,21 +182,21 @@ export default function CotizacionVigente() {
 
                     <div>
                       <label className="block text-xs font-medium text-slate-500 mb-2">Resultado <span className="text-red-500">*</span></label>
-                      <div className="flex gap-2">
+                      <div className="flex flex-wrap gap-2">
                         <button type="button" onClick={() => setResultado('agendado')}
-                          className={`px-4 py-2 rounded-lg text-xs font-semibold border transition-all ${
+                          className={`px-3 sm:px-4 py-2 rounded-lg text-xs font-semibold border transition-all flex-1 sm:flex-none min-w-0 ${
                             resultado === 'agendado' ? 'bg-emerald-700 border-emerald-700 text-white' : 'bg-white border-slate-200 text-slate-600 hover:border-emerald-300'
                           }`}>
                           Agenda servicio
                         </button>
                         <button type="button" onClick={() => setResultado('piensa')}
-                          className={`px-4 py-2 rounded-lg text-xs font-semibold border transition-all ${
+                          className={`px-3 sm:px-4 py-2 rounded-lg text-xs font-semibold border transition-all flex-1 sm:flex-none min-w-0 ${
                             resultado === 'piensa' ? 'bg-amber-600 border-amber-600 text-white' : 'bg-white border-slate-200 text-slate-600 hover:border-amber-300'
                           }`}>
                           Desea pensarlo
                         </button>
                         <button type="button" onClick={() => setResultado('rechazado')}
-                          className={`px-4 py-2 rounded-lg text-xs font-semibold border transition-all ${
+                          className={`px-3 sm:px-4 py-2 rounded-lg text-xs font-semibold border transition-all flex-1 sm:flex-none min-w-0 ${
                             resultado === 'rechazado' ? 'bg-red-600 border-red-600 text-white' : 'bg-white border-slate-200 text-slate-600 hover:border-red-300'
                           }`}>
                           Se niega
@@ -221,7 +221,7 @@ export default function CotizacionVigente() {
                             ))}
                           </div>
                         </div>
-                        <div className="grid grid-cols-3 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                           <div>
                             <label className="block text-xs font-medium text-slate-500 mb-1">Tipo de Servicio</label>
                             <select className="input-field" value={agTipo} onChange={e => setAgTipo(e.target.value)}>

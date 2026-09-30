@@ -112,6 +112,7 @@ export default function MainLayout() {
   const navigate = useNavigate();
   const [badges, setBadges] = useState({});
   const prevListasRef = useRef(0);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const fetchBadges = useCallback(() => {
     api.get('/llamadas/badges')
@@ -145,81 +146,116 @@ export default function MainLayout() {
     navigate('/login', { replace: true });
   };
 
+  const sidebarContent = (
+    <>
+      <div className="px-4 pt-4 pb-3">
+        <div className="bg-white/95 rounded-xl px-3 py-2.5 flex items-center justify-center">
+          <img src="/logo-ingeteg.png" alt="INGETEG Soluciones" className="h-9 w-auto" />
+        </div>
+      </div>
+
+      <div className="mx-4 px-3 py-2.5 mb-4 bg-white/[0.04] rounded-lg border border-white/[0.06]">
+        <p className="text-[10px] text-slate-500 font-medium">Sesion activa</p>
+        <p className="text-[13px] font-semibold text-slate-200 truncate">{user?.nombre || 'Usuario'}</p>
+        <span className="inline-block mt-1 px-2 py-0.5 bg-emerald-500/20 rounded text-[10px] font-semibold text-emerald-400">
+          {user?.rol || 'N/A'}
+        </span>
+      </div>
+
+      <nav className="flex-1 overflow-y-auto px-3 space-y-0.5 scrollbar-thin">
+        <p className="px-3 text-[10px] font-semibold text-slate-600 uppercase tracking-wider mb-2">General</p>
+        {navItems.map((item) => (
+          <NavLink
+            key={item.to}
+            to={item.to}
+            end={item.end}
+            className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
+            onClick={() => setSidebarOpen(false)}
+          >
+            <SideIcon d={item.icon} />
+            {item.label}
+            <Badge
+              count={getBadgeCount(item.badgeKey)}
+              pulse={item.badgeKey === 'reprogramadas' && (badges.reprogramadas?.listas || 0) > 0}
+            />
+          </NavLink>
+        ))}
+
+        {(isCoordinador || user?.username === 'ygiraldo') && (
+          <>
+            <p className="px-3 pt-5 text-[10px] font-semibold text-slate-600 uppercase tracking-wider mb-2">{isCoordinador ? 'Coordinador' : 'Gestion'}</p>
+            {(isCoordinador ? COORD_ITEMS : COORD_ITEMS.filter(i => i.to === '/whatsapp')).map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
+                onClick={() => setSidebarOpen(false)}
+              >
+                <SideIcon d={item.icon} />
+                {item.label}
+              </NavLink>
+            ))}
+          </>
+        )}
+      </nav>
+
+      <div className="px-3 py-4 border-t border-white/[0.06]">
+        <button
+          onClick={handleLogout}
+          className="sidebar-link w-full text-slate-500 hover:text-red-400 hover:bg-red-500/10"
+        >
+          <svg className="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+              d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+          </svg>
+          Cerrar Sesion
+        </button>
+      </div>
+    </>
+  );
+
   return (
     <div className="flex h-screen bg-[#f8fafc]">
-      {/* Sidebar */}
-      <aside className="w-[240px] bg-[#0f172a] flex flex-col flex-shrink-0">
-        {/* Logo */}
-        <div className="px-4 pt-4 pb-3">
-          <div className="bg-white/95 rounded-xl px-3 py-2.5 flex items-center justify-center">
-            <img src="/logo-ingeteg.png" alt="INGETEG Soluciones" className="h-9 w-auto" />
-          </div>
-        </div>
+      {/* Mobile overlay */}
+      {sidebarOpen && (
+        <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={() => setSidebarOpen(false)} />
+      )}
 
-        {/* User info */}
-        <div className="mx-4 px-3 py-2.5 mb-4 bg-white/[0.04] rounded-lg border border-white/[0.06]">
-          <p className="text-[10px] text-slate-500 font-medium">Sesion activa</p>
-          <p className="text-[13px] font-semibold text-slate-200 truncate">{user?.nombre || 'Usuario'}</p>
-          <span className="inline-block mt-1 px-2 py-0.5 bg-emerald-500/20 rounded text-[10px] font-semibold text-emerald-400">
-            {user?.rol || 'N/A'}
-          </span>
-        </div>
-
-        {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto px-3 space-y-0.5 scrollbar-thin">
-          <p className="px-3 text-[10px] font-semibold text-slate-600 uppercase tracking-wider mb-2">General</p>
-          {navItems.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.end}
-              className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
-            >
-              <SideIcon d={item.icon} />
-              {item.label}
-              <Badge
-                count={getBadgeCount(item.badgeKey)}
-                pulse={item.badgeKey === 'reprogramadas' && (badges.reprogramadas?.listas || 0) > 0}
-              />
-            </NavLink>
-          ))}
-
-          {(isCoordinador || user?.username === 'ygiraldo') && (
-            <>
-              <p className="px-3 pt-5 text-[10px] font-semibold text-slate-600 uppercase tracking-wider mb-2">{isCoordinador ? 'Coordinador' : 'Gestion'}</p>
-              {(isCoordinador ? COORD_ITEMS : COORD_ITEMS.filter(i => i.to === '/whatsapp')).map((item) => (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
-                >
-                  <SideIcon d={item.icon} />
-                  {item.label}
-                </NavLink>
-              ))}
-            </>
-          )}
-        </nav>
-
-        {/* Logout */}
-        <div className="px-3 py-4 border-t border-white/[0.06]">
-          <button
-            onClick={handleLogout}
-            className="sidebar-link w-full text-slate-500 hover:text-red-400 hover:bg-red-500/10"
-          >
-            <svg className="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-                d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-            </svg>
-            Cerrar Sesion
-          </button>
-        </div>
+      {/* Sidebar — desktop: static, mobile: slide-over */}
+      <aside className={`
+        fixed inset-y-0 left-0 z-50 w-[240px] bg-[#0f172a] flex flex-col flex-shrink-0
+        transform transition-transform duration-200 ease-in-out
+        lg:static lg:translate-x-0
+        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+      `}>
+        {/* Mobile close button */}
+        <button
+          onClick={() => setSidebarOpen(false)}
+          className="lg:hidden absolute top-3 right-3 w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-white hover:bg-white/10 z-10"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+        {sidebarContent}
       </aside>
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        {/* Mobile top bar */}
+        <div className="lg:hidden flex items-center gap-3 px-4 py-3 bg-white border-b border-slate-200">
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="w-9 h-9 flex items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+          <img src="/logo-ingeteg.png" alt="INGETEG" className="h-7 w-auto" />
+        </div>
         {!isGestor && <MetasHUD />}
-        <main className="flex-1 overflow-y-auto p-6 scrollbar-thin">
+        <main className="flex-1 overflow-y-auto p-3 sm:p-6 scrollbar-thin">
           <Outlet />
         </main>
       </div>

@@ -93,7 +93,7 @@ export default function PendientesRepuesto() {
                     }`}
                     onClick={() => !selected && seleccionar(p)}
                   >
-                    <div className="flex items-start justify-between gap-4">
+                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2 sm:gap-4">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
                           <span className="badge badge-yellow">Pendiente repuesto</span>
@@ -127,7 +127,7 @@ export default function PendientesRepuesto() {
                   </div>
 
                   {selected && (
-                    <div className="ml-6 mt-2 rounded-lg border border-amber-200 bg-amber-50/30 p-4 space-y-4">
+                    <div className="mt-2 sm:ml-6 rounded-lg border border-amber-200 bg-amber-50/30 p-3 sm:p-4 space-y-4">
                       <h3 className="text-xs font-semibold text-amber-700 uppercase tracking-wider">
                         Enviar Cotización - {p.cliente_nombre}
                       </h3>
