@@ -34,7 +34,7 @@ export default function SolicitudesCambio() {
   const cargarAgendamientos = async () => {
     try {
       const { data } = await api.get('/llamadas/gestion-servicios');
-      const agendados = (data.servicios || []).filter(s => !['Completado', 'Cancelado'].includes(s.estado_servicio));
+      const agendados = data.servicios || [];
       setAgendamientos(agendados);
     } catch (err) {
       console.error(err);
