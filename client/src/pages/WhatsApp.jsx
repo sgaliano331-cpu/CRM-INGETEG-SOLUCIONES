@@ -83,6 +83,7 @@ export default function WhatsApp() {
   const [filtroRespuesta, setFiltroRespuesta] = useState('');
   const [rrForm, setRrForm] = useState({ atajo: '', mensaje: '' });
   const [rrEditId, setRrEditId] = useState(null);
+  const [mobileView, setMobileView] = useState('list');
   const chatRef = useRef(null);
   const pollRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -172,6 +173,7 @@ export default function WhatsApp() {
     setContactoInfo(null);
     setTab('inbox');
     setPanelTab('info');
+    setMobileView('chat');
     try {
       const { data } = await api.get(`/whatsapp/mensajes?telefono=${conv.telefono}&limit=100`);
       setMensajes(data.reverse());
@@ -486,23 +488,23 @@ export default function WhatsApp() {
   return (
     <div className="h-[calc(100vh-2rem)] flex flex-col -mt-2">
       {/* Header */}
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-green-600 flex items-center justify-center">
-            <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="currentColor">
+      <div className="flex items-center justify-between mb-3 gap-2">
+        <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-green-600 flex items-center justify-center">
+            <svg className="w-5 h-5 sm:w-6 sm:h-6 text-white" viewBox="0 0 24 24" fill="currentColor">
               <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z" />
               <path d="M12 2C6.477 2 2 6.477 2 12c0 1.89.525 3.66 1.438 5.168L2 22l4.832-1.438A9.955 9.955 0 0012 22c5.523 0 10-4.477 10-10S17.523 2 12 2zm0 18a8 8 0 01-4.243-1.214l-.252-.149-2.868.852.852-2.868-.165-.262A7.96 7.96 0 014 12a8 8 0 1116 0 8 8 0 01-8 8z" />
             </svg>
           </div>
-          <div>
+          <div className="hidden sm:block">
             <h1 className="text-xl font-bold text-slate-800">Campañas</h1>
             <p className="text-xs text-slate-500">+57 304 366 2186</p>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-1.5 sm:gap-2 overflow-x-auto pb-1 min-w-0">
           <button
-            onClick={() => setTab('inbox')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === 'inbox' ? 'bg-green-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+            onClick={() => { setTab('inbox'); setMobileView('list'); }}
+            className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${tab === 'inbox' ? 'bg-green-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
           >
             Bandeja
           </button>
@@ -510,22 +512,22 @@ export default function WhatsApp() {
             <>
               <button
                 onClick={() => setTab('nuevo')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === 'nuevo' ? 'bg-green-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${tab === 'nuevo' ? 'bg-green-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
               >
-                Nuevo Mensaje
+                Nuevo
               </button>
               <button
                 onClick={() => setTab('plantilla')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === 'plantilla' ? 'bg-green-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${tab === 'plantilla' ? 'bg-green-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
               >
-                Enviar Plantilla
+                Plantilla
               </button>
               <button
                 onClick={() => setTab('masivo')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === 'masivo' ? 'bg-green-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${tab === 'masivo' ? 'bg-green-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
               >
-            Envio Masivo
-          </button>
+                Masivo
+              </button>
             </>
           )}
         </div>
@@ -582,7 +584,7 @@ export default function WhatsApp() {
       {tab === 'inbox' && (
         <div className="flex-1 flex bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden min-h-0">
           {/* Lista de conversaciones */}
-          <div className="w-[340px] border-r border-slate-200 flex flex-col">
+          <div className={`w-full lg:w-[340px] border-r border-slate-200 flex flex-col ${mobileView !== 'list' ? 'hidden lg:flex' : 'flex'}`}>
             <div className="p-3 border-b border-slate-100">
               <div className="relative">
                 <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -685,33 +687,48 @@ export default function WhatsApp() {
           </div>
 
           {/* Chat */}
-          <div className="flex-1 flex flex-col">
+          <div className={`flex-1 flex flex-col ${mobileView !== 'chat' ? 'hidden lg:flex' : 'flex'}`}>
             {selected ? (
               <>
                 {/* Chat header */}
-                <div className="px-5 py-3 border-b border-slate-200 flex items-center justify-between bg-slate-50">
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full bg-green-100 flex items-center justify-center">
+                <div className="px-3 sm:px-5 py-3 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+                  <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                    <button
+                      onClick={() => { setMobileView('list'); setSelected(null); setContactoInfo(null); }}
+                      className="lg:hidden w-8 h-8 rounded-full hover:bg-slate-200 flex items-center justify-center text-slate-500 flex-shrink-0"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                    </button>
+                    <div className="w-9 h-9 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
                       <span className="text-sm font-bold text-green-700">
                         {(selected.nombre_contacto || '').trim().split(/\s+/).slice(0, 2).map(w => w[0]?.toUpperCase()).join('') || (selected.telefono || '?').slice(-2)}
                       </span>
                     </div>
-                    <div>
-                      <p className="text-sm font-semibold text-slate-800">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-slate-800 truncate">
                         {selected.nombre_contacto || formatPhone(selected.telefono)}
                       </p>
-                      <p className="text-xs text-slate-500">{formatPhone(selected.telefono)}</p>
+                      <p className="text-xs text-slate-500 truncate">{formatPhone(selected.telefono)}</p>
                     </div>
                     {campanaActiva && (
-                      <span className="px-2.5 py-1 rounded-full text-[11px] font-medium bg-green-100 text-green-700 flex items-center gap-1.5">
+                      <span className="hidden sm:flex px-2.5 py-1 rounded-full text-[11px] font-medium bg-green-100 text-green-700 items-center gap-1.5 flex-shrink-0">
                         <svg className="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 8 8"><circle cx="4" cy="4" r="4"/></svg>
                         {campanaActiva}
                       </span>
                     )}
                   </div>
-                  <button className="w-8 h-8 rounded-full hover:bg-slate-200 flex items-center justify-center text-slate-400 transition-colors">
-                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg>
-                  </button>
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    <button
+                      onClick={() => setMobileView('panel')}
+                      className="lg:hidden w-8 h-8 rounded-full hover:bg-slate-200 flex items-center justify-center text-slate-500"
+                      title="Info del contacto"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                    </button>
+                    <button className="w-8 h-8 rounded-full hover:bg-slate-200 flex items-center justify-center text-slate-400 transition-colors">
+                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg>
+                    </button>
+                  </div>
                 </div>
 
                 {/* Messages */}
@@ -733,7 +750,7 @@ export default function WhatsApp() {
                         className={`flex ${item.direccion === 'saliente' ? 'justify-end' : 'justify-start'}`}
                       >
                         <div
-                          className={`max-w-[70%] px-3 py-2 rounded-lg shadow-sm text-sm ${
+                          className={`max-w-[85%] sm:max-w-[70%] px-3 py-2 rounded-lg shadow-sm text-sm ${
                             item.direccion === 'saliente'
                               ? 'bg-[#d9fdd3] text-slate-800'
                               : 'bg-white text-slate-800'
@@ -788,7 +805,7 @@ export default function WhatsApp() {
                             {adjunto.mediaType === 'audio' ? 'MP3' : adjunto.mediaType === 'video' ? 'MP4' : 'DOC'}
                           </div>
                         )}
-                        <span className="truncate max-w-[200px]">{adjunto.name}</span>
+                        <span className="truncate max-w-[120px] sm:max-w-[200px]">{adjunto.name}</span>
                         <button type="button" onClick={() => { if (adjunto.preview) URL.revokeObjectURL(adjunto.preview); setAdjunto(null); if (fileInputRef.current) fileInputRef.current.value = ''; }} className="text-red-400 hover:text-red-600 ml-1">
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                         </button>
@@ -889,11 +906,17 @@ export default function WhatsApp() {
 
           {/* Panel lateral derecho */}
           {selected && contactoInfo && (
-            <div className="w-[320px] border-l border-slate-200 flex flex-col bg-white overflow-hidden">
+            <div className={`w-full lg:w-[320px] border-l border-slate-200 flex flex-col bg-white overflow-hidden ${mobileView !== 'panel' ? 'hidden lg:flex' : 'flex'}`}>
               {/* Header del panel */}
               <div className="px-4 py-4 border-b border-slate-200">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => setMobileView('chat')}
+                      className="lg:hidden w-8 h-8 rounded-full hover:bg-slate-200 flex items-center justify-center text-slate-500 flex-shrink-0"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                    </button>
                     <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
                       <span className="text-sm font-bold text-green-700">
                         {(selected.nombre_contacto || '').trim().split(/\s+/).slice(0, 2).map(w => w[0]?.toUpperCase()).join('') || (selected.telefono || '?').slice(-2)}
@@ -1186,7 +1209,7 @@ export default function WhatsApp() {
                     {/* Modal Agendar */}
                     {showAgendar && (
                       <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={() => setShowAgendar(false)}>
-                        <div className="bg-white rounded-xl shadow-2xl w-[480px] max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+                        <div className="bg-white rounded-xl shadow-2xl w-[calc(100%-2rem)] sm:w-[480px] max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
                           <div className="px-5 py-4 border-b border-slate-200">
                             <h3 className="text-sm font-bold text-slate-800">Agendar Servicio</h3>
                             <p className="text-[11px] text-slate-500 mt-0.5">{contactoInfo?.cliente?.nombre || selected?.nombre_contacto || formatPhone(selected?.telefono)}</p>
@@ -1210,7 +1233,7 @@ export default function WhatsApp() {
                                 ))}
                               </div>
                             </div>
-                            <div className={`grid ${isCertGas ? 'grid-cols-2' : 'grid-cols-3'} gap-3`}>
+                            <div className={`grid grid-cols-1 ${isCertGas ? 'sm:grid-cols-2' : 'sm:grid-cols-3'} gap-3`}>
                               {!isCertGas && (
                                 <div>
                                   <label className="block text-xs font-medium text-slate-600 mb-1">Tipo de Servicio</label>
@@ -1230,7 +1253,7 @@ export default function WhatsApp() {
                                 <input type="number" value={agForm.costo} onChange={e => setAgForm(f => ({ ...f, costo: e.target.value }))} placeholder="0" className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:ring-1 focus:ring-green-500" />
                               </div>
                             </div>
-                            <div className={`grid ${isCertGas ? 'grid-cols-2' : 'grid-cols-3'} gap-3`}>
+                            <div className={`grid grid-cols-1 ${isCertGas ? 'sm:grid-cols-2' : 'sm:grid-cols-3'} gap-3`}>
                               {isCertGas ? (
                                 <div>
                                   <label className="block text-xs font-medium text-slate-600 mb-1">Franja Horaria *</label>
@@ -1404,8 +1427,8 @@ export default function WhatsApp() {
 
       {/* Nuevo Mensaje */}
       {tab === 'nuevo' && (
-        <div className="flex-1 flex items-start justify-center pt-8">
-          <form onSubmit={enviarDirecto} className="w-full max-w-lg bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+        <div className="flex-1 flex items-start justify-center pt-4 sm:pt-8 overflow-y-auto">
+          <form onSubmit={enviarDirecto} className="w-full max-w-lg bg-white rounded-xl border border-slate-200 shadow-sm p-4 sm:p-6">
             <h2 className="text-lg font-semibold text-slate-800 mb-4">Enviar Mensaje Directo</h2>
             <div className="space-y-4">
               <div>
@@ -1458,8 +1481,8 @@ export default function WhatsApp() {
 
       {/* Envio Masivo */}
       {tab === 'masivo' && (
-        <div className="flex-1 flex items-start justify-center pt-8">
-          <form onSubmit={enviarMasivo} className="w-full max-w-lg bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+        <div className="flex-1 flex items-start justify-center pt-4 sm:pt-8 overflow-y-auto">
+          <form onSubmit={enviarMasivo} className="w-full max-w-lg bg-white rounded-xl border border-slate-200 shadow-sm p-4 sm:p-6">
             <h2 className="text-lg font-semibold text-slate-800 mb-1">Envio Masivo con Plantilla</h2>
             <p className="text-xs text-slate-500 mb-4">Sube un archivo Excel con los datos. La primera columna debe ser el telefono, las demas son las variables de la plantilla en orden.</p>
             <div className="space-y-4">
@@ -1617,7 +1640,7 @@ export default function WhatsApp() {
               {masivo.resultado && (
                 <div className="mt-4 p-4 bg-slate-50 rounded-lg border border-slate-200">
                   <h3 className="text-sm font-semibold text-slate-700 mb-2">Resultado del envio</h3>
-                  <div className="flex gap-4 text-sm">
+                  <div className="flex flex-wrap gap-3 sm:gap-4 text-sm">
                     <div className="flex items-center gap-1.5">
                       <div className="w-2 h-2 rounded-full bg-green-500" />
                       <span className="text-slate-600">Enviados: <strong className="text-green-700">{masivo.resultado.enviados}</strong></span>
@@ -1643,8 +1666,8 @@ export default function WhatsApp() {
 
       {/* Enviar Plantilla Individual */}
       {tab === 'plantilla' && (
-        <div className="flex-1 flex items-start justify-center pt-8">
-          <form onSubmit={enviarPlantilla} className="w-full max-w-lg bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+        <div className="flex-1 flex items-start justify-center pt-4 sm:pt-8 overflow-y-auto">
+          <form onSubmit={enviarPlantilla} className="w-full max-w-lg bg-white rounded-xl border border-slate-200 shadow-sm p-4 sm:p-6">
             <h2 className="text-lg font-semibold text-slate-800 mb-1">Enviar Plantilla Individual</h2>
             <p className="text-xs text-slate-500 mb-4">Envia un mensaje de plantilla con datos personalizados a un numero especifico.</p>
             <div className="space-y-4">
@@ -1820,7 +1843,7 @@ export default function WhatsApp() {
       {/* Modal de asignación */}
       {showAsignar && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={() => setShowAsignar(null)}>
-          <div className="bg-white rounded-xl shadow-2xl p-6 w-[400px] space-y-4" onClick={e => e.stopPropagation()}>
+          <div className="bg-white rounded-xl shadow-2xl p-4 sm:p-6 w-[calc(100%-2rem)] sm:w-[400px] max-h-[90vh] overflow-y-auto space-y-4" onClick={e => e.stopPropagation()}>
             <h3 className="text-sm font-bold text-slate-800">
               Asignar {showAsignar.tipo === 'campana' ? 'campaña' : 'chat'}
             </h3>
