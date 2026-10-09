@@ -74,6 +74,7 @@ export default function WhatsApp() {
   const [nuevaEtiqueta, setNuevaEtiqueta] = useState('');
   const [nuevaNota, setNuevaNota] = useState('');
   const [filtroEtiqueta, setFiltroEtiqueta] = useState('');
+  const [filtroEstado, setFiltroEstado] = useState('');
   const [usuariosAsignables, setUsuariosAsignables] = useState([]);
   const [asignaciones, setAsignaciones] = useState([]);
   const [showAsignar, setShowAsignar] = useState(null); // { tipo: 'campana'|'chat', valor: string }
@@ -172,7 +173,7 @@ export default function WhatsApp() {
     if (!confirm(`Eliminar la campaña "${nombre}" y todos sus contactos? Esta accion no se puede deshacer.`)) return;
     try {
       await api.delete(`/whatsapp/campanas/${encodeURIComponent(nombre)}`);
-      if (campanaActiva === nombre) setCampanaActiva(null);
+      if (campanaActiva === nombre) { setCampanaActiva(null); setFiltroEstado(''); }
       fetchCampanas();
       fetchConversaciones();
     } catch {}
@@ -491,9 +492,11 @@ export default function WhatsApp() {
     }
   };
 
-  const filteredConvs = conversaciones.filter(c =>
-    !search || c.nombre_contacto?.toLowerCase().includes(search.toLowerCase()) || c.telefono?.includes(search)
-  );
+  const filteredConvs = conversaciones.filter(c => {
+    if (search && !c.nombre_contacto?.toLowerCase().includes(search.toLowerCase()) && !c.telefono?.includes(search)) return false;
+    if (filtroEstado && campanaActiva && c.estado_campana !== filtroEstado) return false;
+    return true;
+  });
 
   const totalNoLeidos = conversaciones.reduce((sum, c) => sum + (parseInt(c.no_leidos) || 0), 0);
 
@@ -561,7 +564,7 @@ export default function WhatsApp() {
       {tab === 'inbox' && campanas.length > 0 && (
         <div className="flex items-center gap-2 mb-3 overflow-x-auto pb-1 scrollbar-thin">
           <button
-            onClick={() => { setCampanaActiva(null); setSelected(null); setContactoInfo(null); }}
+            onClick={() => { setCampanaActiva(null); setFiltroEstado(''); setSelected(null); setContactoInfo(null); }}
             className={`px-4 py-2 rounded-xl text-sm font-semibold whitespace-nowrap transition-all flex items-center gap-2 ${
               !campanaActiva ? 'bg-green-600 text-white shadow-md shadow-green-500/25' : 'bg-white text-slate-600 border border-slate-200 hover:border-green-300 hover:shadow-sm'
             }`}
@@ -579,7 +582,7 @@ export default function WhatsApp() {
             return (
               <div key={c.campana} className="flex items-center gap-1 flex-shrink-0 group">
                 <button
-                  onClick={() => { setCampanaActiva(c.campana); setSelected(null); setContactoInfo(null); }}
+                  onClick={() => { setCampanaActiva(c.campana); setFiltroEstado(''); setSelected(null); setContactoInfo(null); }}
                   className={`px-4 py-2 rounded-xl text-sm font-semibold whitespace-nowrap transition-all flex items-center gap-2 ${
                     campanaActiva === c.campana ? 'bg-green-600 text-white shadow-md shadow-green-500/25' : 'bg-white text-slate-600 border border-slate-200 hover:border-green-300 hover:shadow-sm'
                   }`}
@@ -649,6 +652,41 @@ export default function WhatsApp() {
                       Limpiar
                     </button>
                   )}
+                </div>
+              )}
+              {campanaActiva && (
+                <div className="flex items-center gap-1.5 mt-2.5">
+                  {[
+                    { value: '', label: 'Todos', icon: null },
+                    { value: 'respondio', label: 'Respondio', icon: '💬' },
+                    { value: 'enviado', label: 'Enviado', icon: '📤' },
+                  ].map(opt => {
+                    const count = opt.value
+                      ? conversaciones.filter(c => c.estado_campana === opt.value).length
+                      : conversaciones.length;
+                    const active = filtroEstado === opt.value;
+                    return (
+                      <button
+                        key={opt.value}
+                        onClick={() => setFiltroEstado(opt.value)}
+                        className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                          active
+                            ? opt.value === 'respondio'
+                              ? 'bg-blue-500 text-white shadow-sm shadow-blue-500/25'
+                              : opt.value === 'enviado'
+                                ? 'bg-amber-500 text-white shadow-sm shadow-amber-500/25'
+                                : 'bg-green-600 text-white shadow-sm shadow-green-500/25'
+                            : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                        }`}
+                      >
+                        {opt.icon && <span className="text-[10px]">{opt.icon}</span>}
+                        {opt.label}
+                        <span className={`ml-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-bold ${
+                          active ? 'bg-white/20' : 'bg-white text-slate-400'
+                        }`}>{count}</span>
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </div>
