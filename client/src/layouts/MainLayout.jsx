@@ -301,7 +301,7 @@ export default function MainLayout() {
           <img src="/logo-ingeteg.png" alt="INGETEG" className="h-7 w-auto" />
         </div>
         {!isGestor && <MetasHUD />}
-        <main className="flex-1 overflow-y-auto p-3 sm:p-6 scrollbar-thin">
+        <main className="flex-1 overflow-y-auto p-3 sm:p-6 scrollbar-thin relative">
           <Outlet />
         </main>
       </div>
