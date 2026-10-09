@@ -509,7 +509,7 @@ export default function WhatsApp() {
   }
 
   return (
-    <div className="absolute inset-0 flex flex-col p-3 sm:p-4">
+    <div className="flex flex-col h-[calc(100vh-126px)] min-h-0">
       {/* Header */}
       <div className="flex items-center justify-between mb-3 gap-3">
         <div className="flex items-center gap-3 flex-shrink-0">
