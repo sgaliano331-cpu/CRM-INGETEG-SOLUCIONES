@@ -511,43 +511,44 @@ export default function WhatsApp() {
   return (
     <div className="h-[calc(100vh-2rem)] flex flex-col -mt-2">
       {/* Header */}
-      <div className="flex items-center justify-between mb-3 gap-2">
-        <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
-          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-green-600 flex items-center justify-center">
+      <div className="flex items-center justify-between mb-3 gap-3">
+        <div className="flex items-center gap-3 flex-shrink-0">
+          <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-br from-green-500 to-green-700 flex items-center justify-center shadow-md shadow-green-500/20">
             <svg className="w-5 h-5 sm:w-6 sm:h-6 text-white" viewBox="0 0 24 24" fill="currentColor">
               <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z" />
               <path d="M12 2C6.477 2 2 6.477 2 12c0 1.89.525 3.66 1.438 5.168L2 22l4.832-1.438A9.955 9.955 0 0012 22c5.523 0 10-4.477 10-10S17.523 2 12 2zm0 18a8 8 0 01-4.243-1.214l-.252-.149-2.868.852.852-2.868-.165-.262A7.96 7.96 0 014 12a8 8 0 1116 0 8 8 0 01-8 8z" />
             </svg>
           </div>
           <div className="hidden sm:block">
-            <h1 className="text-xl font-bold text-slate-800">Campañas</h1>
-            <p className="text-xs text-slate-500">+57 304 366 2186</p>
+            <h1 className="text-lg font-bold text-slate-800 tracking-tight">WhatsApp Business</h1>
+            <p className="text-xs text-slate-400 font-medium">+57 304 366 2186</p>
           </div>
         </div>
-        <div className="flex gap-1.5 sm:gap-2 overflow-x-auto pb-1 min-w-0">
+        <div className="flex gap-1 sm:gap-1.5 overflow-x-auto pb-1 min-w-0 bg-slate-100 rounded-xl p-1">
           <button
             onClick={() => { setTab('inbox'); setMobileView('list'); }}
-            className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${tab === 'inbox' ? 'bg-green-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+            className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all whitespace-nowrap ${tab === 'inbox' ? 'bg-white text-green-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
           >
             Bandeja
+            {totalNoLeidos > 0 && <span className="ml-1.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-green-500 text-white">{totalNoLeidos}</span>}
           </button>
           {isCoordinador && (
             <>
               <button
                 onClick={() => setTab('nuevo')}
-                className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${tab === 'nuevo' ? 'bg-green-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all whitespace-nowrap ${tab === 'nuevo' ? 'bg-white text-green-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
               >
                 Nuevo
               </button>
               <button
                 onClick={() => setTab('plantilla')}
-                className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${tab === 'plantilla' ? 'bg-green-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all whitespace-nowrap ${tab === 'plantilla' ? 'bg-white text-green-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
               >
                 Plantilla
               </button>
               <button
                 onClick={() => setTab('masivo')}
-                className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${tab === 'masivo' ? 'bg-green-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all whitespace-nowrap ${tab === 'masivo' ? 'bg-white text-green-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
               >
                 Masivo
               </button>
@@ -558,53 +559,56 @@ export default function WhatsApp() {
 
       {/* Campaign tabs */}
       {tab === 'inbox' && campanas.length > 0 && (
-        <div className="flex items-center gap-2 mb-3 overflow-x-auto pb-1">
+        <div className="flex items-center gap-2 mb-3 overflow-x-auto pb-1 scrollbar-thin">
           <button
             onClick={() => { setCampanaActiva(null); setSelected(null); setContactoInfo(null); }}
-            className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all flex items-center gap-2 border ${
-              !campanaActiva ? 'bg-green-600 text-white border-green-600 shadow-sm' : 'bg-white text-slate-600 border-slate-200 hover:border-green-300 hover:text-green-700'
+            className={`px-4 py-2 rounded-xl text-sm font-semibold whitespace-nowrap transition-all flex items-center gap-2 ${
+              !campanaActiva ? 'bg-green-600 text-white shadow-md shadow-green-500/25' : 'bg-white text-slate-600 border border-slate-200 hover:border-green-300 hover:shadow-sm'
             }`}
           >
             Todas
-            <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${!campanaActiva ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'}`}>
+            <span className={`px-2 py-0.5 rounded-lg text-xs font-bold ${!campanaActiva ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'}`}>
               {conversaciones.length}
             </span>
           </button>
           {campanas.map(c => {
             const asignadasCamp = asignaciones.filter(a => a.tipo === 'campana' && a.valor === c.campana);
+            const respondidos = parseInt(c.respondidos) || 0;
+            const total = parseInt(c.total) || 0;
+            const pctResp = total > 0 ? Math.round((respondidos / total) * 100) : 0;
             return (
-              <div key={c.campana} className="flex items-center gap-1 flex-shrink-0">
+              <div key={c.campana} className="flex items-center gap-1 flex-shrink-0 group">
                 <button
                   onClick={() => { setCampanaActiva(c.campana); setSelected(null); setContactoInfo(null); }}
-                  className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all flex items-center gap-2 border ${
-                    campanaActiva === c.campana ? 'bg-green-600 text-white border-green-600 shadow-sm' : 'bg-white text-slate-600 border-slate-200 hover:border-green-300 hover:text-green-700'
+                  className={`px-4 py-2 rounded-xl text-sm font-semibold whitespace-nowrap transition-all flex items-center gap-2 ${
+                    campanaActiva === c.campana ? 'bg-green-600 text-white shadow-md shadow-green-500/25' : 'bg-white text-slate-600 border border-slate-200 hover:border-green-300 hover:shadow-sm'
                   }`}
                 >
                   {c.campana}
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${campanaActiva === c.campana ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'}`}>
-                    {c.total}
+                  <span className={`px-2 py-0.5 rounded-lg text-xs font-bold ${campanaActiva === c.campana ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                    {respondidos > 0 ? `${respondidos}/${total}` : total}
                   </span>
                   {asignadasCamp.length > 0 && (
-                    <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-blue-100 text-blue-700">{asignadasCamp.map(a => a.usuario_nombre.split(' ')[0]).join(', ')}</span>
+                    <span className="px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-blue-50 text-blue-600 border border-blue-100">{asignadasCamp.map(a => a.usuario_nombre.split(' ')[0]).join(', ')}</span>
                   )}
                 </button>
                 {isCoordinador && (
-                  <>
+                  <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button
                       onClick={(e) => { e.stopPropagation(); setShowAsignar({ tipo: 'campana', valor: c.campana }); setAsignarUsuario(''); }}
-                      className="w-6 h-6 rounded-full bg-blue-50 text-blue-600 hover:bg-blue-100 flex items-center justify-center text-xs font-bold flex-shrink-0"
+                      className="w-6 h-6 rounded-lg bg-blue-50 text-blue-500 hover:bg-blue-100 flex items-center justify-center text-xs font-bold flex-shrink-0 transition-colors"
                       title="Asignar campaña"
                     >
                       +
                     </button>
                     <button
                       onClick={(e) => { e.stopPropagation(); eliminarCampana(c.campana); }}
-                      className="w-6 h-6 rounded-full bg-red-50 text-red-500 hover:bg-red-100 flex items-center justify-center text-xs font-bold flex-shrink-0"
+                      className="w-6 h-6 rounded-lg bg-red-50 text-red-400 hover:bg-red-100 hover:text-red-600 flex items-center justify-center flex-shrink-0 transition-colors"
                       title="Eliminar campaña"
                     >
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                     </button>
-                  </>
+                  </div>
                 )}
               </div>
             );
@@ -614,12 +618,12 @@ export default function WhatsApp() {
 
       {/* Content */}
       {tab === 'inbox' && (
-        <div className="flex-1 flex bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden min-h-0">
+        <div className="flex-1 flex bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden min-h-0">
           {/* Lista de conversaciones */}
-          <div className={`w-full lg:w-[340px] border-r border-slate-200 flex flex-col ${mobileView !== 'list' ? 'hidden lg:flex' : 'flex'}`}>
+          <div className={`w-full lg:w-[340px] border-r border-slate-100 flex flex-col ${mobileView !== 'list' ? 'hidden lg:flex' : 'flex'}`}>
             <div className="p-3 border-b border-slate-100">
               <div className="relative">
-                <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
                 <input
@@ -627,21 +631,21 @@ export default function WhatsApp() {
                   placeholder="Buscar conversacion..."
                   value={search}
                   onChange={e => setSearch(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                  className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border-0 rounded-xl text-sm focus:ring-2 focus:ring-green-500/30 focus:bg-white placeholder:text-slate-400 transition-all"
                 />
               </div>
               {etiquetasDisponibles.length > 0 && (
-                <div className="flex items-center gap-2 mt-2">
+                <div className="flex items-center gap-2 mt-2.5">
                   <select
                     value={filtroEtiqueta}
                     onChange={e => { setFiltroEtiqueta(e.target.value); setSelected(null); setContactoInfo(null); }}
-                    className="flex-1 px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs text-slate-600 bg-white focus:ring-1 focus:ring-green-500"
+                    className="flex-1 px-2.5 py-2 border-0 rounded-xl text-xs text-slate-600 bg-slate-50 focus:ring-2 focus:ring-green-500/30"
                   >
                     <option value="">Todas las etiquetas</option>
                     {etiquetasDisponibles.map(e => <option key={e.id} value={e.nombre}>{e.nombre}</option>)}
                   </select>
                   {filtroEtiqueta && (
-                    <button onClick={() => { setFiltroEtiqueta(''); setSelected(null); setContactoInfo(null); }} className="text-xs text-red-500 hover:text-red-700 whitespace-nowrap">
+                    <button onClick={() => { setFiltroEtiqueta(''); setSelected(null); setContactoInfo(null); }} className="text-xs text-red-400 hover:text-red-600 whitespace-nowrap font-medium transition-colors">
                       Limpiar
                     </button>
                   )}
@@ -664,50 +668,63 @@ export default function WhatsApp() {
               ) : (
                 filteredConvs.map(c => {
                   const initials = (c.nombre_contacto || '').trim().split(/\s+/).slice(0, 2).map(w => w[0]?.toUpperCase()).join('') || (c.telefono || '?').slice(-2);
-                  const avatarColors = ['bg-blue-500', 'bg-emerald-500', 'bg-violet-500', 'bg-amber-500', 'bg-rose-500', 'bg-cyan-500', 'bg-indigo-500', 'bg-orange-500'];
+                  const avatarColors = [
+                    'bg-gradient-to-br from-blue-400 to-blue-600',
+                    'bg-gradient-to-br from-emerald-400 to-emerald-600',
+                    'bg-gradient-to-br from-violet-400 to-violet-600',
+                    'bg-gradient-to-br from-amber-400 to-amber-600',
+                    'bg-gradient-to-br from-rose-400 to-rose-600',
+                    'bg-gradient-to-br from-cyan-400 to-cyan-600',
+                    'bg-gradient-to-br from-indigo-400 to-indigo-600',
+                    'bg-gradient-to-br from-orange-400 to-orange-600',
+                  ];
                   const colorIdx = (c.telefono || '').split('').reduce((s, ch) => s + ch.charCodeAt(0), 0) % avatarColors.length;
+                  const isActive = selected?.telefono === c.telefono;
+                  const hasUnread = parseInt(c.no_leidos) > 0;
                   return (
                   <button
                     key={c.telefono}
                     onClick={() => selectConversacion(c)}
-                    className={`w-full text-left px-4 py-3 border-b border-slate-50 hover:bg-slate-50 transition-colors ${selected?.telefono === c.telefono ? 'bg-green-50 border-l-3 border-l-green-500' : ''}`}
+                    className={`w-full text-left px-4 py-3 transition-all ${isActive ? 'bg-green-50/80 border-l-[3px] border-l-green-500' : 'border-l-[3px] border-l-transparent hover:bg-slate-50/80'}`}
                   >
-                    <div className="flex items-start gap-3">
-                      <div className={`w-10 h-10 rounded-full ${avatarColors[colorIdx]} flex items-center justify-center flex-shrink-0`}>
-                        <span className="text-sm font-bold text-white">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-11 h-11 rounded-full ${avatarColors[colorIdx]} flex items-center justify-center flex-shrink-0 shadow-sm`}>
+                        <span className="text-sm font-bold text-white drop-shadow-sm">
                           {initials}
                         </span>
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between">
-                          <p className="text-sm font-semibold text-slate-800 truncate">
+                          <p className={`text-[13px] truncate ${hasUnread ? 'font-bold text-slate-900' : 'font-semibold text-slate-700'}`}>
                             {c.nombre_contacto || formatPhone(c.telefono)}
                           </p>
-                          <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
-                            <span className="text-[10px] text-slate-400">
+                          <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+                            <span className={`text-[11px] ${hasUnread ? 'text-green-600 font-medium' : 'text-slate-400'}`}>
                               {timeAgo(c.ultimo_mensaje)}
                             </span>
-                            {parseInt(c.no_leidos) > 0 && (
-                              <span className="min-w-[20px] h-[20px] flex items-center justify-center rounded-full bg-green-500 text-white text-[10px] font-bold">
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between mt-0.5">
+                          <p className={`text-xs truncate ${hasUnread ? 'text-slate-700 font-medium' : 'text-slate-500'}`}>
+                            {c.ultima_direccion === 'saliente' && (
+                              <span className="text-slate-400 mr-1">Tu:</span>
+                            )}
+                            {c.ultimo_texto || '...'}
+                          </p>
+                          <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
+                            {hasUnread && (
+                              <span className="min-w-[20px] h-5 flex items-center justify-center rounded-full bg-green-500 text-white text-[10px] font-bold px-1.5 shadow-sm">
                                 {c.no_leidos}
                               </span>
                             )}
+                            {campanaActiva && c.estado_campana && (
+                              <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9px] font-semibold ${
+                                c.estado_campana === 'respondio' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
+                              }`}>
+                                {c.estado_campana === 'respondio' ? 'Respondio' : 'Enviado'}
+                              </span>
+                            )}
                           </div>
-                        </div>
-                        <p className="text-xs text-slate-500 truncate mt-0.5">
-                          {c.ultima_direccion === 'saliente' && (
-                            <span className="text-slate-400 mr-1">Tu:</span>
-                          )}
-                          {c.ultimo_texto || '...'}
-                        </p>
-                        <div className="flex items-center gap-1.5 mt-1">
-                          {campanaActiva && c.estado_campana && (
-                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium ${
-                              c.estado_campana === 'respondio' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
-                            }`}>
-                              {c.estado_campana === 'respondio' ? 'Respondio' : 'Enviado'}
-                            </span>
-                          )}
                         </div>
                       </div>
                     </div>
@@ -723,16 +740,16 @@ export default function WhatsApp() {
             {selected ? (
               <>
                 {/* Chat header */}
-                <div className="px-3 sm:px-5 py-3 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+                <div className="px-3 sm:px-5 py-3 border-b border-slate-100 flex items-center justify-between bg-white/80 backdrop-blur-sm">
                   <div className="flex items-center gap-2 sm:gap-3 min-w-0">
                     <button
                       onClick={() => { setMobileView('list'); setSelected(null); setContactoInfo(null); }}
-                      className="lg:hidden w-8 h-8 rounded-full hover:bg-slate-200 flex items-center justify-center text-slate-500 flex-shrink-0"
+                      className="lg:hidden w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-500 flex-shrink-0 transition-colors"
                     >
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
                     </button>
-                    <div className="w-9 h-9 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
-                      <span className="text-sm font-bold text-green-700">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center flex-shrink-0 shadow-sm">
+                      <span className="text-sm font-bold text-white drop-shadow-sm">
                         {(selected.nombre_contacto || '').trim().split(/\s+/).slice(0, 2).map(w => w[0]?.toUpperCase()).join('') || (selected.telefono || '?').slice(-2)}
                       </span>
                     </div>
@@ -740,11 +757,11 @@ export default function WhatsApp() {
                       <p className="text-sm font-semibold text-slate-800 truncate">
                         {selected.nombre_contacto || formatPhone(selected.telefono)}
                       </p>
-                      <p className="text-xs text-slate-500 truncate">{formatPhone(selected.telefono)}</p>
+                      <p className="text-[11px] text-slate-400 truncate">{formatPhone(selected.telefono)}</p>
                     </div>
                     {campanaActiva && (
-                      <span className="hidden sm:flex px-2.5 py-1 rounded-full text-[11px] font-medium bg-green-100 text-green-700 items-center gap-1.5 flex-shrink-0">
-                        <svg className="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 8 8"><circle cx="4" cy="4" r="4"/></svg>
+                      <span className="hidden sm:flex px-2.5 py-1 rounded-lg text-[11px] font-medium bg-green-50 text-green-600 border border-green-100 items-center gap-1.5 flex-shrink-0">
+                        <svg className="w-2 h-2" fill="currentColor" viewBox="0 0 8 8"><circle cx="4" cy="4" r="4"/></svg>
                         {campanaActiva}
                       </span>
                     )}
@@ -772,13 +789,13 @@ export default function WhatsApp() {
                 {/* Messages */}
                 <div
                   ref={chatRef}
-                  className="flex-1 overflow-y-auto px-5 py-4 space-y-1 bg-[#efeae2]"
-                  style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'60\' height=\'60\' viewBox=\'0 0 60 60\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'none\' fill-rule=\'evenodd\'%3E%3Cg fill=\'%23d5cec6\' fill-opacity=\'0.15\'%3E%3Cpath d=\'M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z\'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")' }}
+                  className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 space-y-1"
+                  style={{ backgroundColor: '#e5ddd5', backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'60\' height=\'60\' viewBox=\'0 0 60 60\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'none\' fill-rule=\'evenodd\'%3E%3Cg fill=\'%23d5cec6\' fill-opacity=\'0.12\'%3E%3Cpath d=\'M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z\'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")' }}
                 >
                   {msgGroups.map((item, i) =>
                     item.type === 'date' ? (
                       <div key={`d-${i}`} className="flex justify-center py-2">
-                        <span className="px-3 py-1 bg-white/80 rounded-lg text-[11px] text-slate-500 shadow-sm capitalize">
+                        <span className="px-4 py-1.5 bg-white/90 backdrop-blur-sm rounded-lg text-[11px] text-slate-600 shadow-sm capitalize font-medium">
                           {item.label}
                         </span>
                       </div>
@@ -788,32 +805,32 @@ export default function WhatsApp() {
                         className={`flex ${item.direccion === 'saliente' ? 'justify-end' : 'justify-start'}`}
                       >
                         <div
-                          className={`max-w-[85%] sm:max-w-[70%] px-3 py-2 rounded-lg shadow-sm text-sm ${
+                          className={`max-w-[85%] sm:max-w-[70%] px-3 py-2 text-sm shadow-sm ${
                             item.direccion === 'saliente'
-                              ? 'bg-[#d9fdd3] text-slate-800'
-                              : 'bg-white text-slate-800'
+                              ? 'bg-[#d9fdd3] text-slate-800 rounded-2xl rounded-tr-md'
+                              : 'bg-white text-slate-800 rounded-2xl rounded-tl-md'
                           }`}
                         >
                           {item.media_url && ['image', 'sticker'].includes(item.tipo_mensaje) && (
-                            <img src={item.media_url} alt="imagen" className="max-w-full rounded mb-1 cursor-pointer" onClick={() => window.open(item.media_url, '_blank')} />
+                            <img src={item.media_url} alt="imagen" className="max-w-full rounded-lg mb-1.5 cursor-pointer hover:opacity-95 transition-opacity" onClick={() => window.open(item.media_url, '_blank')} />
                           )}
                           {item.media_url && item.tipo_mensaje === 'video' && (
-                            <video src={item.media_url} controls className="max-w-full rounded mb-1" />
+                            <video src={item.media_url} controls className="max-w-full rounded-lg mb-1.5" />
                           )}
                           {item.media_url && item.tipo_mensaje === 'audio' && (
-                            <audio src={item.media_url} controls className="w-full mb-1" />
+                            <audio src={item.media_url} controls className="w-full mb-1.5" />
                           )}
                           {item.media_url && item.tipo_mensaje === 'document' && (
-                            <a href={item.media_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 bg-slate-100 rounded px-2 py-1.5 mb-1 text-xs text-blue-600 hover:underline">
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+                            <a href={item.media_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 bg-slate-50 rounded-lg px-3 py-2 mb-1.5 text-xs text-blue-600 hover:bg-slate-100 transition-colors">
+                              <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
                               Ver documento
                             </a>
                           )}
-                          <p className="whitespace-pre-wrap break-words">{item.mensaje}</p>
-                          <p className={`text-[10px] mt-1 text-right ${item.direccion === 'saliente' ? 'text-green-700/60' : 'text-slate-400'}`}>
+                          <p className="whitespace-pre-wrap break-words leading-relaxed">{item.mensaje}</p>
+                          <p className={`text-[10px] mt-1 text-right flex items-center justify-end gap-0.5 ${item.direccion === 'saliente' ? 'text-green-700/50' : 'text-slate-400'}`}>
                             {formatTime(item.creado_en)}
                             {item.direccion === 'saliente' && (
-                              <svg className="inline-block w-3.5 h-3.5 ml-0.5 -mt-0.5 text-blue-500" viewBox="0 0 16 15" fill="currentColor">
+                              <svg className="w-3.5 h-3.5 text-blue-500" viewBox="0 0 16 15" fill="currentColor">
                                 <path d="M15.01 3.316l-.478-.372a.365.365 0 00-.51.063L8.666 9.88 5.64 6.854a.365.365 0 00-.516 0l-.445.445a.365.365 0 000 .516l3.64 3.64a.365.365 0 00.516 0l6.21-7.63a.365.365 0 00-.036-.509zm-2.539.145l-.478-.372a.365.365 0 00-.51.063L6.127 9.88 3.1 6.854a.365.365 0 00-.516 0l-.445.445a.365.365 0 000 .516l3.64 3.64a.365.365 0 00.516 0l6.21-7.63a.365.365 0 00-.036-.509z" />
                               </svg>
                             )}
@@ -824,13 +841,18 @@ export default function WhatsApp() {
                   )}
                   {mensajes.length === 0 && (
                     <div className="flex items-center justify-center h-full">
-                      <p className="text-sm text-slate-400">No hay mensajes en esta conversacion</p>
+                      <div className="text-center">
+                        <svg className="w-16 h-16 text-slate-300/60 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                        </svg>
+                        <p className="text-sm text-slate-400/80">No hay mensajes en esta conversacion</p>
+                      </div>
                     </div>
                   )}
                 </div>
 
                 {/* Input */}
-                <form onSubmit={enviarMensaje} className="border-t border-slate-200 bg-slate-50">
+                <form onSubmit={enviarMensaje} className="border-t border-slate-100 bg-white/90 backdrop-blur-sm">
                   {adjunto && (
                     <div className="px-4 pt-3 flex items-center gap-2">
                       <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-600">
@@ -905,7 +927,7 @@ export default function WhatsApp() {
                         onBlur={() => setTimeout(() => setShowRespuestas(false), 200)}
                         placeholder={adjunto ? "Agrega un comentario..." : "Escribe un mensaje... ( / para respuestas rápidas)"}
                         rows={1}
-                        className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 resize-none overflow-hidden"
+                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-green-500/30 focus:border-green-400 focus:bg-white resize-none overflow-hidden transition-all"
                         style={{ maxHeight: '120px', overflowY: texto.split('\n').length > 4 ? 'auto' : 'hidden' }}
                         onInput={e => { e.target.style.height = 'auto'; e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px'; }}
                       />
@@ -913,7 +935,7 @@ export default function WhatsApp() {
                     <button
                       type="submit"
                       disabled={sending || (!texto.trim() && !adjunto)}
-                      className="w-10 h-10 rounded-full bg-green-600 text-white flex items-center justify-center hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex-shrink-0"
+                      className="w-10 h-10 rounded-full bg-gradient-to-r from-green-500 to-green-600 text-white flex items-center justify-center hover:from-green-600 hover:to-green-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-sm hover:shadow-md flex-shrink-0"
                     >
                       {sending ? (
                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
@@ -927,16 +949,16 @@ export default function WhatsApp() {
                 </form>
               </>
             ) : (
-              <div className="flex-1 flex items-center justify-center bg-[#f0ebe3]">
+              <div className="flex-1 flex items-center justify-center" style={{ backgroundColor: '#e5ddd5', backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'60\' height=\'60\' viewBox=\'0 0 60 60\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'none\' fill-rule=\'evenodd\'%3E%3Cg fill=\'%23d5cec6\' fill-opacity=\'0.12\'%3E%3Cpath d=\'M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z\'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")' }}>
                 <div className="text-center">
-                  <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
-                    <svg className="w-8 h-8 text-green-500" viewBox="0 0 24 24" fill="currentColor">
+                  <div className="w-20 h-20 rounded-2xl bg-white/80 backdrop-blur-sm flex items-center justify-center mx-auto mb-5 shadow-lg shadow-black/5">
+                    <svg className="w-10 h-10 text-green-500" viewBox="0 0 24 24" fill="currentColor">
                       <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z" />
                       <path d="M12 2C6.477 2 2 6.477 2 12c0 1.89.525 3.66 1.438 5.168L2 22l4.832-1.438A9.955 9.955 0 0012 22c5.523 0 10-4.477 10-10S17.523 2 12 2z" />
                     </svg>
                   </div>
                   <h3 className="text-lg font-semibold text-slate-700">WhatsApp Business</h3>
-                  <p className="text-sm text-slate-500 mt-1">Selecciona una conversacion para empezar</p>
+                  <p className="text-sm text-slate-400 mt-1.5">Selecciona una conversacion para empezar</p>
                 </div>
               </div>
             )}
@@ -944,19 +966,19 @@ export default function WhatsApp() {
 
           {/* Panel lateral derecho */}
           {selected && contactoInfo && (
-            <div className={`w-full lg:w-[320px] border-l border-slate-200 flex flex-col bg-white overflow-hidden ${mobileView !== 'panel' ? 'hidden lg:flex' : 'flex'}`}>
+            <div className={`w-full lg:w-[320px] border-l border-slate-100 flex flex-col bg-white overflow-hidden ${mobileView !== 'panel' ? 'hidden lg:flex' : 'flex'}`}>
               {/* Header del panel */}
-              <div className="px-4 py-4 border-b border-slate-200">
+              <div className="px-4 py-4 border-b border-slate-100 bg-gradient-to-b from-slate-50 to-white">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-3">
                     <button
                       onClick={() => setMobileView('chat')}
-                      className="lg:hidden w-8 h-8 rounded-full hover:bg-slate-200 flex items-center justify-center text-slate-500 flex-shrink-0"
+                      className="lg:hidden w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-500 flex-shrink-0 transition-colors"
                     >
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
                     </button>
-                    <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
-                      <span className="text-sm font-bold text-green-700">
+                    <div className="w-11 h-11 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center shadow-sm">
+                      <span className="text-sm font-bold text-white drop-shadow-sm">
                         {(selected.nombre_contacto || '').trim().split(/\s+/).slice(0, 2).map(w => w[0]?.toUpperCase()).join('') || (selected.telefono || '?').slice(-2)}
                       </span>
                     </div>
@@ -964,21 +986,21 @@ export default function WhatsApp() {
                       <p className="text-sm font-semibold text-slate-800">
                         {selected.nombre_contacto || formatPhone(selected.telefono)}
                       </p>
-                      <p className="text-xs text-slate-500">{formatPhone(selected.telefono)}</p>
+                      <p className="text-[11px] text-slate-400">{formatPhone(selected.telefono)}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1.5">
                     {isCoordinador && (
                       <button
                         onClick={() => { setShowAsignar({ tipo: 'chat', valor: selected.telefono }); setAsignarUsuario(''); }}
-                        className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 hover:bg-blue-100 transition-colors"
+                        className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-500 hover:bg-blue-100 transition-colors"
                         title="Asignar chat a usuario"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" /></svg>
                       </button>
                     )}
-                    <a href={`https://wa.me/${selected.telefono}`} target="_blank" rel="noopener noreferrer" className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center text-green-600 hover:bg-green-200 transition-colors" title="Abrir en WhatsApp">
-                      <svg className="w-4.5 h-4.5" viewBox="0 0 24 24" fill="currentColor">
+                    <a href={`https://wa.me/${selected.telefono}`} target="_blank" rel="noopener noreferrer" className="w-8 h-8 rounded-lg bg-green-50 flex items-center justify-center text-green-600 hover:bg-green-100 transition-colors" title="Abrir en WhatsApp">
+                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
                       </svg>
                     </a>
@@ -987,11 +1009,11 @@ export default function WhatsApp() {
                 {isCoordinador && (() => {
                   const chatAsigs = asignaciones.filter(a => a.tipo === 'chat' && a.valor === selected.telefono);
                   return chatAsigs.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-2">
+                    <div className="flex flex-wrap gap-1.5 mt-2">
                       {chatAsigs.map(a => (
-                        <span key={a.id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-[10px] font-medium">
+                        <span key={a.id} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-50 text-blue-600 text-[10px] font-semibold border border-blue-100">
                           {a.usuario_nombre.split(' ')[0]}
-                          <button onClick={() => handleDesasignar(a.id)} className="text-blue-400 hover:text-red-500">&times;</button>
+                          <button onClick={() => handleDesasignar(a.id)} className="text-blue-400 hover:text-red-500 ml-0.5 transition-colors">&times;</button>
                         </span>
                       ))}
                     </div>
@@ -1000,7 +1022,7 @@ export default function WhatsApp() {
               </div>
 
               {/* Tabs */}
-              <div className="flex border-b border-slate-200">
+              <div className="flex border-b border-slate-100 bg-white px-2">
                 {[
                   { key: 'info', label: 'Informacion' },
                   { key: 'notas', label: 'Notas' },
@@ -1009,13 +1031,16 @@ export default function WhatsApp() {
                   <button
                     key={t.key}
                     onClick={() => setPanelTab(t.key)}
-                    className={`flex-1 py-2.5 text-xs font-medium transition-colors ${
+                    className={`flex-1 py-2.5 text-xs font-semibold transition-all relative ${
                       panelTab === t.key
-                        ? 'text-green-700 border-b-2 border-green-600'
-                        : 'text-slate-500 hover:text-slate-700'
+                        ? 'text-green-600'
+                        : 'text-slate-400 hover:text-slate-600'
                     }`}
                   >
                     {t.label}
+                    {panelTab === t.key && (
+                      <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-green-500 rounded-full" />
+                    )}
                   </button>
                 ))}
               </div>
@@ -1520,9 +1545,14 @@ export default function WhatsApp() {
       {/* Envio Masivo */}
       {tab === 'masivo' && (
         <div className="flex-1 flex items-start justify-center pt-4 sm:pt-8 overflow-y-auto">
-          <form onSubmit={enviarMasivo} className="w-full max-w-lg bg-white rounded-xl border border-slate-200 shadow-sm p-4 sm:p-6">
-            <h2 className="text-lg font-semibold text-slate-800 mb-1">Envio Masivo con Plantilla</h2>
-            <p className="text-xs text-slate-500 mb-4">Sube un archivo Excel con los datos. La primera columna debe ser el telefono, las demas son las variables de la plantilla en orden.</p>
+          <form onSubmit={enviarMasivo} className="w-full max-w-lg bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5 sm:p-7">
+            <div className="flex items-center gap-3 mb-1">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center shadow-sm">
+                <svg className="w-4.5 h-4.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
+              </div>
+              <h2 className="text-lg font-bold text-slate-800">Envio Masivo</h2>
+            </div>
+            <p className="text-xs text-slate-400 mb-5 ml-12">Sube un archivo Excel con los datos. La primera columna debe ser el telefono, las demas son las variables de la plantilla en orden.</p>
             <div className="space-y-4">
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">Nombre de campana</label>
@@ -1531,7 +1561,7 @@ export default function WhatsApp() {
                   value={masivo.campana}
                   onChange={e => setMasivo(m => ({ ...m, campana: e.target.value }))}
                   placeholder="Ej: Certificaciones Sep 2026"
-                  className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                  className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-green-500/30 focus:border-green-400 transition-all"
                 />
                 <p className="text-[11px] text-slate-400 mt-1">Nombre para identificar esta campana. Si lo dejas vacio se usa el nombre de la plantilla.</p>
               </div>
