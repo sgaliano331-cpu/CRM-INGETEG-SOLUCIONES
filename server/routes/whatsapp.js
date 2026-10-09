@@ -469,7 +469,7 @@ router.get('/conversaciones', authMiddleware, coordOWhatsapp, async (req, res) =
         ${extraJoins}
         GROUP BY m1.telefono, cc.estado
         ORDER BY (COUNT(*) FILTER (WHERE m1.estado = 'nuevo' AND m1.direccion = 'entrante') > 0) DESC, MAX(m1.creado_en) DESC
-        LIMIT 100
+        LIMIT 2500
       `;
     } else if (!esCoord) {
       // Non-coordinator: show only assigned campaigns + assigned chats
@@ -519,7 +519,7 @@ router.get('/conversaciones', authMiddleware, coordOWhatsapp, async (req, res) =
         ${extraJoins}
         GROUP BY m1.telefono
         ORDER BY (COUNT(*) FILTER (WHERE m1.estado = 'nuevo' AND m1.direccion = 'entrante') > 0) DESC, MAX(m1.creado_en) DESC
-        LIMIT 100
+        LIMIT 500
       `;
     }
     const { rows } = await pool.query(query, params);

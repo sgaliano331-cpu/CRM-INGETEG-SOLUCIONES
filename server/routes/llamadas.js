@@ -1248,12 +1248,17 @@ router.get('/generar-pdf/:id', authMiddleware, async (req, res) => {
                 if (src.startsWith('data:')) {
                   bytes = Buffer.from(src.split(',')[1], 'base64');
                 } else {
-                  const r = await fetch(src);
-                  if (!r.ok) return null;
+                  const r = await fetch(src, { signal: AbortSignal.timeout(15000) });
+                  if (!r.ok) { console.error('embedImg fetch fail:', r.status, src.substring(0, 80)); return null; }
                   bytes = Buffer.from(await r.arrayBuffer());
                 }
-                try { return await doc.embedJpg(bytes); } catch { return await doc.embedPng(bytes); }
-              } catch { return null; }
+                try { return await doc.embedJpg(bytes); } catch {
+                  try { return await doc.embedPng(bytes); } catch (e2) {
+                    console.error('embedImg embed fail:', e2.message, src.substring(0, 60));
+                    return null;
+                  }
+                }
+              } catch (err) { console.error('embedImg error:', err.message, src?.substring(0, 60)); return null; }
             };
 
             // ═══════════════ HEADER CON LOGO ═══════════════
