@@ -21,7 +21,7 @@
      ========================================================================== */
   .sidebar-link {
     @apply flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] font-medium text-slate-400
-           transition-all duration-150 cursor-pointer select-none;
+           transition-all duration-150 cursor-pointer select-none relative;
   }
   .sidebar-link:hover {
     @apply bg-white/[0.06] text-slate-200;

@@ -113,6 +113,9 @@ export default function MainLayout() {
   const [badges, setBadges] = useState({});
   const prevListasRef = useRef(0);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    try { return localStorage.getItem('sidebar-collapsed') === 'true'; } catch { return false; }
+  });
 
   const fetchBadges = useCallback(() => {
     api.get('/llamadas/badges')
@@ -146,69 +149,111 @@ export default function MainLayout() {
     navigate('/login', { replace: true });
   };
 
+  const toggleCollapse = () => {
+    setSidebarCollapsed(prev => {
+      const next = !prev;
+      try { localStorage.setItem('sidebar-collapsed', String(next)); } catch {}
+      return next;
+    });
+  };
+
+  const collapsed = sidebarCollapsed;
+
   const sidebarContent = (
     <>
-      <div className="px-4 pt-4 pb-3">
+      <div className={`pt-4 pb-3 ${collapsed ? 'px-2' : 'px-4'}`}>
         <div className="bg-white/95 rounded-xl px-3 py-2.5 flex items-center justify-center">
-          <img src="/logo-ingeteg.png" alt="INGETEG Soluciones" className="h-9 w-auto" />
+          <img src="/logo-ingeteg.png" alt="INGETEG Soluciones" className={`${collapsed ? 'h-6' : 'h-9'} w-auto transition-all`} />
         </div>
       </div>
 
-      <div className="mx-4 px-3 py-2.5 mb-4 bg-white/[0.04] rounded-lg border border-white/[0.06]">
-        <p className="text-[10px] text-slate-500 font-medium">Sesion activa</p>
-        <p className="text-[13px] font-semibold text-slate-200 truncate">{user?.nombre || 'Usuario'}</p>
-        <span className="inline-block mt-1 px-2 py-0.5 bg-emerald-500/20 rounded text-[10px] font-semibold text-emerald-400">
-          {user?.rol || 'N/A'}
-        </span>
-      </div>
+      {!collapsed && (
+        <div className="mx-4 px-3 py-2.5 mb-4 bg-white/[0.04] rounded-lg border border-white/[0.06]">
+          <p className="text-[10px] text-slate-500 font-medium">Sesion activa</p>
+          <p className="text-[13px] font-semibold text-slate-200 truncate">{user?.nombre || 'Usuario'}</p>
+          <span className="inline-block mt-1 px-2 py-0.5 bg-emerald-500/20 rounded text-[10px] font-semibold text-emerald-400">
+            {user?.rol || 'N/A'}
+          </span>
+        </div>
+      )}
 
-      <nav className="flex-1 overflow-y-auto px-3 space-y-0.5 scrollbar-thin">
-        <p className="px-3 text-[10px] font-semibold text-slate-600 uppercase tracking-wider mb-2">General</p>
+      {collapsed && (
+        <div className="flex justify-center mb-4">
+          <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center">
+            <span className="text-[11px] font-bold text-emerald-400">{(user?.nombre || 'U')[0]}</span>
+          </div>
+        </div>
+      )}
+
+      <nav className={`flex-1 overflow-y-auto ${collapsed ? 'px-2' : 'px-3'} space-y-0.5 scrollbar-thin`}>
+        {!collapsed && <p className="px-3 text-[10px] font-semibold text-slate-600 uppercase tracking-wider mb-2">General</p>}
         {navItems.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
             end={item.end}
-            className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
+            className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''} ${collapsed ? 'justify-center !px-0' : ''}`}
             onClick={() => setSidebarOpen(false)}
+            title={collapsed ? item.label : undefined}
           >
             <SideIcon d={item.icon} />
-            {item.label}
-            <Badge
-              count={getBadgeCount(item.badgeKey)}
-              pulse={item.badgeKey === 'reprogramadas' && (badges.reprogramadas?.listas || 0) > 0}
-            />
+            {!collapsed && item.label}
+            {!collapsed && (
+              <Badge
+                count={getBadgeCount(item.badgeKey)}
+                pulse={item.badgeKey === 'reprogramadas' && (badges.reprogramadas?.listas || 0) > 0}
+              />
+            )}
+            {collapsed && getBadgeCount(item.badgeKey) > 0 && (
+              <span className="absolute -top-1 -right-1 w-4 h-4 flex items-center justify-center rounded-full bg-amber-500 text-white text-[8px] font-bold">
+                {getBadgeCount(item.badgeKey)}
+              </span>
+            )}
           </NavLink>
         ))}
 
         {(isCoordinador || user?.username === 'ygiraldo') && (
           <>
-            <p className="px-3 pt-5 text-[10px] font-semibold text-slate-600 uppercase tracking-wider mb-2">{isCoordinador ? 'Coordinador' : 'Gestion'}</p>
+            {!collapsed && <p className="px-3 pt-5 text-[10px] font-semibold text-slate-600 uppercase tracking-wider mb-2">{isCoordinador ? 'Coordinador' : 'Gestion'}</p>}
+            {collapsed && <div className="my-3 mx-2 border-t border-white/[0.06]" />}
             {(isCoordinador ? COORD_ITEMS : COORD_ITEMS.filter(i => i.to === '/whatsapp')).map((item) => (
               <NavLink
                 key={item.to}
                 to={item.to}
-                className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
+                className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''} ${collapsed ? 'justify-center !px-0' : ''}`}
                 onClick={() => setSidebarOpen(false)}
+                title={collapsed ? item.label : undefined}
               >
                 <SideIcon d={item.icon} />
-                {item.label}
+                {!collapsed && item.label}
               </NavLink>
             ))}
           </>
         )}
       </nav>
 
-      <div className="px-3 py-4 border-t border-white/[0.06]">
+      <div className={`${collapsed ? 'px-2' : 'px-3'} py-2 border-t border-white/[0.06]`}>
+        {/* Toggle collapse button — desktop only */}
+        <button
+          onClick={toggleCollapse}
+          className="sidebar-link w-full text-slate-500 hover:text-slate-300 hover:bg-white/[0.06] hidden lg:flex justify-center"
+          title={collapsed ? 'Expandir menu' : 'Colapsar menu'}
+        >
+          <svg className={`w-[18px] h-[18px] flex-shrink-0 transition-transform duration-200 ${collapsed ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+          </svg>
+          {!collapsed && 'Colapsar'}
+        </button>
         <button
           onClick={handleLogout}
-          className="sidebar-link w-full text-slate-500 hover:text-red-400 hover:bg-red-500/10"
+          className={`sidebar-link w-full text-slate-500 hover:text-red-400 hover:bg-red-500/10 ${collapsed ? 'justify-center !px-0' : ''}`}
+          title={collapsed ? 'Cerrar Sesion' : undefined}
         >
           <svg className="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
               d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
           </svg>
-          Cerrar Sesion
+          {!collapsed && 'Cerrar Sesion'}
         </button>
       </div>
     </>
@@ -223,10 +268,11 @@ export default function MainLayout() {
 
       {/* Sidebar — desktop: static, mobile: slide-over */}
       <aside className={`
-        fixed inset-y-0 left-0 z-50 w-[240px] bg-[#0f172a] flex flex-col flex-shrink-0
-        transform transition-transform duration-200 ease-in-out
+        fixed inset-y-0 left-0 z-50 bg-[#0f172a] flex flex-col flex-shrink-0
+        transform transition-all duration-200 ease-in-out
         lg:static lg:translate-x-0
-        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+        ${sidebarOpen ? 'translate-x-0 w-[240px]' : '-translate-x-full w-[240px]'}
+        ${collapsed ? 'lg:w-[68px]' : 'lg:w-[240px]'}
       `}>
         {/* Mobile close button */}
         <button
