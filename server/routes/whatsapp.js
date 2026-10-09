@@ -403,6 +403,22 @@ router.delete('/campanas/:nombre', authMiddleware, soloCoordinador, async (req, 
   }
 });
 
+// DELETE /api/whatsapp/chat/:telefono — Eliminar conversación completa
+router.delete('/chat/:telefono', authMiddleware, soloCoordinador, async (req, res) => {
+  try {
+    const { telefono } = req.params;
+    await pool.query('DELETE FROM whatsapp_notas WHERE contacto_telefono = $1', [telefono]);
+    await pool.query('DELETE FROM whatsapp_contacto_etiquetas WHERE contacto_telefono = $1', [telefono]);
+    await pool.query("DELETE FROM whatsapp_asignaciones WHERE tipo = 'chat' AND valor = $1", [telefono]);
+    await pool.query('DELETE FROM whatsapp_campana_contactos WHERE telefono = $1', [telefono]);
+    const result = await pool.query('DELETE FROM whatsapp_mensajes WHERE telefono = $1', [telefono]);
+    await pool.query('DELETE FROM whatsapp_contactos WHERE telefono = $1', [telefono]);
+    res.json({ ok: true, mensajes_eliminados: result.rowCount });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /api/whatsapp/campanas — Lista de campañas con contadores
 router.get('/campanas', authMiddleware, coordOWhatsapp, async (req, res) => {
   try {

@@ -168,6 +168,29 @@ export default function WhatsApp() {
     } catch {}
   };
 
+  const eliminarCampana = async (nombre) => {
+    if (!confirm(`Eliminar la campaña "${nombre}" y todos sus contactos? Esta accion no se puede deshacer.`)) return;
+    try {
+      await api.delete(`/whatsapp/campanas/${encodeURIComponent(nombre)}`);
+      if (campanaActiva === nombre) setCampanaActiva(null);
+      fetchCampanas();
+      fetchConversaciones();
+    } catch {}
+  };
+
+  const eliminarChat = async (telefono) => {
+    if (!confirm(`Eliminar toda la conversacion con ${formatPhone(telefono)}? Se borran mensajes, notas y etiquetas.`)) return;
+    try {
+      await api.delete(`/whatsapp/chat/${telefono}`);
+      setSelected(null);
+      setContactoInfo(null);
+      setMensajes([]);
+      setMobileView('list');
+      fetchConversaciones();
+      fetchCampanas();
+    } catch {}
+  };
+
   const selectConversacion = async (conv) => {
     setSelected(conv);
     setContactoInfo(null);
@@ -566,13 +589,22 @@ export default function WhatsApp() {
                   )}
                 </button>
                 {isCoordinador && (
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setShowAsignar({ tipo: 'campana', valor: c.campana }); setAsignarUsuario(''); }}
-                    className="w-6 h-6 rounded-full bg-blue-50 text-blue-600 hover:bg-blue-100 flex items-center justify-center text-xs font-bold flex-shrink-0"
-                    title="Asignar campaña"
-                  >
-                    +
-                  </button>
+                  <>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setShowAsignar({ tipo: 'campana', valor: c.campana }); setAsignarUsuario(''); }}
+                      className="w-6 h-6 rounded-full bg-blue-50 text-blue-600 hover:bg-blue-100 flex items-center justify-center text-xs font-bold flex-shrink-0"
+                      title="Asignar campaña"
+                    >
+                      +
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); eliminarCampana(c.campana); }}
+                      className="w-6 h-6 rounded-full bg-red-50 text-red-500 hover:bg-red-100 flex items-center justify-center text-xs font-bold flex-shrink-0"
+                      title="Eliminar campaña"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                    </button>
+                  </>
                 )}
               </div>
             );
@@ -725,9 +757,15 @@ export default function WhatsApp() {
                     >
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
                     </button>
-                    <button className="w-8 h-8 rounded-full hover:bg-slate-200 flex items-center justify-center text-slate-400 transition-colors">
-                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg>
-                    </button>
+                    {isCoordinador && (
+                      <button
+                        onClick={() => eliminarChat(selected.telefono)}
+                        className="w-8 h-8 rounded-full hover:bg-red-100 flex items-center justify-center text-slate-400 hover:text-red-500 transition-colors"
+                        title="Eliminar conversacion"
+                      >
+                        <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                      </button>
+                    )}
                   </div>
                 </div>
 
