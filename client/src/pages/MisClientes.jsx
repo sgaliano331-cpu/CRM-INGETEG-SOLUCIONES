@@ -10,7 +10,8 @@ function normalizarDir(raw) {
   const abrevs = { CALLE:'CL',CALLLE:'CL',CALL:'CL',CLL:'CL', CARRERA:'CR',CARR:'CR',CRA:'CR',CRR:'CR',KR:'CR', TRANSVERSAL:'TV',TRANSV:'TV',TRANS:'TV',TRAN:'TV',TRAS:'TV',TRAV:'TV',TR:'TV', DIAGONAL:'DG',DIAG:'DG', CIRCULAR:'CIR',CIRC:'CIR',CQ:'CIR', AVENIDA:'AV',AVDA:'AV',AVD:'AV', AUTOPISTA:'AU' };
   const comps = { APARTAMENTO:'AP',APTO:'AP',APT:'AP', INTERIOR:'INT', CASA:'CS', TORRE:'TO', BLOQUE:'BL',BQ:'BL', PISO:'PISO', LOCAL:'LC', OFICINA:'OF', MANZANA:'MZ', LOTE:'LT' };
   d = d.replace(/\./g, ' ');
-  d = d.replace(/\(([^)]+)\)/g, '');
+  // Quitar paréntesis pero mantener el contenido (INTERIOR 2404) → INTERIOR 2404
+  d = d.replace(/[()]/g, '');
   d = d.replace(/--.*$/, '');
   d = d.replace(/\b(URBANIZACION|URB|UNIDAD|BARRIO|CERCA|CONJUNTO|CONJ|SECTOR|EDIFICIO|EDF|EDIF|CONDOMINIO)\b.*$/i, '');
   d = d.replace(/#/g, ' ').replace(/\bN[°º]?\b/gi, '').replace(/\bNUMERO\b/gi, '');
