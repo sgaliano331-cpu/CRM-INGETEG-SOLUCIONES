@@ -320,6 +320,9 @@ app.listen(PORT, async () => {
     try { await client.query('ALTER TABLE whatsapp_contactos ADD COLUMN proxima_certificacion TEXT'); } catch (e) {}
     try { await client.query('ALTER TABLE whatsapp_contactos ALTER COLUMN proxima_certificacion TYPE TEXT'); } catch (e) {}
 
+    // Migración: campo proxima_certificacion en clientes
+    try { await client.query('ALTER TABLE clientes ADD COLUMN proxima_certificacion TEXT'); } catch (e) {}
+
     // Tabla de respuestas rápidas de WhatsApp
     try {
       await client.query(`

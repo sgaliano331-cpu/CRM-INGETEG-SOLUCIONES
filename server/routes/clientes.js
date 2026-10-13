@@ -111,11 +111,11 @@ router.put('/:id', authMiddleware, (req, res) => {
       return res.status(403).json({ error: 'No tiene permiso para editar este cliente' });
     }
 
-    const { nombre, telefono, direccion, barrio, ciudad } = req.body;
+    const { nombre, telefono, direccion, barrio, ciudad, proxima_certificacion } = req.body;
     db.run(`
-      UPDATE clientes SET nombre=?, telefono=?, direccion=?, barrio=?, ciudad=?,
+      UPDATE clientes SET nombre=?, telefono=?, direccion=?, barrio=?, ciudad=?, proxima_certificacion=?,
       actualizado_en=NOW() WHERE id=?
-    `, [nombre, telefono, direccion, barrio, ciudad, clienteId], async function(errUpdate) {
+    `, [nombre, telefono, direccion, barrio, ciudad, proxima_certificacion || null, clienteId], async function(errUpdate) {
       if (errUpdate) return res.status(500).json({ error: 'Error al actualizar' });
 
       try {

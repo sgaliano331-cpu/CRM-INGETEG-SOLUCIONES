@@ -219,7 +219,7 @@ router.get('/mis-clientes', authMiddleware, async (req, res) => {
     if (clienteIds.length > 0) {
       const dataResult = await pool.query(`
         SELECT
-          c.id AS cliente_id, c.nombre, c.telefono, c.direccion, c.barrio, c.ciudad,
+          c.id AS cliente_id, c.nombre, c.telefono, c.direccion, c.barrio, c.ciudad, c.proxima_certificacion,
           hl.id AS historial_id, hl.observaciones AS obs_marcacion,
           hl.inicio_llamada, hl.fin_llamada, hl.acepto_servicio,
           u.nombre AS asesora_nombre,
@@ -247,6 +247,7 @@ router.get('/mis-clientes', authMiddleware, async (req, res) => {
             direccion: row.direccion,
             barrio: row.barrio,
             ciudad: row.ciudad,
+            proxima_certificacion: row.proxima_certificacion,
             servicios: [],
           };
         }

@@ -177,6 +177,7 @@ export default function MisClientes() {
         direccion: cliente.direccion || '',
         barrio: cliente.barrio || '',
         ciudad: cliente.ciudad || 'Medellin',
+        proxima_certificacion: cliente.proxima_certificacion || '',
       });
       setEditMsg('');
     }
@@ -479,6 +480,11 @@ export default function MisClientes() {
                             onChange={e => setEditForm(f => ({ ...f, ciudad: e.target.value }))}>
                             {CIUDADES.map(ci => <option key={ci}>{ci}</option>)}
                           </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-slate-500 mb-1">Proxima Certificacion</label>
+                          <input type="date" className="input-field" value={editForm.proxima_certificacion}
+                            onChange={e => setEditForm(f => ({ ...f, proxima_certificacion: e.target.value }))} />
                         </div>
                         <div className="flex items-end gap-2">
                           <button onClick={() => handleGuardarEdit(c.cliente_id)} disabled={editGuardando}
