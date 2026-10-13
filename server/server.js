@@ -65,7 +65,15 @@ app.use(express.static(clientDist, {
 
 // ─── Health Check ─────────────────────────────────────────────────────────
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  const fs = require('fs');
+  let distFiles = [];
+  try {
+    const assetsDir = path.join(clientDist, 'assets');
+    distFiles = fs.readdirSync(assetsDir);
+  } catch (e) { distFiles = ['ERROR: ' + e.message]; }
+  let indexHtml = '';
+  try { indexHtml = fs.readFileSync(path.join(clientDist, 'index.html'), 'utf8').match(/index-\w+\.js/)?.[0] || 'not found'; } catch (e) { indexHtml = 'ERROR: ' + e.message; }
+  res.json({ status: 'ok', timestamp: new Date().toISOString(), distFiles, indexHtmlBundle: indexHtml });
 });
 
 // ─── Pagina de privacidad (requerida por Meta) ───────────────────────────
