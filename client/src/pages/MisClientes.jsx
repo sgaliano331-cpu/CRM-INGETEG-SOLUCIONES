@@ -3,6 +3,28 @@ import api from '../api/axios';
 
 const fmt = n => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n);
 
+function normalizarDir(raw) {
+  if (!raw || typeof raw !== 'string') return null;
+  let d = raw.trim().toUpperCase();
+  if (/^\d{7,10}$/.test(d) || /^RURAL/i.test(d) || !/\d/.test(d)) return null;
+  const abrevs = { CALLE:'CL',CALLLE:'CL',CALL:'CL',CLL:'CL', CARRERA:'CR',CARR:'CR',CRA:'CR',CRR:'CR',KR:'CR', TRANSVERSAL:'TV',TRANSV:'TV',TRANS:'TV',TRAN:'TV',TRAS:'TV',TRAV:'TV',TR:'TV', DIAGONAL:'DG',DIAG:'DG', CIRCULAR:'CIR',CIRC:'CIR',CQ:'CIR', AVENIDA:'AV',AVDA:'AV',AVD:'AV', AUTOPISTA:'AU' };
+  const comps = { APARTAMENTO:'AP',APTO:'AP',APT:'AP', INTERIOR:'INT', CASA:'CS', TORRE:'TO', BLOQUE:'BL',BQ:'BL', PISO:'PISO', LOCAL:'LC', OFICINA:'OF', MANZANA:'MZ', LOTE:'LT' };
+  d = d.replace(/\./g, ' ');
+  d = d.replace(/\(([^)]+)\)/g, '');
+  d = d.replace(/--.*$/, '');
+  d = d.replace(/\b(URBANIZACION|URB|UNIDAD|BARRIO|CERCA|CONJUNTO|CONJ|SECTOR|EDIFICIO|EDF|EDIF|CONDOMINIO)\b.*$/i, '');
+  d = d.replace(/#/g, ' ').replace(/\bN[°º]?\b/gi, '').replace(/\bNUMERO\b/gi, '');
+  d = d.replace(/,\s*(MEDELL[IÍ]N|BELLO|ENVIGADO|ITAGUI|SABANETA|CALDAS).*$/i, '');
+  d = d.replace(/\s+/g, ' ').trim();
+  for (const [k, v] of Object.entries(abrevs).sort((a, b) => b[0].length - a[0].length))
+    d = d.replace(new RegExp(`\\b${k}\\b`, 'g'), v);
+  for (const [k, v] of Object.entries(comps).sort((a, b) => b[0].length - a[0].length))
+    d = d.replace(new RegExp(`\\b${k}\\b`, 'g'), v);
+  d = d.replace(/\s*-\s*/g, ' -').replace(/\s+/g, ' ').trim().replace(/\s*-\s*$/, '');
+  const tipos = 'CL|CR|TV|DG|CIR|AV|AU';
+  return new RegExp(`^(${tipos})\\s+\\d`).test(d) ? d : null;
+}
+
 const EQUIPOS = [
   'Cubierta', 'Estufas', 'Calentador', 'Horno', 'Campana Extractora',
   'Lavadora', 'Nevera', 'Aire Acondicionado', 'Redes de Gas (Reparacion)',
@@ -468,6 +490,20 @@ export default function MisClientes() {
                           <label className="block text-xs font-medium text-slate-500 mb-1">Direccion</label>
                           <input className="input-field" value={editForm.direccion}
                             onChange={e => setEditForm(f => ({ ...f, direccion: e.target.value }))} />
+                          {editForm.direccion && (() => {
+                            const n = normalizarDir(editForm.direccion);
+                            return n ? (
+                              <p className="mt-1 text-[11px] text-emerald-600 flex items-center gap-1">
+                                <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                                EPM: {n}
+                              </p>
+                            ) : (
+                              <p className="mt-1 text-[11px] text-amber-600 flex items-center gap-1">
+                                <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                Formato no reconocido para EPM
+                              </p>
+                            );
+                          })()}
                         </div>
                         <div>
                           <label className="block text-xs font-medium text-slate-500 mb-1">Barrio</label>
