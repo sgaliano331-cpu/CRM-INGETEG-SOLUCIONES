@@ -280,4 +280,60 @@ router.get('/fidelizacion/:meses', authMiddleware, (req, res) => {
   });
 });
 
+// ─── GET /api/clientes/pendientes-certificacion (para scraper EPM) ──────────
+router.get('/pendientes-certificacion', authMiddleware, soloCoordinador, async (req, res) => {
+  try {
+    const client = await getClient();
+    const { rows } = await client.query(`
+      SELECT id, nombre, direccion, ciudad, proxima_certificacion
+      FROM clientes
+      WHERE direccion IS NOT NULL AND direccion != ''
+        AND (proxima_certificacion IS NULL OR proxima_certificacion = '')
+      ORDER BY id
+      LIMIT $1
+    `, [parseInt(req.query.limit) || 100]);
+    client.release();
+
+    const { normalizarDireccion, detectarCiudadEPM } = require('../utils/normalizarDireccion');
+    const resultado = rows.map(c => {
+      const norm = normalizarDireccion(c.direccion);
+      const ciudad = detectarCiudadEPM(c.ciudad);
+      return {
+        id: c.id,
+        nombre: c.nombre,
+        direccionOriginal: c.direccion,
+        direccionEPM: norm?.direccionEPM || null,
+        complemento: norm?.complemento || null,
+        valida: norm?.valida || false,
+        ciudad: ciudad?.nombre || c.ciudad,
+        codigoCiudad: ciudad?.codigo || null,
+      };
+    }).filter(c => c.valida && c.codigoCiudad);
+
+    res.json({ total: resultado.length, clientes: resultado });
+  } catch (err) {
+    console.error('Error en /pendientes-certificacion:', err.message);
+    res.status(500).json({ error: 'Error al consultar clientes' });
+  }
+});
+
+// ─── PUT /api/clientes/:id/certificacion (scraper actualiza fecha) ──────────
+router.put('/:id/certificacion', authMiddleware, soloCoordinador, async (req, res) => {
+  const { proxima_certificacion } = req.body;
+  if (!proxima_certificacion) return res.status(400).json({ error: 'Fecha requerida' });
+
+  try {
+    const client = await getClient();
+    await client.query(
+      'UPDATE clientes SET proxima_certificacion = $1, actualizado_en = NOW() WHERE id = $2',
+      [proxima_certificacion, req.params.id]
+    );
+    client.release();
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Error actualizando certificación:', err.message);
+    res.status(500).json({ error: 'Error al actualizar' });
+  }
+});
+
 module.exports = router;
