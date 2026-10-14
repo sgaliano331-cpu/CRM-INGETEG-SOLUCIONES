@@ -73,7 +73,13 @@ app.get('/api/health', (req, res) => {
   } catch (e) { distFiles = ['ERROR: ' + e.message]; }
   let indexHtml = '';
   try { indexHtml = fs.readFileSync(path.join(clientDist, 'index.html'), 'utf8').match(/index-\w+\.js/)?.[0] || 'not found'; } catch (e) { indexHtml = 'ERROR: ' + e.message; }
-  res.json({ status: 'ok', timestamp: new Date().toISOString(), distFiles, indexHtmlBundle: indexHtml });
+  let distStat = '';
+  try { distStat = fs.statSync(path.join(clientDist, 'index.html')).mtime.toISOString(); } catch(e) { distStat = 'ERROR'; }
+  let allDist = [];
+  try { allDist = fs.readdirSync(clientDist); } catch(e) { allDist = ['ERROR']; }
+  let cwd = '';
+  try { cwd = process.cwd(); } catch(e) {}
+  res.json({ status: 'ok', timestamp: new Date().toISOString(), distFiles, indexHtmlBundle: indexHtml, indexHtmlMtime: distStat, allDistFiles: allDist, cwd, clientDistPath: clientDist, commit: '0801e03+diag' });
 });
 
 // ─── Pagina de privacidad (requerida por Meta) ───────────────────────────
