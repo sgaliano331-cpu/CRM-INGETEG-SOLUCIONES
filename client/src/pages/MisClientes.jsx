@@ -26,6 +26,17 @@ function normalizarDir(raw) {
   return new RegExp(`^(${tipos})\\s+\\d`).test(d) ? d : null;
 }
 
+function normalizarTel(raw) {
+  if (!raw || typeof raw !== 'string') return null;
+  const segmentos = raw.split(/\s*[-\/,;]\s*|\s{2,}/).filter(Boolean);
+  for (const seg of segmentos) {
+    const d = seg.replace(/[\s+().]/g, '').replace(/\D/g, '');
+    if (d.length === 10 && d[0] === '3') return '57' + d;
+    if (d.length === 12 && d.startsWith('57') && d[2] === '3') return d;
+  }
+  return null;
+}
+
 const EQUIPOS = [
   'Cubierta', 'Estufas', 'Calentador', 'Horno', 'Campana Extractora',
   'Lavadora', 'Nevera', 'Aire Acondicionado', 'Redes de Gas (Reparacion)',
@@ -300,9 +311,9 @@ export default function MisClientes() {
     return paramNames.map(name => ({ name, value: map[name.toLowerCase()] || '' }));
   };
   const abrirWaModal = (clientesList) => {
-    const cls = clientesList || filtrados.filter(c => seleccionados.has(c.cliente_id) && c.telefono);
+    const cls = clientesList || filtrados.filter(c => seleccionados.has(c.cliente_id) && normalizarTel(c.telefono));
     if (!cls.length) return;
-    setWaClientes(cls); setWaPhones(cls.map(c => c.telefono)); setWaResultado(null); setWaTemplate(''); setWaParams([]); setWaHeaderUrl(''); setWaModal(true);
+    setWaClientes(cls); setWaPhones(cls.map(c => normalizarTel(c.telefono) || c.telefono)); setWaResultado(null); setWaTemplate(''); setWaParams([]); setWaHeaderUrl(''); setWaModal(true);
     if (!waTemplates.length) {
       setWaCargandoTpl(true);
       api.get('/whatsapp/plantillas').then(({ data }) => {
@@ -333,7 +344,7 @@ export default function MisClientes() {
         setWaResultado({ ok: true, msg: 'Mensaje enviado correctamente' });
       } else {
         const contactos = waClientes.map(c => ({
-          telefono: c.telefono,
+          telefono: normalizarTel(c.telefono) || c.telefono,
           params: autoFillParams(paramNames, c),
         }));
         const { data } = await api.post('/whatsapp/enviar-masivo', { contactos, plantilla: waTemplate, headerComponents, idioma: 'es_CO' });
@@ -457,7 +468,7 @@ export default function MisClientes() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                     </svg>
                   </div>
-                  {c.telefono && (
+                  {normalizarTel(c.telefono) && (
                     <button onClick={e => { e.stopPropagation(); abrirWaModal([c]); }}
                       className="p-1.5 rounded-lg text-green-600 hover:bg-green-50 transition-colors flex-shrink-0" title="Enviar WhatsApp">
                       <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
@@ -486,6 +497,20 @@ export default function MisClientes() {
                           <label className="block text-xs font-medium text-slate-500 mb-1">Telefono</label>
                           <input className="input-field" value={editForm.telefono}
                             onChange={e => setEditForm(f => ({ ...f, telefono: e.target.value }))} />
+                          {editForm.telefono && (() => {
+                            const wa = normalizarTel(editForm.telefono);
+                            return wa ? (
+                              <p className="mt-1 text-[11px] text-emerald-600 flex items-center gap-1">
+                                <svg className="w-3 h-3 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                                WA: +{wa.slice(0,2)} {wa.slice(2,5)} {wa.slice(5,8)} {wa.slice(8)}
+                              </p>
+                            ) : (
+                              <p className="mt-1 text-[11px] text-amber-600 flex items-center gap-1">
+                                <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                Sin celular valido para WhatsApp
+                              </p>
+                            );
+                          })()}
                         </div>
                         <div>
                           <label className="block text-xs font-medium text-slate-500 mb-1">Direccion</label>
