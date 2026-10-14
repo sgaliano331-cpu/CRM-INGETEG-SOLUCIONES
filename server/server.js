@@ -65,21 +65,7 @@ app.use(express.static(clientDist, {
 
 // ─── Health Check ─────────────────────────────────────────────────────────
 app.get('/api/health', (req, res) => {
-  const fs = require('fs');
-  let distFiles = [];
-  try {
-    const assetsDir = path.join(clientDist, 'assets');
-    distFiles = fs.readdirSync(assetsDir);
-  } catch (e) { distFiles = ['ERROR: ' + e.message]; }
-  let indexHtml = '';
-  try { indexHtml = fs.readFileSync(path.join(clientDist, 'index.html'), 'utf8').match(/index-\w+\.js/)?.[0] || 'not found'; } catch (e) { indexHtml = 'ERROR: ' + e.message; }
-  let distStat = '';
-  try { distStat = fs.statSync(path.join(clientDist, 'index.html')).mtime.toISOString(); } catch(e) { distStat = 'ERROR'; }
-  let allDist = [];
-  try { allDist = fs.readdirSync(clientDist); } catch(e) { allDist = ['ERROR']; }
-  let cwd = '';
-  try { cwd = process.cwd(); } catch(e) {}
-  res.json({ status: 'ok', timestamp: new Date().toISOString(), distFiles, indexHtmlBundle: indexHtml, indexHtmlMtime: distStat, allDistFiles: allDist, cwd, clientDistPath: clientDist, commit: '0801e03+diag' });
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
 // ─── Pagina de privacidad (requerida por Meta) ───────────────────────────
